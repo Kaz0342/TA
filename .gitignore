@@ -1,0 +1,4 @@
+ECC_Repo/
+.env
+vendor/
+node_modules/
