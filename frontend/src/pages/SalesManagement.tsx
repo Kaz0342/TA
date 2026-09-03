@@ -13,6 +13,7 @@ export default function SalesManagement() {
   const queryClient = useQueryClient();
   const addToast = useToastStore((state) => state.addToast);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [weekOffset, setWeekOffset] = useState(0);
 
   // Form State
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
@@ -37,9 +38,9 @@ export default function SalesManagement() {
 
   // Fetch Weekly Report
   const { data: weeklyReport } = useQuery({
-    queryKey: ['salesWeeklyReport'],
+    queryKey: ['salesWeeklyReport', weekOffset],
     queryFn: async () => {
-      const res = await api.get('/sales/weekly-report');
+      const res = await api.get(`/sales/weekly-report?offset=${weekOffset}`);
       return res.data.data;
     }
   });
@@ -132,9 +133,22 @@ export default function SalesManagement() {
 
         {/* Weekly Report Card */}
         <Card className="lg:col-span-1 bg-[#28e085]">
-          <h2 className="text-xl font-black mb-4 flex items-center gap-2 text-black uppercase border-b-4 border-black pb-2">
-            <Banknote className="w-6 h-6 stroke-[3]" /> Laporan Minggu Ini
-          </h2>
+          <div className="flex justify-between items-center mb-4 border-b-4 border-black pb-2">
+            <h2 className="text-xl font-black flex items-center gap-2 text-black uppercase">
+              <Banknote className="w-6 h-6 stroke-[3]" /> Laporan {weekOffset === 0 ? 'Minggu Ini' : `${weekOffset} Minggu Lalu`}
+            </h2>
+            <select
+              value={weekOffset}
+              onChange={(e) => setWeekOffset(Number(e.target.value))}
+              className="text-xs font-black text-black border-2 border-black p-1 bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-50 focus:outline-none cursor-pointer uppercase"
+            >
+              <option value={0}>Minggu Ini</option>
+              <option value={1}>1 Minggu Lalu</option>
+              <option value={2}>2 Minggu Lalu</option>
+              <option value={3}>3 Minggu Lalu</option>
+              <option value={4}>4 Minggu Lalu</option>
+            </select>
+          </div>
 
           <div className="space-y-4 bg-white p-4 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             <div>

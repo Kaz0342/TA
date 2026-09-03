@@ -16,9 +16,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * jika melewati batas → trigger alert di Dashboard (FR-1.3).
  *
  * Hanya satu threshold yang boleh aktif (is_active = true).
- * Default values:
- * - Suhu: 20°C - 30°C (optimal jamur tiram)
- * - Kelembaban: 70% - 90%
+ * Default values (Jamur Kuping — Auricularia auricula):
+ * - Suhu: 25°C - 30°C (optimal jamur kuping)
+ * - Kelembaban: 85% - 95%
  *
  * @see PRD FR-4.2 (Threshold Settings)
  *

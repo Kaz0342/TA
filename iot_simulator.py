@@ -24,7 +24,7 @@ def get_thresholds():
     except Exception as e:
         print(f"⚠️ Gagal mengambil threshold: {e}. Menggunakan default.")
     
-    return {'temp_max': 30.0, 'temp_min': 22.0, 'humidity_min': 60.0, 'humidity_max': 90.0}
+    return {'temp_max': 30.0, 'temp_min': 25.0, 'humidity_min': 85.0, 'humidity_max': 95.0}
 
 def send_sensor_data(temperature, humidity):
     """Mengirim data pembacaan sensor ke Backend"""

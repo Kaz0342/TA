@@ -32,24 +32,29 @@ class SaleService
     /**
      * Report: Perbandingan panen vs terjual minggu ini.
      */
-    public function getWeeklyReport(): array
+    public function getWeeklyReport(int $weekOffset = 0): array
     {
-        // Untuk minggu ini, total panen vs total penjualan
+        $startDate = now()->subWeeks($weekOffset)->startOfWeek()->toDateString();
+        $endDate = now()->subWeeks($weekOffset)->endOfWeek()->toDateString();
+
         $harvests = $this->harvestRepository->getAll([
-            'start_date' => now()->startOfWeek()->toDateString(),
-            'end_date' => now()->endOfWeek()->toDateString(),
+            'start_date' => $startDate,
+            'end_date' => $endDate,
         ]);
 
-        $sales = $this->repository->getWeeklySales();
+        $sales = $this->repository->getAll([
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+        ]);
 
         $totalHarvestKg = (float) $harvests->sum('weight_kg');
         $totalSalesKg = (float) $sales->sum('quantity_kg');
         $totalRevenue = (float) $sales->sum('total_revenue');
 
         return [
-            'period' => 'this_week',
-            'start_date' => now()->startOfWeek()->toDateString(),
-            'end_date' => now()->endOfWeek()->toDateString(),
+            'period' => $weekOffset === 0 ? 'this_week' : $weekOffset . '_weeks_ago',
+            'start_date' => $startDate,
+            'end_date' => $endDate,
             'total_harvest_kg' => $totalHarvestKg,
             'total_sales_kg' => $totalSalesKg,
             'unsold_kg' => max(0, $totalHarvestKg - $totalSalesKg),

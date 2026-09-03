@@ -32,9 +32,10 @@ class SaleController extends Controller
         return $this->created($sale, 'Transaksi penjualan berhasil disimpan');
     }
 
-    public function weeklyReport(): JsonResponse
+    public function weeklyReport(Request $request): JsonResponse
     {
-        $report = $this->service->getWeeklyReport();
+        $offset = (int) $request->query('offset', 0);
+        $report = $this->service->getWeeklyReport($offset);
 
         return $this->success($report, 'Weekly sales report retrieved');
     }
