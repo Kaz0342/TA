@@ -32,6 +32,7 @@
  */
 
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
@@ -344,11 +345,14 @@ void updateLCD(float temp, float hum, bool misting, bool fan) {
 void fetchThresholds() {
   if (WiFi.status() != WL_CONNECTED) return;
 
+  WiFiClientSecure client;
+  client.setInsecure(); // Bypass SSL verification untuk Ngrok HTTPS
+
   HTTPClient http;
-  http.begin(apiBaseUrl + "/thresholds/active");
+  http.begin(client, apiBaseUrl + "/thresholds/active");
   http.addHeader("ngrok-skip-browser-warning", "true");
   http.addHeader("User-Agent", "ESP32-SmartShroom");
-  http.setTimeout(5000);
+  http.setTimeout(10000);
   int httpCode = http.GET();
 
   if (httpCode == 200) {
@@ -384,12 +388,15 @@ void fetchThresholds() {
 void sendSensorData(float temp, float hum) {
   if (WiFi.status() != WL_CONNECTED) return;
 
+  WiFiClientSecure client;
+  client.setInsecure(); // Bypass SSL verification untuk Ngrok HTTPS
+
   HTTPClient http;
-  http.begin(apiBaseUrl + "/sensor-data");
+  http.begin(client, apiBaseUrl + "/sensor-data");
   http.addHeader("Content-Type", "application/json");
   http.addHeader("ngrok-skip-browser-warning", "true");
   http.addHeader("User-Agent", "ESP32-SmartShroom");
-  http.setTimeout(5000);
+  http.setTimeout(10000);
 
   StaticJsonDocument<200> doc;
   doc["device_id"]    = deviceId;
@@ -417,12 +424,15 @@ void sendSensorData(float temp, float hum) {
 void sendSprinklerLog(unsigned long durationSec, String reason) {
   if (WiFi.status() != WL_CONNECTED) return;
 
+  WiFiClientSecure client;
+  client.setInsecure(); // Bypass SSL verification untuk Ngrok HTTPS
+
   HTTPClient http;
-  http.begin(apiBaseUrl + "/sprinkler-logs");
+  http.begin(client, apiBaseUrl + "/sprinkler-logs");
   http.addHeader("Content-Type", "application/json");
   http.addHeader("ngrok-skip-browser-warning", "true");
   http.addHeader("User-Agent", "ESP32-SmartShroom");
-  http.setTimeout(5000);
+  http.setTimeout(10000);
 
   StaticJsonDocument<256> doc;
   doc["device_id"]         = deviceId;
