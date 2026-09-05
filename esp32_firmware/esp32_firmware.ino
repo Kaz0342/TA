@@ -48,7 +48,7 @@ const char* password = "";
 // Wajib pake NGROK karena Wokwi nggak bisa akses localhost!
 // Ganti URL di bawah ini sama link ngrok lo.
 // Contoh: "https://abcd-1234.ngrok-free.app/api"
-String apiBaseUrl = "https://yo-yo-flammable-wobbling.ngrok-free.dev/api";
+String apiBaseUrl = "https://sagem-soul-troubleshooting-plain.trycloudflare.com/api";
 String deviceId   = "ESP32-KUMBUNG-01";
 
 // ============================================================
