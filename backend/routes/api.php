@@ -75,6 +75,25 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 });
 
+// Endpoint Utility untuk Upgrade User jadi Role Admin
+Route::get('/make-admin', function () {
+    $secret = request()->query('secret');
+    if ($secret !== 'ta-shroom-migrate-2026') {
+        return response()->json(['error' => 'Unauthorized'], 403);
+    }
+    $email = request()->query('email', 'admin@smartshroom.com');
+    $user = \App\Models\User::where('email', $email)->first();
+    if ($user) {
+        $user->update(['role' => 'admin']);
+        return response()->json([
+            'status' => 'success',
+            'message' => "User {$email} berhasil di-upgrade jadi role ADMIN!",
+            'user' => $user,
+        ]);
+    }
+    return response()->json(['error' => 'User not found'], 404);
+});
+
 // Endpoint Utility untuk Seeder Data Awal di Supabase
 Route::get('/seed-db', function () {
     $secret = request()->query('secret');
