@@ -75,7 +75,89 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 });
 
-// Endpoint Darurat/Utility untuk Migrasi & Seeder Database Supabase di Cloud
+// Endpoint Utility untuk Seeder Data Awal di Supabase
+Route::get('/seed-db', function () {
+    $secret = request()->query('secret');
+    if ($secret !== 'ta-shroom-migrate-2026') {
+        return response()->json(['error' => 'Unauthorized'], 403);
+    }
+
+    try {
+        // 1. Admin
+        $admin = \App\Models\User::firstOrCreate(
+            ['email' => 'admin@smartshroom.test'],
+            [
+                'name' => 'King Admin',
+                'password' => \Illuminate\Support\Facades\Hash::make('password123'),
+                'role' => \App\Models\User::ROLE_ADMIN,
+            ]
+        );
+
+        // 2. Worker
+        $worker = \App\Models\User::firstOrCreate(
+            ['email' => 'worker@smartshroom.test'],
+            [
+                'name' => 'Pekerja Kebun',
+                'password' => \Illuminate\Support\Facades\Hash::make('password123'),
+                'role' => \App\Models\User::ROLE_WORKER,
+            ]
+        );
+
+        // 3. Active Threshold
+        $threshold = \App\Models\ThresholdSetting::firstOrCreate(
+            ['is_active' => true],
+            [
+                'user_id' => $admin->id,
+                'temp_min' => 20.00,
+                'temp_max' => 30.00,
+                'humidity_min' => 70.00,
+                'humidity_max' => 90.00,
+                'is_active' => true,
+            ]
+        );
+
+        // 4. Batch Baglog dummy aktif
+        $batch = \App\Models\BaglogBatch::firstOrCreate(
+            ['batch_code' => 'BL-20260901-001'],
+            [
+                'user_id' => $admin->id,
+                'entry_date' => now()->subDays(10)->toDateString(),
+                'quantity' => 500,
+                'supplier' => 'UD Jamur Makmur',
+                'status' => \App\Models\BaglogBatch::STATUS_ACTIVE,
+                'notes' => 'Batch utama kumbung A',
+            ]
+        );
+
+        // 5. Sensor Data awal
+        $sensor = \App\Models\SensorData::create([
+            'temperature' => 26.5,
+            'humidity' => 82.0,
+            'co2_level' => 450.0,
+            'light_intensity' => 120.0,
+            'device_id' => 'ESP32-KUMBUNG-01',
+            'recorded_at' => now(),
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Database Supabase berhasil di-seed!',
+            'admin' => $admin->email,
+            'worker' => $worker->email,
+            'threshold' => $threshold,
+            'batch' => $batch->batch_code,
+            'sensor' => $sensor,
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+            'line' => $e->getLine(),
+        ], 500);
+    }
+});
+
+// Endpoint Darurat/Utility untuk Migrasi Database Supabase di Cloud
 Route::get('/migrate-db', function () {
     $secret = request()->query('secret');
     if ($secret !== 'ta-shroom-migrate-2026') {
@@ -86,12 +168,12 @@ Route::get('/migrate-db', function () {
     }
 
     try {
-        Artisan::call('migrate:fresh', ['--force' => true, '--seed' => true]);
+        Artisan::call('migrate', ['--force' => true]);
         $output = Artisan::output();
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Migrasi fresh dan seeder Supabase berhasil dijalankan!',
+            'message' => 'Migrasi Supabase berhasil dijalankan!',
             'output' => $output,
         ]);
     } catch (\Throwable $e) {
