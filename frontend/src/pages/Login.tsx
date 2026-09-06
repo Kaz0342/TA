@@ -82,6 +82,37 @@ export default function Login() {
               </Button>
             </div>
           </form>
+
+          {/* Quick Demo Accounts for TA Defense */}
+          <div className="mt-6 pt-5 border-t-2 border-dashed border-gray-300">
+            <p className="text-xs font-black uppercase tracking-wider text-gray-500 mb-3 text-center">
+              Pilih Akun Demo (Tugas Akhir):
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail('admin@smartshroom.com');
+                  setPassword('password123');
+                }}
+                className="p-2 border-2 border-black bg-[#28e085] hover:bg-green-400 font-bold text-xs shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all flex flex-col items-center justify-center text-black"
+              >
+                <span className="font-black text-xs">Admin (Full Akses)</span>
+                <span className="text-[10px] text-gray-700">admin@smartshroom.com</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail('worker@smartshroom.com');
+                  setPassword('password123');
+                }}
+                className="p-2 border-2 border-black bg-yellow-300 hover:bg-yellow-400 font-bold text-xs shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all flex flex-col items-center justify-center text-black"
+              >
+                <span className="font-black text-xs">Worker (Operasional)</span>
+                <span className="text-[10px] text-gray-700">worker@smartshroom.com</span>
+              </button>
+            </div>
+          </div>
         </Card>
         
         <p className="text-center text-sm text-slate-400 mt-8">

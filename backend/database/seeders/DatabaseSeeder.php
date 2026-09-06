@@ -34,9 +34,9 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // ─── 1. USERS ───────────────────────────────────────────
-        // Admin: pemilik kumbung (King, the farmer boss)
+        // Admin: pemilik kumbung (Administrator)
         $admin = User::factory()->admin()->create([
-            'name' => 'King Admin',
+            'name' => 'Administrator',
             'email' => 'admin@smartshroom.test',
             'password' => bcrypt('password123'),
         ]);

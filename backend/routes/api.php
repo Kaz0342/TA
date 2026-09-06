@@ -106,7 +106,7 @@ Route::get('/seed-db', function () {
         $admin = \App\Models\User::firstOrCreate(
             ['email' => 'admin@smartshroom.test'],
             [
-                'name' => 'King Admin',
+                'name' => 'Administrator',
                 'password' => \Illuminate\Support\Facades\Hash::make('password123'),
                 'role' => \App\Models\User::ROLE_ADMIN,
             ]
