@@ -4,7 +4,7 @@ import requests
 import datetime
 
 # Konfigurasi Backend Laravel
-API_BASE_URL = "http://127.0.0.1:8000/api"
+API_BASE_URL = "https://tugasakhir-lime.vercel.app/api"
 DEVICE_ID = "ESP32-KUMBUNG-01"
 
 print(f"🚀 Memulai Smart Shroom IoT Simulator untuk {DEVICE_ID}...")
