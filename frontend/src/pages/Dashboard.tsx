@@ -150,7 +150,7 @@ export default function Dashboard() {
                   <Tooltip 
                     contentStyle={{ borderRadius: '0px', border: '4px solid #000', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', backgroundColor: '#fff' }}
                     labelStyle={{ fontWeight: 'black', color: '#000', textTransform: 'uppercase' }}
-                    formatter={(value: number) => [`${value} °C`, 'Suhu']}
+                    formatter={(value: any) => [`${value} °C`, 'Suhu']}
                     offset={25}
                     cursor={{ stroke: '#9ca3af', strokeWidth: 2, strokeDasharray: '4 4' }}
                   />
@@ -205,7 +205,7 @@ export default function Dashboard() {
                   <Tooltip 
                     contentStyle={{ borderRadius: '0px', border: '4px solid #000', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', backgroundColor: '#fff' }}
                     labelStyle={{ fontWeight: 'black', color: '#000', textTransform: 'uppercase' }}
-                    formatter={(value: number) => [`${value} %`, 'Kelembaban']}
+                    formatter={(value: any) => [`${value} %`, 'Kelembaban']}
                     offset={25}
                     cursor={{ stroke: '#9ca3af', strokeWidth: 2, strokeDasharray: '4 4' }}
                   />
@@ -282,7 +282,7 @@ export default function Dashboard() {
                   <Tooltip 
                     contentStyle={{ borderRadius: '0px', border: '4px solid #000', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', backgroundColor: '#fff' }}
                     labelStyle={{ fontWeight: 'black', color: '#000', textTransform: 'uppercase' }}
-                    formatter={(value: number) => [`${value} Kg`, 'Total Panen']}
+                    formatter={(value: any) => [`${value} Kg`, 'Total Panen']}
                   />
                   <Bar 
                     dataKey="total_kg" 
