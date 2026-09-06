@@ -86,17 +86,13 @@ Route::get('/migrate-db', function () {
     }
 
     try {
-        Artisan::call('migrate', ['--force' => true]);
-        $migrateOutput = Artisan::output();
-
-        Artisan::call('db:seed', ['--force' => true]);
-        $seedOutput = Artisan::output();
+        Artisan::call('migrate:fresh', ['--force' => true, '--seed' => true]);
+        $output = Artisan::output();
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Migrasi dan seeder Supabase berhasil dijalankan!',
-            'migrate_output' => $migrateOutput,
-            'seed_output' => $seedOutput,
+            'message' => 'Migrasi fresh dan seeder Supabase berhasil dijalankan!',
+            'output' => $output,
         ]);
     } catch (\Throwable $e) {
         return response()->json([
