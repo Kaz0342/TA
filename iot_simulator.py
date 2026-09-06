@@ -1,105 +1,394 @@
+"""
+Smart Shroom IoT Simulator v2.0 — Model Fisika Realistis
+=========================================================
+Script ini mensimulasikan perilaku sensor DHT22 + aktuator (Misting & Fan)
+di kumbung jamur tiram secara REALISTIS, seolah-olah ESP32 fisik berjalan.
+
+Prinsip simulasi:
+1. Suhu mengikuti siklus diurnal (siang panas, malam dingin) + noise kecil
+2. Kelembaban berkorelasi terbalik dengan suhu + dipengaruhi aktuator
+3. Misting menyala → kelembaban naik gradual, suhu turun sedikit
+4. Fan menyala → suhu turun gradual, kelembaban turun sedikit
+5. Logika kontrol hysteresis IDENTIK dengan esp32_firmware.ino
+
+Cocok untuk demo sidang TA: grafik di Dashboard akan membentuk kurva
+gelombang harian yang natural, bukan lompatan acak.
+
+@author Smart Shroom SCM — Tugas Akhir
+"""
+
 import time
+import math
 import random
 import requests
 import datetime
+import sys
+import os
 
-# Konfigurasi Backend Laravel
+# Fix encoding untuk Windows terminal (agar emoji tidak error)
+if sys.platform == 'win32':
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+
+# ============================================================
+# KONFIGURASI
+# ============================================================
 API_BASE_URL = "https://tugasakhir-lime.vercel.app/api"
 DEVICE_ID = "ESP32-KUMBUNG-01"
 
-print(f"🚀 Memulai Smart Shroom IoT Simulator untuk {DEVICE_ID}...")
+# Interval pengiriman data (detik)
+SENSOR_SEND_INTERVAL = 10       # Kirim data sensor tiap 10 detik
+THRESHOLD_FETCH_INTERVAL = 30   # Fetch threshold dari web tiap 30 detik
+MAX_MISTING_DURATION = 90       # Safety timeout misting (detik)
 
-def get_thresholds():
-    """Mengambil batas suhu dan kelembaban dari Backend"""
+# ============================================================
+# MODEL FISIKA KUMBUNG JAMUR
+# ============================================================
+# Konstanta lingkungan kumbung jamur tiram
+# Referensi: Panduan Budidaya Jamur Tiram (Pleurotus ostreatus)
+AMBIENT_TEMP_BASE = 26.0       # Suhu rata-rata harian kumbung (°C)
+AMBIENT_TEMP_AMPLITUDE = 4.0   # Amplitudo fluktuasi siang-malam (°C)
+AMBIENT_HUM_BASE = 82.0        # Kelembaban rata-rata kumbung (%)
+AMBIENT_HUM_AMPLITUDE = 8.0    # Amplitudo fluktuasi kelembaban (%)
+
+# Koefisien dampak aktuator terhadap pembacaan sensor (per detik)
+MISTING_TEMP_EFFECT = -0.03    # Misting menurunkan suhu 0.03°C/detik (evaporative cooling)
+MISTING_HUM_EFFECT = 0.25      # Misting menaikkan kelembaban 0.25%/detik
+FAN_TEMP_EFFECT = -0.05        # Fan menurunkan suhu 0.05°C/detik (konveksi paksa)
+FAN_HUM_EFFECT = -0.10         # Fan menurunkan kelembaban 0.10%/detik (bawa udara kering masuk)
+
+# Koefisien kembali ke kondisi ambient (tanpa aktuator, per detik)
+TEMP_RECOVERY_RATE = 0.005     # Suhu perlahan kembali ke ambient
+HUM_RECOVERY_RATE = 0.008      # Kelembaban perlahan kembali ke ambient
+
+# Batas fisik sensor
+TEMP_MIN_PHYSICAL = 18.0       # Suhu minimum fisik kumbung (°C)
+TEMP_MAX_PHYSICAL = 40.0       # Suhu maksimum fisik kumbung (°C)
+HUM_MIN_PHYSICAL = 40.0        # Kelembaban minimum fisik (%)
+HUM_MAX_PHYSICAL = 99.0        # Kelembaban maksimum fisik (%)
+
+
+# ============================================================
+# STATE SIMULATOR
+# ============================================================
+class KumbungState:
+    """State mikroklimat kumbung jamur saat ini."""
+
+    def __init__(self):
+        # Inisialisasi sensor dari kondisi ambient saat ini
+        now = datetime.datetime.now()
+        self.temperature = self._get_ambient_temp(now)
+        self.humidity = self._get_ambient_hum(now)
+
+        # State aktuator (mirror dari esp32_firmware.ino)
+        self.is_misting_active = False
+        self.is_fan_active = False
+        self.misting_start_time = None
+        self.misting_duration_total = 0
+
+        # Threshold dari web (akan di-fetch)
+        self.temp_max = 30.0
+        self.temp_min = 23.0
+        self.hum_min = 80.0
+        self.hum_max = 90.0
+        self.rh_trigger_low = 80.0       # = hum_min
+        self.rh_trigger_high = 88.0      # = hum_max - 2.0
+
+    @staticmethod
+    def _get_ambient_temp(now: datetime.datetime) -> float:
+        """
+        Hitung suhu ambient berdasarkan jam.
+        Model sinusoidal: puncak panas jam 14:00, paling dingin jam 04:00.
+        T(t) = T_base + A * sin((t - 8) * π / 12)
+        """
+        hour_fraction = now.hour + now.minute / 60.0
+        # Fase: puncak di jam 14 (8 + 6), lembah di jam 2
+        phase = (hour_fraction - 8.0) * math.pi / 12.0
+        return AMBIENT_TEMP_BASE + AMBIENT_TEMP_AMPLITUDE * math.sin(phase)
+
+    @staticmethod
+    def _get_ambient_hum(now: datetime.datetime) -> float:
+        """
+        Hitung kelembaban ambient (berkorelasi terbalik dengan suhu).
+        Siang kering, malam lembab.
+        """
+        hour_fraction = now.hour + now.minute / 60.0
+        phase = (hour_fraction - 8.0) * math.pi / 12.0
+        return AMBIENT_HUM_BASE - AMBIENT_HUM_AMPLITUDE * math.sin(phase)
+
+    def update_thresholds(self, thresholds: dict):
+        """Update threshold dari respons API."""
+        self.temp_max = thresholds['temp_max']
+        self.temp_min = thresholds['temp_min']
+        self.hum_min = thresholds['humidity_min']
+        self.hum_max = thresholds['humidity_max']
+        self.rh_trigger_low = self.hum_min
+        self.rh_trigger_high = self.hum_max - 2.0
+
+    def simulate_tick(self, dt_seconds: float):
+        """
+        Simulasikan perubahan mikroklimat selama dt_seconds.
+        Menghitung efek aktuator + drift alami + sensor noise.
+        """
+        now = datetime.datetime.now()
+        ambient_temp = self._get_ambient_temp(now)
+        ambient_hum = self._get_ambient_hum(now)
+
+        # 1. Efek aktuator aktif
+        if self.is_misting_active:
+            self.temperature += MISTING_TEMP_EFFECT * dt_seconds
+            self.humidity += MISTING_HUM_EFFECT * dt_seconds
+
+        if self.is_fan_active:
+            self.temperature += FAN_TEMP_EFFECT * dt_seconds
+            self.humidity += FAN_HUM_EFFECT * dt_seconds
+
+        # 2. Drift alami kembali ke ambient (proporsional terhadap selisih)
+        temp_diff = ambient_temp - self.temperature
+        hum_diff = ambient_hum - self.humidity
+        self.temperature += temp_diff * TEMP_RECOVERY_RATE * dt_seconds
+        self.humidity += hum_diff * HUM_RECOVERY_RATE * dt_seconds
+
+        # 3. Sensor noise (DHT22 accuracy: ±0.5°C suhu, ±2% kelembaban)
+        self.temperature += random.gauss(0, 0.1)
+        self.humidity += random.gauss(0, 0.3)
+
+        # 4. Clamp ke batas fisik
+        self.temperature = max(TEMP_MIN_PHYSICAL, min(TEMP_MAX_PHYSICAL, self.temperature))
+        self.humidity = max(HUM_MIN_PHYSICAL, min(HUM_MAX_PHYSICAL, self.humidity))
+
+    def get_readings(self) -> tuple:
+        """Return pembacaan sensor yang sudah dibulatkan (seperti output DHT22 asli)."""
+        return round(self.temperature, 1), round(self.humidity, 1)
+
+
+# ============================================================
+# KONTROL AKTUATOR (IDENTIK dengan esp32_firmware.ino)
+# ============================================================
+
+def control_misting(state: KumbungState):
+    """
+    Logika Histeresis Misting — mirror dari controlMisting() di firmware.
+    - NYALA  jika RH < rhTriggerLow  ATAU suhu > tempMax
+    - MATI   jika RH >= rhTriggerHigh DAN suhu <= tempMax
+    - DITAHAN jika suhu panas TAPI RH sudah terlalu tinggi (cegah busuk)
+    """
+    temp, hum = state.get_readings()
+
+    if not state.is_misting_active:
+        # Cek kondisi trigger nyala
+        if hum < state.rh_trigger_low or temp > state.temp_max:
+            # Safety: jangan nyiram kalau RH udah tinggi banget
+            if temp > state.temp_max and hum >= state.hum_max:
+                print(f"   ⚠️  [HOLD] Suhu panas ({temp}°C) TAPI RH tinggi ({hum}%). Pompa DITAHAN!")
+                return
+            # Mulai misting
+            state.is_misting_active = True
+            state.misting_start_time = time.time()
+            state.misting_duration_total = 0
+            print(f"   💦 [MISTING ON] Pompa + Solenoid AKTIF (RH:{hum}% T:{temp}°C)")
+    else:
+        # Cek kondisi trigger mati
+        target_reached = (hum >= state.rh_trigger_high and temp <= state.temp_max)
+        elapsed = time.time() - state.misting_start_time
+
+        if target_reached:
+            state.is_misting_active = False
+            state.misting_duration_total = int(elapsed)
+            reason = f"Target tercapai (RH:{hum}% T:{temp}°C)"
+            print(f"   🛑 [MISTING OFF] Durasi: {state.misting_duration_total}s — {reason}")
+            send_sprinkler_log(state.misting_duration_total, reason)
+
+        elif elapsed >= MAX_MISTING_DURATION:
+            state.is_misting_active = False
+            state.misting_duration_total = MAX_MISTING_DURATION
+            reason = f"Safety timeout ({MAX_MISTING_DURATION}s)"
+            print(f"   🛑 [MISTING OFF] TIMEOUT! Durasi: {MAX_MISTING_DURATION}s — {reason}")
+            send_sprinkler_log(MAX_MISTING_DURATION, reason)
+
+
+def control_fan(state: KumbungState):
+    """
+    Logika Exhaust Fan — mirror dari controlFan() di firmware.
+    - NYALA jika suhu > tempMax (buang udara panas)
+    - MATI  jika suhu <= tempMin (udah adem, histeresis)
+    """
+    temp, _ = state.get_readings()
+
+    if temp > state.temp_max:
+        if not state.is_fan_active:
+            state.is_fan_active = True
+            print(f"   🌀 [FAN ON] Exhaust Fan AKTIF (Suhu {temp}°C > {state.temp_max}°C)")
+    elif temp <= state.temp_min:
+        if state.is_fan_active:
+            state.is_fan_active = False
+            print(f"   🌀 [FAN OFF] Exhaust Fan MATI (Suhu {temp}°C <= {state.temp_min}°C)")
+
+
+# ============================================================
+# KOMUNIKASI API
+# ============================================================
+
+def fetch_thresholds() -> dict:
+    """GET /api/thresholds/active — ambil batas threshold dari web."""
     try:
-        response = requests.get(f"{API_BASE_URL}/thresholds/active")
+        response = requests.get(f"{API_BASE_URL}/thresholds/active", timeout=10)
         if response.status_code == 200:
             data = response.json().get('data', {})
             return {
                 'temp_max': float(data.get('temp_max', 30.0)),
-                'temp_min': float(data.get('temp_min', 22.0)),
-                'humidity_min': float(data.get('humidity_min', 60.0)),
+                'temp_min': float(data.get('temp_min', 23.0)),
+                'humidity_min': float(data.get('humidity_min', 80.0)),
                 'humidity_max': float(data.get('humidity_max', 90.0))
             }
     except Exception as e:
-        print(f"⚠️ Gagal mengambil threshold: {e}. Menggunakan default.")
-    
-    return {'temp_max': 30.0, 'temp_min': 25.0, 'humidity_min': 85.0, 'humidity_max': 95.0}
+        print(f"   ⚠️  Gagal fetch threshold: {e}")
+    return None
 
-def send_sensor_data(temperature, humidity):
-    """Mengirim data pembacaan sensor ke Backend"""
+
+def send_sensor_data(temp: float, hum: float):
+    """POST /api/sensor-data — kirim pembacaan sensor ke backend."""
     payload = {
         "device_id": DEVICE_ID,
-        "temperature": temperature,
-        "humidity": humidity,
-        "co2_level": random.uniform(400, 600) # Dummy data CO2
+        "temperature": temp,
+        "humidity": hum,
+        "co2_level": round(random.gauss(480, 30), 1)  # CO2 ambient ~480 ppm ± noise
     }
     try:
-        response = requests.post(f"{API_BASE_URL}/sensor-data", json=payload)
+        response = requests.post(f"{API_BASE_URL}/sensor-data", json=payload, timeout=10)
         if response.status_code == 201:
-            print(f"✅ Data Terkirim: Suhu {temperature:.1f}°C | Kelembaban {humidity:.1f}%")
+            return True
         else:
-            print(f"❌ Gagal kirim data: {response.text}")
+            print(f"   ❌ Gagal kirim data: HTTP {response.status_code}")
     except Exception as e:
-        print(f"⚠️ Error koneksi: {e}")
+        print(f"   ⚠️  Error koneksi: {e}")
+    return False
 
-def send_sprinkler_log(duration, reason):
-    """Mengirim log penyiraman ke Backend"""
+
+def send_sprinkler_log(duration: int, reason: str):
+    """POST /api/sprinkler-logs — kirim log penyiraman."""
     payload = {
         "device_id": DEVICE_ID,
         "duration_seconds": duration,
         "trigger_reason": reason
     }
     try:
-        # Pura-pura nyiram (jeda eksekusi)
-        print(f"💦 [SPRINKLER ON] Menyiram selama {duration} detik... (Simulasi)")
-        time.sleep(3) # Cukup 3 detik aja untuk simulasi
-        
-        response = requests.post(f"{API_BASE_URL}/sprinkler-logs", json=payload)
-        if response.status_code == 201:
-            print(f"🛑 [SPRINKLER OFF] Log penyiraman berhasil dicatat!")
-        else:
-            print(f"❌ Gagal kirim log: {response.text}")
+        response = requests.post(f"{API_BASE_URL}/sprinkler-logs", json=payload, timeout=10)
+        if response.status_code != 201:
+            print(f"   ❌ Gagal kirim sprinkler log: HTTP {response.status_code}")
     except Exception as e:
-        print(f"⚠️ Error koneksi sprinkler log: {e}")
+        print(f"   ⚠️  Error kirim sprinkler log: {e}")
 
 
-# Loop Utama (Berjalan terus menerus)
+# ============================================================
+# LCD VIRTUAL (Terminal Output)
+# ============================================================
+
+def print_lcd(temp: float, hum: float, misting: bool, fan: bool):
+    """Simulasi tampilan LCD 16x2 di terminal."""
+    line1 = f"T:{temp:5.1f}C H:{hum:4.1f}%"
+    mist_str = "ON " if misting else "OFF"
+    fan_str = "ON " if fan else "OFF"
+    line2 = f"MIST:{mist_str} FAN:{fan_str}"
+    print(f"   📟 LCD │ {line1} │")
+    print(f"          │ {line2}          │")
+
+
+# ============================================================
+# MAIN LOOP
+# ============================================================
+
+def main():
+    print("=" * 60)
+    print("  🍄 Smart Shroom IoT Simulator v2.0 (Model Fisika Realistis)")
+    print(f"  Device: {DEVICE_ID}")
+    print(f"  Backend: {API_BASE_URL}")
+    print("=" * 60)
+    print()
+
+    # Inisialisasi state kumbung
+    state = KumbungState()
+    print(f"[INIT] Kondisi awal kumbung:")
+    temp, hum = state.get_readings()
+    print(f"   Suhu: {temp}°C | Kelembaban: {hum}%")
+    print()
+
+    # Fetch threshold pertama kali
+    print("[BOOT] Mengambil threshold dari Dashboard...")
+    thresholds = fetch_thresholds()
+    if thresholds:
+        state.update_thresholds(thresholds)
+        print(f"   ✅ Threshold: T={state.temp_min}-{state.temp_max}°C | RH={state.hum_min}-{state.hum_max}%")
+    else:
+        print(f"   ⚠️  Menggunakan threshold default")
+    print()
+
+    # Timer non-blocking (seperti millis() di firmware)
+    last_sensor_send = 0
+    last_threshold_fetch = time.time()
+    tick_count = 0
+
+    try:
+        while True:
+            now = time.time()
+            tick_count += 1
+            timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+
+            # Simulasikan perubahan mikroklimat (interval 1 detik per tick)
+            state.simulate_tick(dt_seconds=1.0)
+
+            # Jalankan logika kontrol aktuator (setiap tick, seperti firmware)
+            control_misting(state)
+            control_fan(state)
+
+            # Kirim data sensor ke API setiap SENSOR_SEND_INTERVAL detik
+            if now - last_sensor_send >= SENSOR_SEND_INTERVAL:
+                last_sensor_send = now
+                temp, hum = state.get_readings()
+
+                print(f"[{timestamp}] ── Tick #{tick_count} ──────────────────────")
+                success = send_sensor_data(temp, hum)
+                status = "✅" if success else "❌"
+                print(f"   {status} Sensor → API: Suhu {temp}°C | RH {hum}%")
+
+                # Tampilkan LCD virtual
+                print_lcd(temp, hum, state.is_misting_active, state.is_fan_active)
+
+                # Status aktuator
+                actuators = []
+                if state.is_misting_active:
+                    elapsed = int(now - state.misting_start_time)
+                    actuators.append(f"💦 Misting: ON ({elapsed}s/{MAX_MISTING_DURATION}s)")
+                if state.is_fan_active:
+                    actuators.append("🌀 Fan: ON")
+                if not actuators:
+                    actuators.append("💤 Semua aktuator: OFF")
+                for a in actuators:
+                    print(f"   {a}")
+
+                print()
+
+            # Fetch threshold dari web secara berkala
+            if now - last_threshold_fetch >= THRESHOLD_FETCH_INTERVAL:
+                last_threshold_fetch = now
+                thresholds = fetch_thresholds()
+                if thresholds:
+                    state.update_thresholds(thresholds)
+
+            # Tick interval 1 detik (simulasi real-time)
+            time.sleep(1)
+
+    except KeyboardInterrupt:
+        print()
+        print("=" * 60)
+        print("  🛑 Simulator dihentikan oleh pengguna.")
+        temp, hum = state.get_readings()
+        print(f"  Kondisi terakhir: Suhu {temp}°C | RH {hum}%")
+        print(f"  Misting: {'ON' if state.is_misting_active else 'OFF'}")
+        print(f"  Fan: {'ON' if state.is_fan_active else 'OFF'}")
+        print("=" * 60)
+        sys.exit(0)
+
+
 if __name__ == "__main__":
-    while True:
-        # 1. Ambil aturan batas terbaru dari web
-        thresholds = get_thresholds()
-        
-        # 2. Baca sensor (Simulasi angka acak)
-        # Bikin fluktuasi suhu antara 24°C s/d 33°C
-        current_temp = round(random.uniform(24.0, 33.0), 1)
-        current_hum = round(random.uniform(50.0, 85.0), 1)
-        
-        # 3. Kirim data sensor
-        send_sensor_data(current_temp, current_hum)
-        
-        # 4. Cek Logika Otomatisasi (Sprinkler Trigger) - SMART LOGIC (Dynamic Duration)
-        if current_temp > thresholds['temp_max'] and current_hum < thresholds['humidity_max']:
-            # Hitung selisih (Delta)
-            delta_temp = current_temp - thresholds['temp_max']
-            # Rumus: Tiap kelebihan 1°C = semprot 30 detik (Plus base 30 detik). Maksimal 180 dtk.
-            dynamic_duration = min(int(delta_temp * 30) + 30, 180)
-            
-            reason = f"Suhu berlebih {delta_temp:.1f}°C (Durasi proporsional)"
-            send_sprinkler_log(duration=dynamic_duration, reason=reason)
-            
-        elif current_temp > thresholds['temp_max'] and current_hum >= thresholds['humidity_max']:
-            print(f"⚠️ ALARM: Suhu Panas ({current_temp}°C) tapi Sangat Basah ({current_hum}%). Pompa DITAHAN untuk mencegah busuk!")
-            
-        elif current_hum < thresholds['humidity_min']:
-            # Hitung selisih (Delta)
-            delta_hum = thresholds['humidity_min'] - current_hum
-            # Rumus: Tiap kekurangan 1% = semprot 5 detik (Plus base 30 dtk). Maksimal 120 dtk.
-            dynamic_duration = min(int(delta_hum * 5) + 30, 120)
-            
-            reason = f"Kelembaban kurang {delta_hum:.1f}% (Durasi proporsional)"
-            send_sprinkler_log(duration=dynamic_duration, reason=reason)
-            
-        # Tunggu 10 detik sebelum ngirim data lagi (Biar gak nyepam server)
-        print("-" * 40)
-        time.sleep(10)
+    main()
