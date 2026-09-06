@@ -13,29 +13,29 @@ const fetchChart = async () => (await api.get('/sensor-data/chart?hours=24')).da
 const fetchHarvestChart = async () => (await api.get('/harvests/chart?days=14')).data.data;
 
 export default function Dashboard() {
-  // Queries
+  // Queries — Polling agresif agar responsif dan real-time sinkron dengan IoT (ESP32/Simulator)
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['dashboardStats'],
     queryFn: fetchStats,
-    refetchInterval: 60000, // 1 menit
+    refetchInterval: 10000, // Refetch tiap 10 detik
   });
 
   const { data: latestSensor, isLoading: sensorLoading } = useQuery({
     queryKey: ['latestSensor'],
     queryFn: fetchLatestSensor,
-    refetchInterval: 30000, // 30 detik (FR-1.1)
+    refetchInterval: 3000, // Refetch tiap 3 detik (Real-time kartu sensor)
   });
 
   const { data: chartData, isLoading: chartLoading } = useQuery({
     queryKey: ['sensorChart'],
     queryFn: fetchChart,
-    refetchInterval: 300000, // 5 menit (FR-1.2)
+    refetchInterval: 5000, // Refetch tiap 5 detik (Real-time grafik sensor)
   });
 
   const { data: harvestChartData, isLoading: harvestChartLoading } = useQuery({
     queryKey: ['harvestChart'],
     queryFn: fetchHarvestChart,
-    refetchInterval: 300000, // 5 menit
+    refetchInterval: 30000, // Refetch tiap 30 detik
   });
 
   const formatCurrency = (val: number) => 

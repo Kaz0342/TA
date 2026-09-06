@@ -108,7 +108,7 @@ class SensorDataController extends Controller
             'temperature' => (float) $reading->temperature,
             'humidity' => (float) $reading->humidity,
             'recorded_at' => $reading->recorded_at->toIso8601String(),
-            'time_label' => $reading->recorded_at->format('H:i'),
+            'time_label' => $reading->recorded_at->format('H:i:s'),
         ]);
 
         return $this->success($formatted, 'Chart data retrieved', 200, [
