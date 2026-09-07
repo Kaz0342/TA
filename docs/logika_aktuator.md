@@ -21,8 +21,11 @@ Sistem mengambil 4 nilai batas dari pengaturan web (Dashboard):
 Kipas bertugas membuang udara panas dari dalam kumbung ke luar ruangan.
 
 **Kondisi Kipas MENYALA (ON):**
-- **Jika** `Suhu Saat Ini` **Lebih Besar (>)** dari `tempMax`.
-  *(Contoh: Jika tempMax 30°C, dan suhu mencapai 30.1°C, kipas menyala).*
+Kipas akan menyala jika salah satu dari kondisi ini terpenuhi:
+1. **Normal (Berdasarkan Rata-rata):** `Suhu Rata-rata` **Lebih Besar (>)** dari `tempMax`.
+   *(Contoh: Jika tempMax 30°C, dan suhu rata-rata mencapai 30.1°C, kipas menyala).*
+2. **Safety Override (Kondisi Kritis Lokal):** Jika ada minimal SATU sensor yang membaca suhu melewati batas sangat kritis (`tempMax` + 2.0°C), kipas akan **DIPAKSA MENYALA** tanpa mempedulikan nilai rata-rata keseluruhan.
+   *(Contoh: Jika tempMax 30°C, namun Sensor A di bagian atas terbaca 32.1°C akibat panas yang menumpuk, kipas otomatis menyala meski Sensor C dan rata-rata masih dalam batas aman. Ini mencegah kerusakan jamur di zona tertentu).*
 
 **Kondisi Kipas MATI (OFF):**
 - **Jika** `Suhu Saat Ini` **Lebih Kecil atau Sama Dengan (<=)** dari `tempMin`.
