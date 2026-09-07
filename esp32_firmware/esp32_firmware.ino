@@ -1,21 +1,25 @@
 /**
  * ============================================================
- * Smart Shroom Controller (SSC) — ULTIMATE VERSION
+ * Smart Shroom Controller (SSC) — ULTIMATE VERSION v3.0
  * ============================================================
  * 
  * Firmware ESP32 untuk monitoring & kontrol otomatis 
- * mikroklimat kumbung budidaya JAMUR KUPING (Auricularia auricula).
+ * mikroklimat kumbung budidaya JAMUR TIRAM.
+ * Kumbung: 5m x 7m x 3.5m (Volume: 122.5 m³)
  * 
  * FITUR:
  * [IoT]       WiFi + HTTP POST data sensor ke Laravel API
  * [IoT]       Fetch threshold dinamis dari Web Dashboard
- * [Hardware]  DHT22, LCD I2C 16x2, 3x Relay (Pompa, Solenoid, Fan)
+ * [Hardware]  3x DHT22 (Multi-Sensor Averaging), LCD I2C 16x2, 3x Relay
  * [Logic]     Histeresis misting (RH low → ON, RH high → OFF)
  * [Safety]    Timer misting maks 90 detik per siklus
  * [Design]    Non-blocking millis() — ESP32 TIDAK pernah freeze
+ * [Sensor]    Penempatan Segitiga Diagonal (Atas-Tengah-Bawah)
  * 
- * PIN ASSIGNMENT:
- *   GPIO 4   → DHT22 (Data)
+ * PIN ASSIGNMENT (3 Sensor DHT22):
+ *   GPIO 4   → DHT22-A (Zona Atas, dekat pintu, 2.5m)
+ *   GPIO 15  → DHT22-B (Zona Tengah, pusat kumbung, 1.5m)
+ *   GPIO 2   → DHT22-C (Zona Bawah, pojok belakang, 0.5m)
  *   GPIO 26  → Relay Pompa Misting (12V)
  *   GPIO 25  → Relay Solenoid Valve (12V)
  *   GPIO 33  → Relay Exhaust Fan (220V)
@@ -27,8 +31,8 @@
  *   POST /api/sprinkler-logs   → { device_id, duration_seconds, trigger_reason }
  *   GET  /api/thresholds/active → response.data.{ temp_max, temp_min, humidity_min, humidity_max }
  * 
- * @author  King (TA — Sistem Informasi)
- * @version 2.0.0 (Ultimate — Wokwi Ready)
+ * @see docs/penempatan_sensor.md untuk detail strategi penempatan
+ * @version 3.0.0 (Multi-Sensor Averaging)
  */
 
 #include <WiFi.h>
@@ -52,9 +56,11 @@ String apiBaseUrl = "https://tugasakhir-lime.vercel.app/api";
 String deviceId   = "ESP32-KUMBUNG-01";
 
 // ============================================================
-// PIN ASSIGNMENT
+// PIN ASSIGNMENT (3 SENSOR DHT22 — Segitiga Diagonal)
 // ============================================================
-const int PIN_DHT            = 4;   // GPIO 4  → Data DHT22
+const int PIN_DHT_A          = 4;   // GPIO 4  → DHT22-A (Zona Atas, dekat pintu, 2.5m)
+const int PIN_DHT_B          = 15;  // GPIO 15 → DHT22-B (Zona Tengah, pusat, 1.5m)
+const int PIN_DHT_C          = 2;   // GPIO 2  → DHT22-C (Zona Bawah, pojok belakang, 0.5m)
 const int PIN_RELAY_PUMP     = 26;  // GPIO 26 → Pompa Misting (12V)
 const int PIN_RELAY_SOLENOID = 25;  // GPIO 25 → Solenoid Valve (12V)
 const int PIN_RELAY_FAN      = 33;  // GPIO 33 → Exhaust Fan (220V)
@@ -63,10 +69,15 @@ const int PIN_RELAY_FAN      = 33;  // GPIO 33 → Exhaust Fan (220V)
 const int RELAY_ON  = LOW;
 const int RELAY_OFF = HIGH;
 
+// Jumlah sensor DHT22
+const int NUM_SENSORS = 3;
+
 // ============================================================
 // INISIALISASI SENSOR & LCD
 // ============================================================
-DHT dhtSensor(PIN_DHT, DHT22);
+DHT dhtA(PIN_DHT_A, DHT22);  // Sensor A — Zona Atas
+DHT dhtB(PIN_DHT_B, DHT22);  // Sensor B — Zona Tengah
+DHT dhtC(PIN_DHT_C, DHT22);  // Sensor C — Zona Bawah
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // ============================================================
@@ -116,8 +127,8 @@ float lastHum  = 0.0;
 // ============================================================
 void setup() {
   Serial.begin(115200);
-  Serial.println("=== Smart Shroom Controller v2.0 ===");
-  Serial.println("=== Jamur Kuping (Auricularia)   ===");
+  Serial.println("=== Smart Shroom Controller v3.0 ===");
+  Serial.println("=== Multi-Sensor (3x DHT22)      ===");
 
   // Inisialisasi LCD
   lcd.init();
@@ -125,12 +136,14 @@ void setup() {
   lcd.setCursor(0, 0);
   lcd.print("Smart Shroom SCM");
   lcd.setCursor(0, 1);
-  lcd.print("Jamur Kuping v2 ");
+  lcd.print("3-Sensor v3.0   ");
   delay(2000);
   lcd.clear();
 
-  // Inisialisasi Sensor DHT22
-  dhtSensor.begin();
+  // Inisialisasi 3 Sensor DHT22
+  dhtA.begin();
+  dhtB.begin();
+  dhtC.begin();
 
   // Inisialisasi Relay (semua OFF saat boot)
   pinMode(PIN_RELAY_PUMP, OUTPUT);
@@ -182,26 +195,48 @@ void loop() {
 
   unsigned long now = millis();
 
-  // ── A. BACA SENSOR (tiap 5 detik) ────────────────────────
+  // ── A. BACA 3 SENSOR & AVERAGING (tiap 5 detik) ──────────
   if (now - lastSensorReadTime >= sensorInterval) {
     lastSensorReadTime = now;
 
-    float h = dhtSensor.readHumidity();
-    float t = dhtSensor.readTemperature();
+    // Baca ketiga sensor
+    float tA = dhtA.readTemperature();
+    float hA = dhtA.readHumidity();
+    float tB = dhtB.readTemperature();
+    float hB = dhtB.readHumidity();
+    float tC = dhtC.readTemperature();
+    float hC = dhtC.readHumidity();
 
-    if (isnan(h) || isnan(t)) {
-      Serial.println("[ERROR] Gagal baca sensor DHT!");
+    // Hitung rata-rata (abaikan sensor yang error/NaN)
+    float sumT = 0, sumH = 0;
+    int validCount = 0;
+
+    if (!isnan(tA) && !isnan(hA)) { sumT += tA; sumH += hA; validCount++; Serial.printf("  [A] Atas:   T=%.1f°C RH=%.1f%%\n", tA, hA); }
+    else { Serial.println("  [A] Atas:   ERROR!"); }
+
+    if (!isnan(tB) && !isnan(hB)) { sumT += tB; sumH += hB; validCount++; Serial.printf("  [B] Tengah: T=%.1f°C RH=%.1f%%\n", tB, hB); }
+    else { Serial.println("  [B] Tengah: ERROR!"); }
+
+    if (!isnan(tC) && !isnan(hC)) { sumT += tC; sumH += hC; validCount++; Serial.printf("  [C] Bawah:  T=%.1f°C RH=%.1f%%\n", tC, hC); }
+    else { Serial.println("  [C] Bawah:  ERROR!"); }
+
+    if (validCount == 0) {
+      Serial.println("[ERROR] SEMUA sensor gagal! Cek wiring.");
       lcd.setCursor(0, 0);
-      lcd.print("Sensor Error!   ");
+      lcd.print("ALL Sensor ERR! ");
       lcd.setCursor(0, 1);
       lcd.print("Check Wiring    ");
       return;
     }
 
-    lastTemp = t;
-    lastHum  = h;
+    // Rata-rata dari sensor yang valid
+    lastTemp = sumT / validCount;
+    lastHum  = sumH / validCount;
 
-    Serial.printf("[SENSOR] Suhu: %.1f°C | RH: %.1f%%\n", lastTemp, lastHum);
+    Serial.printf("[AVG] Rata-rata (%d sensor): T=%.1f°C | RH=%.1f%%\n", validCount, lastTemp, lastHum);
+    if (validCount < NUM_SENSORS) {
+      Serial.printf("[WARN] Hanya %d dari %d sensor aktif!\n", validCount, NUM_SENSORS);
+    }
 
     // ── LOGIKA HISTERESIS MISTING ──────────────────────────
     controlMisting(lastTemp, lastHum);
