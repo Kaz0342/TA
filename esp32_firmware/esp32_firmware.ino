@@ -96,6 +96,9 @@ float humMax   = 95.0;   // Batas RH atas / trigger misting OFF (dari API: humid
 float rhTriggerLow  = 85.0;  // Nyalakan misting kalau RH < ini
 float rhTriggerHigh = 93.0;  // Matikan misting kalau RH >= ini DAN suhu <= batas
 
+// Safety Override: jika SATU sensor > tempMax + offset, paksa Fan ON
+const float CRITICAL_TEMP_OFFSET = 2.0;
+
 // ============================================================
 // TIMER NON-BLOCKING (millis)
 // ============================================================
@@ -103,7 +106,7 @@ unsigned long lastSensorReadTime   = 0;
 const unsigned long sensorInterval = 5000;  // Baca sensor tiap 5 detik
 
 unsigned long lastApiSendTime      = 0;
-const unsigned long apiSendInterval = 10000; // Kirim data ke API tiap 10 detik
+const unsigned long apiSendInterval = 60000; // Kirim data ke API tiap 60 detik (1 menit)
 
 unsigned long lastThresholdFetch   = 0;
 const unsigned long thresholdInterval = 30000; // Fetch threshold tiap 30 detik
@@ -121,6 +124,7 @@ bool isFanActive     = false;
 // Cache data sensor terakhir
 float lastTemp = 0.0;
 float lastHum  = 0.0;
+float maxSensorTemp = 0.0;  // Suhu tertinggi dari semua sensor (untuk Safety Override)
 
 // ============================================================
 // SETUP
@@ -233,7 +237,14 @@ void loop() {
     lastTemp = sumT / validCount;
     lastHum  = sumH / validCount;
 
+    // Cari suhu tertinggi dari sensor individu (untuk Safety Override)
+    maxSensorTemp = -999;
+    if (!isnan(tA)) maxSensorTemp = max(maxSensorTemp, tA);
+    if (!isnan(tB)) maxSensorTemp = max(maxSensorTemp, tB);
+    if (!isnan(tC)) maxSensorTemp = max(maxSensorTemp, tC);
+
     Serial.printf("[AVG] Rata-rata (%d sensor): T=%.1f°C | RH=%.1f%%\n", validCount, lastTemp, lastHum);
+    Serial.printf("[MAX] Sensor tertinggi: T=%.1f°C (Batas kritis: %.1f°C)\n", maxSensorTemp, tempMax + CRITICAL_TEMP_OFFSET);
     if (validCount < NUM_SENSORS) {
       Serial.printf("[WARN] Hanya %d dari %d sensor aktif!\n", validCount, NUM_SENSORS);
     }
@@ -241,8 +252,8 @@ void loop() {
     // ── LOGIKA HISTERESIS MISTING ──────────────────────────
     controlMisting(lastTemp, lastHum);
 
-    // ── LOGIKA EXHAUST FAN ─────────────────────────────────
-    controlFan(lastTemp);
+    // ── LOGIKA EXHAUST FAN (dengan Safety Override) ─────────
+    controlFan(lastTemp, maxSensorTemp);
 
     // ── UPDATE LCD ─────────────────────────────────────────
     updateLCD(lastTemp, lastHum, isMistingActive, isFanActive);
@@ -328,19 +339,32 @@ void stopMisting(String reason) {
 }
 
 /**
- * Logika Exhaust Fan:
- * - NYALA jika suhu > tempMax (buang udara panas)
- * - MATI  jika suhu <= tempMin (udah adem)
- * Pake histeresis biar fan nggak ON-OFF-ON-OFF cepet banget
+ * Logika Exhaust Fan (dengan Safety Override):
+ * - NYALA jika suhu rata-rata > tempMax (buang udara panas)
+ * - NYALA PAKSA jika SATU sensor > tempMax + CRITICAL_TEMP_OFFSET (Safety Override)
+ * - MATI  jika suhu rata-rata <= tempMin DAN tidak ada sensor kritis (histeresis)
  */
-void controlFan(float temp) {
-  if (temp > tempMax) {
+void controlFan(float avgTemp, float maxTemp) {
+  float criticalThreshold = tempMax + CRITICAL_TEMP_OFFSET;
+
+  // Safety Override: cek apakah ada sensor individu yang melewati batas kritis
+  if (maxTemp > criticalThreshold) {
     if (!isFanActive) {
       digitalWrite(PIN_RELAY_FAN, RELAY_ON);
       isFanActive = true;
-      Serial.println("[AKSI] 🌀 Exhaust Fan AKTIF.");
+      Serial.printf("[SAFETY] \xF0\x9F\x9A\xA8 OVERRIDE! Fan PAKSA ON! Sensor tertinggi %.1f\xC2\xB0C > kritis %.1f\xC2\xB0C\n", maxTemp, criticalThreshold);
     }
-  } else if (temp <= tempMin) {
+    return;  // Jangan matikan fan selama ada sensor kritis
+  }
+
+  // Logika normal (pakai rata-rata)
+  if (avgTemp > tempMax) {
+    if (!isFanActive) {
+      digitalWrite(PIN_RELAY_FAN, RELAY_ON);
+      isFanActive = true;
+      Serial.println("[AKSI] \xF0\x9F\x8C\x80 Exhaust Fan AKTIF.");
+    }
+  } else if (avgTemp <= tempMin) {
     if (isFanActive) {
       digitalWrite(PIN_RELAY_FAN, RELAY_OFF);
       isFanActive = false;

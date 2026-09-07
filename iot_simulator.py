@@ -39,9 +39,10 @@ API_BASE_URL = "https://tugasakhir-lime.vercel.app/api"
 DEVICE_ID = "ESP32-KUMBUNG-01"
 
 # Interval pengiriman data (detik)
-SENSOR_SEND_INTERVAL = 10       # Kirim data sensor tiap 10 detik
+SENSOR_SEND_INTERVAL = 60       # Kirim data sensor tiap 60 detik (1 menit)
 THRESHOLD_FETCH_INTERVAL = 30   # Fetch threshold dari web tiap 30 detik
 MAX_MISTING_DURATION = 90       # Safety timeout misting (detik)
+CRITICAL_TEMP_OFFSET = 2.0      # Safety Override: jika SATU sensor > tempMax + offset ini, paksa Fan ON
 
 # ============================================================
 # MODEL FISIKA KUMBUNG JAMUR
@@ -228,6 +229,14 @@ class KumbungState:
             result[zone_id] = (round(s['temperature'], 1), round(s['humidity'], 1))
         return result
 
+    def get_max_temp(self) -> float:
+        """Return suhu TERTINGGI dari semua sensor (untuk Safety Override)."""
+        return round(max(s['temperature'] for s in self.sensors.values()), 1)
+
+    def get_min_hum(self) -> float:
+        """Return kelembaban TERENDAH dari semua sensor (untuk Safety Override)."""
+        return round(min(s['humidity'] for s in self.sensors.values()), 1)
+
 
 # ============================================================
 # KONTROL AKTUATOR (IDENTIK dengan esp32_firmware.ino)
@@ -277,19 +286,30 @@ def control_misting(state: KumbungState):
 def control_fan(state: KumbungState):
     """
     Logika Exhaust Fan — mirror dari controlFan() di firmware.
-    - NYALA jika suhu > tempMax (buang udara panas)
-    - MATI  jika suhu <= tempMin (udah adem, histeresis)
+    - NYALA jika suhu rata-rata > tempMax (buang udara panas)
+    - NYALA PAKSA jika SATU sensor > tempMax + CRITICAL_TEMP_OFFSET (Safety Override)
+    - MATI  jika suhu rata-rata <= tempMin DAN tidak ada sensor kritis (histeresis)
     """
     temp, _ = state.get_readings()
+    max_temp = state.get_max_temp()
+    critical_threshold = state.temp_max + CRITICAL_TEMP_OFFSET
 
+    # Safety Override: cek apakah ada sensor individu yang melewati batas kritis
+    if max_temp > critical_threshold:
+        if not state.is_fan_active:
+            state.is_fan_active = True
+            print(f"   🚨 [SAFETY OVERRIDE] Fan PAKSA ON! Sensor tertinggi {max_temp}°C > batas kritis {critical_threshold}°C")
+        return  # Jangan matikan fan selama ada sensor kritis
+
+    # Logika normal (pakai rata-rata)
     if temp > state.temp_max:
         if not state.is_fan_active:
             state.is_fan_active = True
-            print(f"   🌀 [FAN ON] Exhaust Fan AKTIF (Suhu {temp}°C > {state.temp_max}°C)")
+            print(f"   🌀 [FAN ON] Exhaust Fan AKTIF (Suhu avg {temp}°C > {state.temp_max}°C)")
     elif temp <= state.temp_min:
         if state.is_fan_active:
             state.is_fan_active = False
-            print(f"   🌀 [FAN OFF] Exhaust Fan MATI (Suhu {temp}°C <= {state.temp_min}°C)")
+            print(f"   🌀 [FAN OFF] Exhaust Fan MATI (Suhu avg {temp}°C <= {state.temp_min}°C)")
 
 
 # ============================================================
