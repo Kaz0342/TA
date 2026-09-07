@@ -217,7 +217,7 @@ export default function Dashboard() {
                     tick={{ fontSize: 12, fill: '#000', fontWeight: 'bold' }} 
                     tickLine={{ stroke: '#000' }} 
                     axisLine={{ stroke: '#000', strokeWidth: 2 }} 
-                    domain={[50, 100]}
+                    domain={['auto', 'auto']}
                     unit="%"
                   />
                   <Tooltip 
