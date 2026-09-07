@@ -11,6 +11,7 @@ const fetchStats = async () => (await api.get('/dashboard/stats')).data.data;
 const fetchLatestSensor = async () => (await api.get('/sensor-data/latest')).data.data;
 const fetchChart = async () => (await api.get('/sensor-data/chart?hours=24')).data.data;
 const fetchHarvestChart = async () => (await api.get('/harvests/chart?days=14')).data.data;
+const fetchThresholds = async () => (await api.get('/thresholds')).data.data;
 
 export default function Dashboard() {
   // Queries — Polling agresif agar responsif dan real-time sinkron dengan IoT (ESP32/Simulator)
@@ -35,6 +36,12 @@ export default function Dashboard() {
   const { data: harvestChartData, isLoading: harvestChartLoading } = useQuery({
     queryKey: ['harvestChart'],
     queryFn: fetchHarvestChart,
+    refetchInterval: 30000, // Refetch tiap 30 detik
+  });
+
+  const { data: thresholds } = useQuery({
+    queryKey: ['thresholds'],
+    queryFn: fetchThresholds,
     refetchInterval: 30000, // Refetch tiap 30 detik
   });
 
@@ -172,7 +179,9 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-          <p className="text-xs font-bold text-gray-500 mt-2">Batas optimal: 20°C — 30°C</p>
+          <p className="text-xs font-bold text-gray-500 mt-2">
+            Batas sistem saat ini: {thresholds?.temp_min || '20'}°C — {thresholds?.temp_max || '30'}°C
+          </p>
         </Card>
 
         {/* Grafik Kelembaban (24 Jam) */}
@@ -227,7 +236,9 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-          <p className="text-xs font-bold text-gray-500 mt-2">Batas optimal: 70% — 90%</p>
+          <p className="text-xs font-bold text-gray-500 mt-2">
+            Batas sistem saat ini: {thresholds?.humidity_min || '70'}% — {thresholds?.humidity_max || '90'}%
+          </p>
         </Card>
       </div>
 
