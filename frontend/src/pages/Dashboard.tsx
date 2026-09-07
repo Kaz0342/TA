@@ -9,7 +9,7 @@ import { Card } from '../components/ui';
 // Fetchers
 const fetchStats = async () => (await api.get('/dashboard/stats')).data.data;
 const fetchLatestSensor = async () => (await api.get('/sensor-data/latest')).data.data;
-const fetchChart = async () => (await api.get('/sensor-data/chart?hours=24')).data.data;
+const fetchChart = async () => (await api.get('/sensor-data/chart?hours=6')).data.data;
 const fetchHarvestChart = async () => (await api.get('/harvests/chart?days=14')).data.data;
 const fetchThresholds = async () => (await api.get('/thresholds')).data.data;
 
@@ -127,11 +127,11 @@ export default function Dashboard() {
       {/* Chart Section — 2 grafik terpisah (ECC: Presentational Split) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {/* Grafik Suhu (24 Jam) */}
+        {/* Grafik Suhu (6 Jam) */}
         <Card className="bg-white">
           <div className="flex items-center gap-2 mb-4 border-b-4 border-black pb-2">
-            <Thermometer className="w-6 h-6 stroke-[3] text-yellow-500" />
-            <h2 className="text-xl font-black text-black uppercase">Grafik Suhu (24 Jam)</h2>
+            <TrendingUp className="w-6 h-6 stroke-[3] text-yellow-500" />
+            <h2 className="text-xl font-black text-black uppercase">Grafik Suhu (6 Jam)</h2>
           </div>
           <div className="h-[280px] w-full border-4 border-black p-4 bg-gray-50">
             {chartLoading ? (
@@ -197,7 +197,7 @@ export default function Dashboard() {
         <Card className="bg-white">
           <div className="flex items-center gap-2 mb-4 border-b-4 border-black pb-2">
             <Droplets className="w-6 h-6 stroke-[3] text-blue-500" />
-            <h2 className="text-xl font-black text-black uppercase">Grafik Kelembaban (24 Jam)</h2>
+            <h2 className="text-xl font-black text-black uppercase">Grafik Kelembaban (6 Jam)</h2>
           </div>
           <div className="h-[280px] w-full border-4 border-black p-4 bg-gray-50">
             {chartLoading ? (
