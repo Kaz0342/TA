@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { 
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceArea 
 } from 'recharts';
 import { Thermometer, Droplets, Package, Sprout, TrendingUp, AlertTriangle } from 'lucide-react';
 import api from '../services/api';
@@ -161,6 +161,15 @@ export default function Dashboard() {
                     offset={25}
                     cursor={{ stroke: '#9ca3af', strokeWidth: 2, strokeDasharray: '4 4' }}
                   />
+                  {thresholds && (
+                    <ReferenceArea 
+                      y1={thresholds.temp_min} 
+                      y2={thresholds.temp_max} 
+                      fill="#10b981" 
+                      fillOpacity={0.15} 
+                      strokeOpacity={0}
+                    />
+                  )}
                   <Line 
                     type="monotone" 
                     name="Suhu (°C)"
@@ -218,6 +227,15 @@ export default function Dashboard() {
                     offset={25}
                     cursor={{ stroke: '#9ca3af', strokeWidth: 2, strokeDasharray: '4 4' }}
                   />
+                  {thresholds && (
+                    <ReferenceArea 
+                      y1={thresholds.humidity_min} 
+                      y2={thresholds.humidity_max} 
+                      fill="#10b981" 
+                      fillOpacity={0.15} 
+                      strokeOpacity={0}
+                    />
+                  )}
                   <Line 
                     type="monotone" 
                     name="Kelembaban (%)"
