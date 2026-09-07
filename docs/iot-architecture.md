@@ -10,9 +10,15 @@ Sistem IoT ini berpusat pada mikrokontroler yang terhubung ke jaringan internet 
 *   **Komponen:** ESP32 (NodeMCU / Wemos D1 Mini)
 *   **Fungsi:** Bertindak sebagai otak utama (edge device) yang membaca data dari seluruh sensor, memformatnya menjadi JSON, dan mengirimkannya ke server backend via HTTP POST. ESP32 dipilih karena memiliki modul Wi-Fi terintegrasi.
 
-### 1.2 Sensor Suhu & Kelembapan
-*   **Komponen:** DHT22 atau BME280
-*   **Fungsi:** Mengukur suhu ruangan (derajat Celsius) dan tingkat kelembapan relatif udara (persentase). DHT22 lebih direkomendasikan daripada DHT11 karena jangkauan bacaan yang lebih luas dan presisi yang lebih tinggi, sangat krusial untuk pertumbuhan miselium jamur tiram (suhu optimal 20-30°C, kelembaban 70-90%).
+### 1.2 Sensor Suhu & Kelembapan (3 Unit — Segitiga Diagonal)
+*   **Komponen:** 3x DHT22
+*   **Penempatan:** Formasi Segitiga Diagonal di kumbung 5m × 7m × 3.5m:
+    *   **Sensor A** (GPIO 4): Zona Atas, dekat pintu, ketinggian 2.5m — mendeteksi udara panas dan gangguan pintu.
+    *   **Sensor B** (GPIO 15): Zona Tengah, pusat kumbung, ketinggian 1.5m — referensi utama.
+    *   **Sensor C** (GPIO 2): Zona Bawah, pojok belakang, ketinggian 0.5m — mendeteksi dead zone.
+*   **Logika:** ESP32 membaca ketiga sensor, menghitung **rata-rata aritmatika** (averaging), dan menggunakan nilai rata-rata tersebut untuk keputusan aktuator dan pengiriman ke API. Jika salah satu sensor error, hanya sensor yang valid yang dihitung.
+*   **Fungsi:** Mengukur suhu ruangan (°C) dan kelembapan relatif (%). DHT22 dipilih karena jangkauan bacaan yang lebih luas dan presisi yang lebih tinggi dibanding DHT11, sangat krusial untuk pertumbuhan miselium jamur tiram (suhu optimal 20-30°C, kelembaban 70-90%).
+*   **Referensi:** Lihat `docs/penempatan_sensor.md` untuk detail strategi penempatan.
 
 ### 1.3 Sensor Kadar CO2
 *   **Komponen:** MQ-135 (General Air Quality) atau MH-Z19 (NDIR CO2 Sensor)
@@ -29,11 +35,12 @@ Sistem IoT ini berpusat pada mikrokontroler yang terhubung ke jaringan internet 
 Sistem tidak menggunakan protokol MQTT, melainkan memanfaatkan protokol HTTP/HTTPS berbasis **REST API** (*stateless*). Pendekatan ini menyederhanakan arsitektur karena tidak memerlukan *Message Broker* tambahan.
 
 ### 2.1 Skema Aliran Data
-1.  **Reading (Pembacaan):** ESP32 secara periodik membaca nilai dari keempat sensor (contoh: setiap 5 menit).
-2.  **Serialization:** ESP32 merakit data tersebut menjadi struktur JSON tunggal.
-3.  **Transmission:** ESP32 melakukan request `HTTP POST` ke endpoint publik server: `POST /api/sensor-data`.
-4.  **Validation:** Laravel Backend menerima payload dan memvalidasinya menggunakan `FormRequest`. Proses ini mencegah injeksi data kotor (misal: suhu berupa teks alih-alih angka, atau batas data yang tidak masuk akal).
-5.  **Storage:** Jika data lolos validasi, backend menyimpannya secara *immutable* ke dalam database (MySQL/PostgreSQL) dengan presisi `DECIMAL(5,2)` agar tidak terjadi *floating-point error*.
+1.  **Multi-Sensor Reading (Pembacaan 3 Sensor):** ESP32 secara periodik membaca nilai dari ketiga sensor DHT22 di zona Atas, Tengah, dan Bawah (setiap 5 detik).
+2.  **Averaging (Rata-rata):** ESP32 menghitung rata-rata suhu dan kelembapan dari sensor yang valid. Sensor yang error (NaN) otomatis diabaikan.
+3.  **Serialization:** ESP32 merakit data rata-rata tersebut menjadi struktur JSON tunggal.
+4.  **Transmission:** ESP32 melakukan request `HTTP POST` ke endpoint publik server: `POST /api/sensor-data`.
+5.  **Validation:** Laravel Backend menerima payload dan memvalidasinya menggunakan `FormRequest`. Proses ini mencegah injeksi data kotor (misal: suhu berupa teks alih-alih angka, atau batas data yang tidak masuk akal).
+6.  **Storage:** Jika data lolos validasi, backend menyimpannya secara *immutable* ke dalam database (MySQL/PostgreSQL) dengan presisi `DECIMAL(5,2)` agar tidak terjadi *floating-point error*.
 
 ### 2.2 Format Payload (JSON)
 

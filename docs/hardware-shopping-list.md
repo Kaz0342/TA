@@ -18,7 +18,7 @@ Berikut adalah komponen yang wajib dibeli. Perkiraan harga adalah harga wajar di
 ### 🌡️ Modul Sensor (Mata & Telinga)
 | Nama Barang | Spesifikasi Rekomendasi | Fungsi | Estimasi Harga |
 | :--- | :--- | :--- | :--- |
-| **DHT22** | Sensor Suhu & Kelembapan | **Wajib DHT22**, jangan DHT11 (DHT11 terlalu ampas/tidak akurat untuk TA). | Rp 45.000 - 60.000 |
+| **DHT22 (3 Unit)** | Sensor Suhu & Kelembapan | **Wajib DHT22**, jangan DHT11. 3 unit untuk penempatan Segitiga Diagonal (Atas/Tengah/Bawah). Lihat `docs/penempatan_sensor.md`. | Rp 135.000 - 180.000 (3x @45-60rb) |
 | **BH1750** | Digital Light Sensor (I2C) | Membaca intensitas cahaya (Lux) dengan sangat presisi. Jauh lebih baik dari sensor LDR biasa. | Rp 15.000 - 20.000 |
 | **MQ-135** *(Opsi Hemat)* | Gas Sensor Module | Deteksi kualitas udara umum (termasuk CO2 estimasi). Cocok untuk budget mahasiswa. | Rp 20.000 - 30.000 |
 | **MH-Z19B** *(Opsi Sultan)* | NDIR CO2 Sensor | Sensor CO2 *true reading*. Sangat akurat tapi lumayan mahal. Kalau budget ada, pakai ini. | Rp 250.000+ |

@@ -5,7 +5,10 @@ Dokumen ini menjelaskan alur logika (algoritma) bagaimana ESP32 memutuskan kapan
 
 ---
 
-## 1. Variabel Batasan (Threshold)
+## 1. Sumber Data: Rata-rata 3 Sensor (Multi-Sensor Averaging)
+Sistem menggunakan **3 sensor DHT22** yang ditempatkan secara **Segitiga Diagonal** di kumbung (Zona Atas, Tengah, Bawah). ESP32 membaca ketiga sensor setiap 5 detik, lalu menghitung **nilai rata-rata** suhu dan kelembaban. Nilai rata-rata inilah yang digunakan untuk semua logika perbandingan threshold di bawah ini. Lihat `docs/penempatan_sensor.md` untuk detail penempatan.
+
+## 2. Variabel Batasan (Threshold)
 Sistem mengambil 4 nilai batas dari pengaturan web (Dashboard):
 - `tempMax`: Suhu Maksimum (Kritis / Panas)
 - `tempMin`: Suhu Minimum (Terlalu Dingin / Batas aman kipas mati)
@@ -14,7 +17,7 @@ Sistem mengambil 4 nilai batas dari pengaturan web (Dashboard):
 
 ---
 
-## 2. Logika Kipas (Exhaust Fan)
+## 3. Logika Kipas (Exhaust Fan)
 Kipas bertugas membuang udara panas dari dalam kumbung ke luar ruangan.
 
 **Kondisi Kipas MENYALA (ON):**
@@ -27,7 +30,7 @@ Kipas bertugas membuang udara panas dari dalam kumbung ke luar ruangan.
 
 ---
 
-## 3. Logika Penyiraman (Misting / Pompa & Solenoid)
+## 4. Logika Penyiraman (Misting / Pompa & Solenoid)
 Misting bertugas menaikkan kelembaban udara (RH) dan memberikan efek pendinginan evaporatif (menurunkan suhu secara perlahan).
 
 **Kondisi Misting MENYALA (ON):**
@@ -53,7 +56,7 @@ Selain logika sensor di atas, sistem memiliki timer keamanan mutlak (Hard Limit)
 
 ---
 
-## 4. Kesimpulan Contoh Kasus
+## 5. Kesimpulan Contoh Kasus
 
 Misal Settingan Web:
 - Suhu: `23°C` (Min) - `30°C` (Max)
