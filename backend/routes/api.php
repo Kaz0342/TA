@@ -17,9 +17,9 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-// Public Routes
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/register', [AuthController::class, 'register']);
+// Public Routes — Dilindungi rate limiter untuk mencegah Brute Force & DoS
+Route::middleware('throttle:15,1')->post('/login', [AuthController::class, 'login']);
+Route::middleware('throttle:5,1')->post('/register', [AuthController::class, 'register']);
 
 // NO AUTH — Device Endpoint (ESP32)
 // @see ECC rules/php/security.md → Rate limit semua endpoint publik
@@ -91,6 +91,13 @@ if (app()->environment('local')) {
         $email = request()->query('email', 'admin@smartshroom.com');
         $user = \App\Models\User::where('email', $email)->first();
         if ($user) {
+            // Jika user belum admin dan kuota admin (1) sudah terisi oleh user lain
+            if ($user->role !== \App\Models\User::ROLE_ADMIN && ! \App\Models\User::canRegisterAdmin()) {
+                return response()->json([
+                    'error' => 'Batas kuota admin telah tercapai (maksimal 1 admin).'
+                ], 422);
+            }
+
             $user->update(['role' => 'admin']);
             return response()->json([
                 'status' => 'success',

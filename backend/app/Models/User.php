@@ -44,6 +44,29 @@ class User extends Authenticatable
     public const ROLE_WORKER = 'worker';
 
     /**
+     * Batas kuota akun sistem SCM (skala kumbung mikro).
+     */
+    public const MAX_ADMINS = 1;
+
+    public const MAX_WORKERS = 5;
+
+    /**
+     * Cek apakah masih ada kuota untuk worker baru (maksimal 5).
+     */
+    public static function canRegisterWorker(): bool
+    {
+        return self::where('role', self::ROLE_WORKER)->count() < self::MAX_WORKERS;
+    }
+
+    /**
+     * Cek apakah masih ada kuota untuk admin baru (maksimal 1).
+     */
+    public static function canRegisterAdmin(): bool
+    {
+        return self::where('role', self::ROLE_ADMIN)->count() < self::MAX_ADMINS;
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

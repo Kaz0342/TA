@@ -60,9 +60,15 @@ class AuthController extends Controller
     /**
      * POST /api/register
      * Registrasi user baru (default: worker).
+     * Dibatasi kuota maksimal 5 worker dan 1 admin.
      */
     public function register(Request $request): JsonResponse
     {
+        // Enforce Quota: Maksimal 5 Worker
+        if (! User::canRegisterWorker()) {
+            return $this->error('Batas kuota pekerja telah tercapai (maksimal 5 worker). Pendaftaran pekerja baru ditolak.', 422);
+        }
+
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',

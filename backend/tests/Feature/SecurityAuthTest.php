@@ -232,4 +232,66 @@ class SecurityAuthTest extends TestCase
         // 201 Created (berhasil) atau 200
         $response->assertSuccessful();
     }
+
+    // ════════════════════════════════════════════════════════════
+    // SKENARIO 4: Kuota Pengguna (Maks 5 Worker & Enforce Role)
+    // ════════════════════════════════════════════════════════════
+
+    /**
+     * Registrasi worker berhasil jika kuota belum penuh (< 5 worker).
+     */
+    public function test_worker_registration_succeeds_when_under_quota(): void
+    {
+        $response = $this->postJson('/api/register', [
+            'name' => 'Budi Worker Baru',
+            'email' => 'budi.new@smartshroom.test',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.user.role', User::ROLE_WORKER);
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'budi.new@smartshroom.test',
+            'role' => User::ROLE_WORKER,
+        ]);
+    }
+
+    /**
+     * Registrasi ditolak dengan 422 jika kuota 5 worker sudah tercapai.
+     */
+    public function test_worker_registration_fails_when_quota_full(): void
+    {
+        // Buat 5 worker (memenuhi kuota maksimal)
+        User::factory()->count(5)->create(['role' => User::ROLE_WORKER]);
+
+        // Coba daftarkan worker ke-6
+        $response = $this->postJson('/api/register', [
+            'name' => 'Worker Ke Enam',
+            'email' => 'worker6@smartshroom.test',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonFragment(['success' => false]);
+    }
+
+    /**
+     * Registrasi publik TIDAK BISA membuat akun admin (selalu dipaksa role worker).
+     */
+    public function test_registration_always_assigns_worker_role_even_if_admin_requested(): void
+    {
+        $response = $this->postJson('/api/register', [
+            'name' => 'Penyusup Admin',
+            'email' => 'penyusup@smartshroom.test',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'role' => 'admin', // Coba bypass role jadi admin
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.user.role', User::ROLE_WORKER);
+    }
 }
