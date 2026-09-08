@@ -2,3 +2,7 @@ ECC_Repo/
 .env
 vendor/
 node_modules/
+sensor_24h_dump.json
+*.dump.json
+backend/.env
+backend/.env.production
