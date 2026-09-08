@@ -26,6 +26,15 @@ import requests
 import datetime
 import sys
 import os
+import argparse
+import signal
+
+# Handler sinyal terminasi agar graceful exit di runner cloud (GitHub Actions)
+def handle_sigterm(signum, frame):
+    print("\n[STOP] Menerima sinyal terminasi (SIGTERM). Simulator berhenti dengan aman.")
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, handle_sigterm)
 
 # Fix encoding untuk Windows terminal (agar emoji tidak error)
 if sys.platform == 'win32':
@@ -386,11 +395,22 @@ def print_lcd(temp: float, hum: float, misting: bool, fan: bool):
 # ============================================================
 
 def main():
+    parser = argparse.ArgumentParser(description="Smart Shroom IoT Simulator")
+    parser.add_argument("--duration", type=int, default=0, help="Durasi simulasi dalam detik (0 = tanpa batas)")
+    parser.add_argument("--interval", type=int, default=SENSOR_SEND_INTERVAL, help="Interval pengiriman data sensor (detik)")
+    args = parser.parse_args()
+
+    duration = args.duration
+    send_interval = args.interval
+
     print("=" * 60)
     print("  🍄 Smart Shroom IoT Simulator v3.0 (Multi-Sensor)")
     print(f"  Device: {DEVICE_ID}")
     print(f"  Backend: {API_BASE_URL}")
     print(f"  Sensor: 3x DHT22 (Segitiga Diagonal)")
+    if duration > 0:
+        print(f"  Durasi: {duration}s ({round(duration/3600, 2)} jam)")
+    print(f"  Interval Kirim: {send_interval}s")
     print("=" * 60)
     print()
 
@@ -416,6 +436,7 @@ def main():
     print()
 
     # Timer non-blocking (seperti millis() di firmware)
+    start_time = time.time()
     last_sensor_send = 0
     last_threshold_fetch = time.time()
     tick_count = 0
@@ -423,6 +444,17 @@ def main():
     try:
         while True:
             now = time.time()
+
+            # Cek apakah durasi simulasi sudah tercapai
+            if duration > 0 and (now - start_time) >= duration:
+                print()
+                print("=" * 60)
+                print(f"  🏁 Durasi simulasi {duration} detik selesai.")
+                temp, hum = state.get_readings()
+                print(f"  Kondisi akhir: Suhu {temp}°C | RH {hum}%")
+                print("=" * 60)
+                break
+
             tick_count += 1
             timestamp = datetime.datetime.now().strftime("%H:%M:%S")
 
@@ -433,8 +465,8 @@ def main():
             control_misting(state)
             control_fan(state)
 
-            # Kirim data sensor ke API setiap SENSOR_SEND_INTERVAL detik
-            if now - last_sensor_send >= SENSOR_SEND_INTERVAL:
+            # Kirim data sensor ke API setiap send_interval detik
+            if now - last_sensor_send >= send_interval:
                 last_sensor_send = now
                 temp, hum = state.get_readings()
                 zones = state.get_zone_readings()

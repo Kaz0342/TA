@@ -1,0 +1,40 @@
+name: 🍄 24/7 IoT Sensor Simulator
+
+on:
+  schedule:
+    # Trigger setiap 5 jam sekali (UTC: 00:00, 05:00, 10:00, 15:00, 20:00)
+    - cron: '0 0,5,10,15,20 * * *'
+  workflow_dispatch: # Tombol manual trigger di GitHub Actions UI
+  push:
+    paths:
+      - 'iot_simulator.py'
+      - '.github/workflows/iot-simulator.yml'
+
+# Cegah race condition: hanya boleh ada 1 simulator aktif di satu waktu
+concurrency:
+  group: iot-sensor-simulator
+  cancel-in-progress: true
+
+jobs:
+  simulate:
+    name: Running Telemetry Simulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+
+    steps:
+      - name: Checkout Kode
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Jalankan Simulasi Sensor (5 Jam)
+        # Menjalankan simulator selama 18.000 detik (5 jam), lalu disambung jadwal berikutnya
+        run: |
+          python -u iot_simulator.py --duration 18000
