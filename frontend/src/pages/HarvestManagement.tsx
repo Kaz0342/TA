@@ -97,13 +97,13 @@ export default function HarvestManagement() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center bg-white p-6 border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 sm:p-6 border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
         <div>
-          <h1 className="text-3xl font-black text-black uppercase">Rekap Panen</h1>
-          <p className="text-gray-700 font-bold mt-1">Catat dan pantau hasil panen harian.</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-black uppercase">Rekap Panen</h1>
+          <p className="text-gray-700 font-bold mt-1 text-sm sm:text-base">Catat dan pantau hasil panen harian.</p>
         </div>
 
-        <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-[#28e085] hover:bg-green-400">
+        <Button onClick={() => setIsModalOpen(true)} className="flex items-center justify-center gap-2 bg-[#28e085] hover:bg-green-400 w-full sm:w-auto">
           <Plus className="w-5 h-5 stroke-[3]" />
           Input Panen
         </Button>
@@ -151,9 +151,9 @@ export default function HarvestManagement() {
       {/* Modal Tambah Panen */}
       {isModalOpen && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 animate-in fade-in">
-          <Card className="w-full max-w-md bg-white p-0 overflow-hidden relative">
-            <div className="bg-[#28e085] p-4 border-b-4 border-black flex justify-between items-center">
-              <h2 className="text-xl font-black uppercase flex items-center gap-2">
+          <Card className="w-full max-w-md bg-white p-0 overflow-hidden relative max-h-[90vh] flex flex-col">
+            <div className="bg-[#28e085] p-4 border-b-4 border-black flex justify-between items-center shrink-0">
+              <h2 className="text-lg sm:text-xl font-black uppercase flex items-center gap-2">
                 <Sprout className="w-6 h-6 stroke-[3]" /> Input Hasil Panen
               </h2>
               <button
@@ -164,7 +164,7 @@ export default function HarvestManagement() {
               </button>
             </div>
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1">
               {formError && (
                 <div className="bg-red-400 text-black font-bold border-4 border-black p-3 mb-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                   {formError}

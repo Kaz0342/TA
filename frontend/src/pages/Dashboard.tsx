@@ -11,7 +11,7 @@ const fetchStats = async () => (await api.get('/dashboard/stats')).data.data;
 const fetchLatestSensor = async () => (await api.get('/sensor-data/latest')).data.data;
 const fetchChart = async () => (await api.get('/sensor-data/chart?hours=6')).data.data;
 const fetchHarvestChart = async () => (await api.get('/harvests/chart?days=14')).data.data;
-const fetchThresholds = async () => (await api.get('/thresholds')).data.data;
+const fetchThresholds = async () => (await api.get('/thresholds/active')).data.data;
 
 export default function Dashboard() {
   // Queries — Polling agresif agar responsif dan real-time sinkron dengan IoT (ESP32/Simulator)
@@ -45,6 +45,12 @@ export default function Dashboard() {
     refetchInterval: 30000, // Refetch tiap 30 detik
   });
 
+  // Nilai numerik batas optimal dengan fallback standar budidaya jamur tiram
+  const tempMin = Number(thresholds?.temp_min ?? 20);
+  const tempMax = Number(thresholds?.temp_max ?? 30);
+  const humMin = Number(thresholds?.humidity_min ?? 70);
+  const humMax = Number(thresholds?.humidity_max ?? 90);
+
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
@@ -70,7 +76,7 @@ export default function Dashboard() {
       )}
 
       {/* Top Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {/* Real-time Temp */}
         <Card className="flex items-center gap-3 p-4 bg-yellow-400 group">
           <div className="p-2 bg-white border-4 border-black text-black group-hover:scale-110 transition-transform shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] shrink-0">
@@ -105,71 +111,81 @@ export default function Dashboard() {
           <div className="min-w-0">
             <p className="text-xs font-black text-black uppercase leading-tight">Baglog Aktif</p>
             <p className="text-2xl sm:text-3xl font-black text-black leading-tight mt-1">
-              {statsLoading ? '...' : stats?.active_baglogs || 0}
+              {statsLoading ? '...' : stats?.active_baglogs_count ?? '--'}
             </p>
           </div>
         </Card>
 
-        {/* Revenue */}
-        <Card className="flex items-center gap-3 p-4 bg-[#c084fc] group">
+        {/* Revenue Week */}
+        <Card className="flex items-center gap-3 p-4 bg-purple-400 group">
           <div className="p-2 bg-white border-4 border-black text-black group-hover:scale-110 transition-transform shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] shrink-0">
             <TrendingUp className="w-8 h-8 stroke-[3]" />
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-black text-black uppercase leading-tight">Revenue (Bulan ini)</p>
-            <p className="text-xl sm:text-2xl font-black text-black leading-tight mt-1 break-words">
-              {statsLoading ? '...' : formatCurrency(stats?.monthly_revenue_idr || 0)}
+          <div className="min-w-0">
+            <p className="text-xs font-black text-black uppercase leading-tight">Omset Minggu Ini</p>
+            <p className="text-xl sm:text-2xl font-black text-black leading-tight mt-1 truncate" title={stats ? formatCurrency(stats.weekly_revenue) : ''}>
+              {statsLoading ? '...' : formatCurrency(stats?.weekly_revenue || 0)}
             </p>
           </div>
         </Card>
       </div>
 
-      {/* Chart Section — 2 grafik terpisah (ECC: Presentational Split) */}
+      {/* Sensor Line Charts — Suhu & Kelembaban (Responsive Grid) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
+        
         {/* Grafik Suhu (6 Jam) */}
         <Card className="bg-white">
-          <div className="flex items-center gap-2 mb-4 border-b-4 border-black pb-2">
-            <TrendingUp className="w-6 h-6 stroke-[3] text-yellow-500" />
-            <h2 className="text-xl font-black text-black uppercase">Grafik Suhu (6 Jam)</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4 border-b-4 border-black pb-2">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-6 h-6 stroke-[3] text-yellow-500" />
+              <h2 className="text-lg sm:text-xl font-black text-black uppercase">Grafik Suhu (6 Jam)</h2>
+            </div>
+            <span className="text-xs font-black px-2.5 py-1 bg-emerald-100 text-emerald-900 border-2 border-black rounded shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+              Zona Ideal: {tempMin}°C — {tempMax}°C
+            </span>
           </div>
-          <div className="h-[280px] w-full border-4 border-black p-4 bg-gray-50">
+          <div className="h-[280px] w-full border-4 border-black p-2 sm:p-4 bg-gray-50">
             {chartLoading ? (
               <div className="w-full h-full flex items-center justify-center text-black font-bold">Loading chart...</div>
             ) : chartData && chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 5, right: 15, left: -15, bottom: 5 }}>
+                <LineChart data={chartData} margin={{ top: 10, right: 10, left: -5, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.4} stroke="#000" vertical={false} />
                   <XAxis 
                     dataKey="time_label" 
-                    tick={{ fontSize: 11, fill: '#000', fontWeight: 'bold' }} 
+                    tick={{ fontSize: 10, fill: '#000', fontWeight: 'bold' }} 
                     tickLine={{ stroke: '#000' }} 
                     axisLine={{ stroke: '#000', strokeWidth: 2 }} 
-                    minTickGap={40}
+                    minTickGap={30}
                   />
                   <YAxis 
-                    tick={{ fontSize: 12, fill: '#000', fontWeight: 'bold' }} 
+                    tick={{ fontSize: 10, fill: '#000', fontWeight: 'bold' }} 
                     tickLine={{ stroke: '#000' }} 
                     axisLine={{ stroke: '#000', strokeWidth: 2 }} 
-                    domain={['auto', 'auto']}
-                    unit="°C"
+                    domain={[
+                      (dataMin: number) => Math.min(Math.floor(Number.isFinite(dataMin) ? dataMin : 20), tempMin - 1),
+                      (dataMax: number) => Math.max(Math.ceil(Number.isFinite(dataMax) ? dataMax : 30), tempMax + 1)
+                    ]}
+                    tickFormatter={(val) => `${val}°`}
+                    width={32}
                   />
                   <Tooltip 
                     contentStyle={{ borderRadius: '0px', border: '4px solid #000', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', backgroundColor: '#fff' }}
                     labelStyle={{ fontWeight: 'black', color: '#000', textTransform: 'uppercase' }}
                     formatter={(value: any) => [`${value} °C`, 'Suhu']}
-                    offset={25}
+                    offset={15}
                     cursor={{ stroke: '#9ca3af', strokeWidth: 2, strokeDasharray: '4 4' }}
                   />
-                  {thresholds && (
-                    <ReferenceArea 
-                      y1={thresholds.temp_min} 
-                      y2={thresholds.temp_max} 
-                      fill="#10b981" 
-                      fillOpacity={0.15} 
-                      strokeOpacity={0}
-                    />
-                  )}
+                  <ReferenceArea 
+                    y1={tempMin} 
+                    y2={tempMax} 
+                    fill="#10b981" 
+                    fillOpacity={0.22} 
+                    stroke="#059669"
+                    strokeDasharray="4 4"
+                    strokeWidth={1.5}
+                  />
                   <Line 
                     type="monotone" 
                     name="Suhu (°C)"
@@ -177,7 +193,7 @@ export default function Dashboard() {
                     stroke="#eab308" 
                     strokeWidth={3} 
                     dot={false}
-                    activeDot={{ r: 6, stroke: '#000', strokeWidth: 3, fill: '#eab308' }} 
+                    activeDot={{ r: 5, stroke: '#000', strokeWidth: 2.5, fill: '#eab308' }} 
                     isAnimationActive={false}
                   />
                 </LineChart>
@@ -188,54 +204,68 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-          <p className="text-xs font-bold text-gray-500 mt-2">
-            Batas sistem saat ini: {thresholds?.temp_min || '20'}°C — {thresholds?.temp_max || '30'}°C
-          </p>
+          <div className="flex flex-wrap items-center justify-between text-xs font-bold text-gray-600 mt-2 gap-1">
+            <span>Batas optimal: {tempMin}°C — {tempMax}°C</span>
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 bg-emerald-500/20 border border-emerald-600 inline-block"></span>
+              Area Hijau = Zona Ideal
+            </span>
+          </div>
         </Card>
 
-        {/* Grafik Kelembaban (24 Jam) */}
+        {/* Grafik Kelembaban (6 Jam) */}
         <Card className="bg-white">
-          <div className="flex items-center gap-2 mb-4 border-b-4 border-black pb-2">
-            <Droplets className="w-6 h-6 stroke-[3] text-blue-500" />
-            <h2 className="text-xl font-black text-black uppercase">Grafik Kelembaban (6 Jam)</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4 border-b-4 border-black pb-2">
+            <div className="flex items-center gap-2">
+              <Droplets className="w-6 h-6 stroke-[3] text-blue-500" />
+              <h2 className="text-lg sm:text-xl font-black text-black uppercase">Grafik Kelembaban (6 Jam)</h2>
+            </div>
+            <span className="text-xs font-black px-2.5 py-1 bg-emerald-100 text-emerald-900 border-2 border-black rounded shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+              Zona Ideal: {humMin}% — {humMax}%
+            </span>
           </div>
-          <div className="h-[280px] w-full border-4 border-black p-4 bg-gray-50">
+          <div className="h-[280px] w-full border-4 border-black p-2 sm:p-4 bg-gray-50">
             {chartLoading ? (
               <div className="w-full h-full flex items-center justify-center text-black font-bold">Loading chart...</div>
             ) : chartData && chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 5, right: 15, left: -15, bottom: 5 }}>
+                <LineChart data={chartData} margin={{ top: 10, right: 10, left: -5, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.4} stroke="#000" vertical={false} />
                   <XAxis 
                     dataKey="time_label" 
-                    tick={{ fontSize: 11, fill: '#000', fontWeight: 'bold' }} 
+                    tick={{ fontSize: 10, fill: '#000', fontWeight: 'bold' }} 
                     tickLine={{ stroke: '#000' }} 
                     axisLine={{ stroke: '#000', strokeWidth: 2 }} 
-                    minTickGap={40}
+                    minTickGap={30}
                   />
                   <YAxis 
-                    tick={{ fontSize: 12, fill: '#000', fontWeight: 'bold' }} 
+                    tick={{ fontSize: 10, fill: '#000', fontWeight: 'bold' }} 
                     tickLine={{ stroke: '#000' }} 
                     axisLine={{ stroke: '#000', strokeWidth: 2 }} 
-                    domain={['auto', 'auto']}
-                    unit="%"
+                    domain={[
+                      (dataMin: number) => Math.max(0, Math.min(Math.floor(Number.isFinite(dataMin) ? dataMin : 70), humMin - 5)),
+                      (dataMax: number) => Math.min(100, Math.max(Math.ceil(Number.isFinite(dataMax) ? dataMax : 90), humMax + 5))
+                    ]}
+                    tickFormatter={(val) => `${val}%`}
+                    width={36}
                   />
                   <Tooltip 
                     contentStyle={{ borderRadius: '0px', border: '4px solid #000', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', backgroundColor: '#fff' }}
                     labelStyle={{ fontWeight: 'black', color: '#000', textTransform: 'uppercase' }}
                     formatter={(value: any) => [`${value} %`, 'Kelembaban']}
-                    offset={25}
+                    offset={15}
                     cursor={{ stroke: '#9ca3af', strokeWidth: 2, strokeDasharray: '4 4' }}
                   />
-                  {thresholds && (
-                    <ReferenceArea 
-                      y1={thresholds.humidity_min} 
-                      y2={thresholds.humidity_max} 
-                      fill="#10b981" 
-                      fillOpacity={0.15} 
-                      strokeOpacity={0}
-                    />
-                  )}
+                  <ReferenceArea 
+                    y1={humMin} 
+                    y2={humMax} 
+                    fill="#10b981" 
+                    fillOpacity={0.22} 
+                    stroke="#059669"
+                    strokeDasharray="4 4"
+                    strokeWidth={1.5}
+                  />
                   <Line 
                     type="monotone" 
                     name="Kelembaban (%)"
@@ -243,7 +273,7 @@ export default function Dashboard() {
                     stroke="#3b82f6" 
                     strokeWidth={3} 
                     dot={false}
-                    activeDot={{ r: 6, stroke: '#000', strokeWidth: 3, fill: '#3b82f6' }} 
+                    activeDot={{ r: 5, stroke: '#000', strokeWidth: 2.5, fill: '#3b82f6' }} 
                     isAnimationActive={false}
                   />
                 </LineChart>
@@ -254,9 +284,13 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-          <p className="text-xs font-bold text-gray-500 mt-2">
-            Batas sistem saat ini: {thresholds?.humidity_min || '70'}% — {thresholds?.humidity_max || '90'}%
-          </p>
+          <div className="flex flex-wrap items-center justify-between text-xs font-bold text-gray-600 mt-2 gap-1">
+            <span>Batas optimal: {humMin}% — {humMax}%</span>
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 bg-emerald-500/20 border border-emerald-600 inline-block"></span>
+              Area Hijau = Zona Ideal
+            </span>
+          </div>
         </Card>
       </div>
 
@@ -289,24 +323,25 @@ export default function Dashboard() {
             <Sprout className="w-6 h-6 stroke-[3] text-green-500" />
             <h2 className="text-xl font-black text-black uppercase">Grafik Panen Harian (14 Hari)</h2>
           </div>
-          <div className="h-[280px] w-full border-4 border-black p-4 bg-gray-50">
+          <div className="h-[280px] w-full border-4 border-black p-2 sm:p-4 bg-gray-50">
             {harvestChartLoading ? (
               <div className="w-full h-full flex items-center justify-center text-black font-bold">Loading chart...</div>
             ) : harvestChartData && harvestChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={harvestChartData} margin={{ top: 5, right: 15, left: -15, bottom: 5 }}>
+                <BarChart data={harvestChartData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.4} stroke="#000" vertical={false} />
                   <XAxis 
                     dataKey="label" 
-                    tick={{ fontSize: 11, fill: '#000', fontWeight: 'bold' }} 
+                    tick={{ fontSize: 10, fill: '#000', fontWeight: 'bold' }} 
                     tickLine={{ stroke: '#000' }} 
                     axisLine={{ stroke: '#000', strokeWidth: 2 }}
                   />
                   <YAxis 
-                    tick={{ fontSize: 12, fill: '#000', fontWeight: 'bold' }} 
+                    tick={{ fontSize: 11, fill: '#000', fontWeight: 'bold' }} 
                     tickLine={{ stroke: '#000' }} 
                     axisLine={{ stroke: '#000', strokeWidth: 2 }} 
                     unit=" Kg"
+                    width={45}
                   />
                   <Tooltip 
                     contentStyle={{ borderRadius: '0px', border: '4px solid #000', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', backgroundColor: '#fff' }}

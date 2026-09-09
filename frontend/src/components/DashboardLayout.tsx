@@ -177,9 +177,14 @@ export default function DashboardLayout() {
 
           <div className="flex-1" />
 
-          <div className="text-sm font-black border-2 border-black px-4 py-2 bg-yellow-400 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-2">
-            <Clock className="w-4 h-4 stroke-[3]" />
-            {time.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} - {time.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}
+          <div className="text-xs sm:text-sm font-black border-2 border-black px-2.5 sm:px-4 py-1.5 sm:py-2 bg-yellow-400 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" />
+            <span className="sm:hidden font-mono">
+              {time.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB
+            </span>
+            <span className="hidden sm:inline">
+              {time.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} - {time.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}
+            </span>
           </div>
         </header>
 

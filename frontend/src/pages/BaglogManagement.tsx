@@ -267,9 +267,9 @@ export default function BaglogManagement() {
       {/* Modal Tambah Batch */}
       {isModalOpen && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 animate-in fade-in">
-          <Card className="w-full max-w-lg bg-white p-0 overflow-hidden relative">
-            <div className="bg-[#28e085] p-4 border-b-4 border-black flex justify-between items-center">
-              <h2 className="text-xl font-black uppercase flex items-center gap-2">
+          <Card className="w-full max-w-lg bg-white p-0 overflow-hidden relative max-h-[90vh] flex flex-col">
+            <div className="bg-[#28e085] p-4 border-b-4 border-black flex justify-between items-center shrink-0">
+              <h2 className="text-lg sm:text-xl font-black uppercase flex items-center gap-2">
                 <Plus className="w-6 h-6 stroke-[3]" /> Tambah Batch Baru
               </h2>
               <button
@@ -280,7 +280,7 @@ export default function BaglogManagement() {
               </button>
             </div>
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1">
               {formError && (
                 <div className="bg-red-400 text-black font-bold border-4 border-black p-3 mb-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                   {formError}
@@ -299,7 +299,7 @@ export default function BaglogManagement() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-black mb-1 uppercase">Jumlah (Baglog)</label>
                     <input
