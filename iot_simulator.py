@@ -54,30 +54,43 @@ MAX_MISTING_DURATION = 90       # Safety timeout misting (detik)
 CRITICAL_TEMP_OFFSET = 2.0      # Safety Override: jika SATU sensor > tempMax + offset ini, paksa Fan ON
 
 # ============================================================
+# ZONA WAKTU & WAKTU LOKAL KUMBUNG
+# ============================================================
+# Zona Waktu Indonesia Barat (WIB = UTC+7)
+# Wajib dieksplisitkan agar simulasi mikroklimat jamur sinkron 100% dengan
+# jam biologis kumbung di Indonesia, tidak terpengaruh timezone runner (misal GitHub Actions UTC).
+WIB = datetime.timezone(datetime.timedelta(hours=7))
+
+def get_wib_now() -> datetime.datetime:
+    """Mengembalikan waktu saat ini dalam zona waktu WIB (Asia/Jakarta, UTC+7)."""
+    return datetime.datetime.now(WIB)
+
+# ============================================================
 # MODEL FISIKA KUMBUNG JAMUR
 # ============================================================
-# Konstanta lingkungan kumbung jamur tiram
-# Referensi: Panduan Budidaya Jamur Tiram (Pleurotus ostreatus)
-AMBIENT_TEMP_BASE = 26.0       # Suhu rata-rata harian kumbung (°C)
-AMBIENT_TEMP_AMPLITUDE = 4.0   # Amplitudo fluktuasi siang-malam (°C)
-AMBIENT_HUM_BASE = 82.0        # Kelembaban rata-rata kumbung (%)
-AMBIENT_HUM_AMPLITUDE = 8.0    # Amplitudo fluktuasi kelembaban (%)
+# Konstanta lingkungan kumbung jamur tiram (Pleurotus ostreatus)
+# Karakteristik mikroklimat kumbung tropis dataran menengah-rendah:
+# - Pagi/Fajar (titik terdingin): ~21.5°C
+# - Siang bolong (puncak panas): ~28.5°C
+# - Kelembaban berkorelasi terbalik dengan suhu (hukum psikrometrik)
+AMBIENT_TEMP_MIN = 21.5        # Suhu minimum harian saat subuh (°C)
+AMBIENT_TEMP_MAX = 28.5        # Suhu maksimum harian saat siang bolong (°C)
+AMBIENT_HUM_MIN = 78.0         # Kelembaban terendah saat siang hari (%)
+AMBIENT_HUM_MAX = 92.0         # Kelembaban tertinggi saat dini hari/subuh (%)
 
-# Koefisien dampak aktuator terhadap pembacaan sensor (per detik)
-MISTING_TEMP_EFFECT = -0.03    # Misting menurunkan suhu 0.03°C/detik (evaporative cooling)
-MISTING_HUM_EFFECT = 0.25      # Misting menaikkan kelembaban 0.25%/detik
-FAN_TEMP_EFFECT = -0.05        # Fan menurunkan suhu 0.05°C/detik (konveksi paksa)
-FAN_HUM_EFFECT = -0.10         # Fan menurunkan kelembaban 0.10%/detik (bawa udara kering masuk)
+# Titik kritis siklus diurnal (WIB)
+T_SUNRISE = 5.5                # Subuh / titik terdingin: 05:30 WIB
+T_PEAK = 13.5                  # Puncak panas radiasi matahari: 13:30 WIB
 
-# Koefisien kembali ke kondisi ambient (tanpa aktuator, per detik)
-TEMP_RECOVERY_RATE = 0.005     # Suhu perlahan kembali ke ambient
-HUM_RECOVERY_RATE = 0.008      # Kelembaban perlahan kembali ke ambient
+# Koefisien kembali ke kondisi ambient alami kumbung (drift per detik)
+TEMP_RECOVERY_RATE = 0.005     # Relaksasi suhu alami menuju ambient
+HUM_RECOVERY_RATE = 0.008      # Relaksasi kelembaban alami menuju ambient
 
-# Batas fisik sensor
-TEMP_MIN_PHYSICAL = 18.0       # Suhu minimum fisik kumbung (°C)
-TEMP_MAX_PHYSICAL = 40.0       # Suhu maksimum fisik kumbung (°C)
-HUM_MIN_PHYSICAL = 40.0        # Kelembaban minimum fisik (%)
-HUM_MAX_PHYSICAL = 99.0        # Kelembaban maksimum fisik (%)
+# Batas fisik sensor DHT22
+TEMP_MIN_PHYSICAL = 18.0       # Batas bawah fisik kumbung (°C)
+TEMP_MAX_PHYSICAL = 40.0       # Batas atas fisik kumbung (°C)
+HUM_MIN_PHYSICAL = 40.0        # Batas bawah kelembaban fisik (%)
+HUM_MAX_PHYSICAL = 99.0        # Batas atas kelembaban fisik (%)
 
 # ============================================================
 # OFFSET ZONA SENSOR (Segitiga Diagonal)
@@ -116,8 +129,8 @@ class KumbungState:
     """State mikroklimat kumbung jamur dengan 3 sensor (Segitiga Diagonal)."""
 
     def __init__(self):
-        # Inisialisasi dari kondisi ambient saat ini
-        now = datetime.datetime.now()
+        # Inisialisasi dari kondisi ambient WIB saat ini
+        now = get_wib_now()
         base_temp = self._get_ambient_temp(now)
         base_hum = self._get_ambient_hum(now)
 
@@ -150,23 +163,50 @@ class KumbungState:
     @staticmethod
     def _get_ambient_temp(now: datetime.datetime) -> float:
         """
-        Hitung suhu ambient berdasarkan jam.
-        Model sinusoidal: puncak panas jam 14:00, paling dingin jam 04:00.
-        T(t) = T_base + A * sin((t - 8) * π / 12)
+        Hitung suhu ambient alami kumbung berdasarkan siklus diurnal waktu WIB.
+        Model Termodinamika Asimetris:
+        1. Fase Pemanasan (05:30 - 13:30): Radiasi matahari menaikkan suhu ruangan (8 jam).
+        2. Fase Pendinginan (13:30 - 05:30): Radiasi panas dilepas ke langit malam (16 jam).
+           Suhu turun bertahap secara alami:
+           * 14:00 : ~28.4°C
+           * 17:00 : ~26.6°C
+           * 21:00 : ~24.0°C (jam 9 malam sejuk)
+           * 22:00 : ~23.5°C (jam 10 malam semakin dingin)
+           * 00:00 : ~22.6°C (tengah malam sejuk)
+           * 05:30 : ~21.5°C (subuh, titik terdingin)
         """
-        hour_fraction = now.hour + now.minute / 60.0
-        phase = (hour_fraction - 8.0) * math.pi / 12.0
-        return AMBIENT_TEMP_BASE + AMBIENT_TEMP_AMPLITUDE * math.sin(phase)
+        hour_fraction = now.hour + now.minute / 60.0 + now.second / 3600.0
+
+        if T_SUNRISE <= hour_fraction <= T_PEAK:
+            # Pemanasan siang hari (8 jam) — kurva harmonik sinus
+            tau = (hour_fraction - T_SUNRISE) / (T_PEAK - T_SUNRISE)
+            factor = (1.0 - math.cos(tau * math.pi)) / 2.0
+        else:
+            # Pendinginan malam hari (16 jam) — peluruhan termal radiatif kontinu
+            dt = (hour_fraction - T_PEAK) if hour_fraction >= T_PEAK else (hour_fraction + 24.0 - T_PEAK)
+            tau = dt / 16.0
+            # Pangkat 0.7 memodelkan penurunan suhu lebih responsif setelah sunset (18:00 WIB)
+            factor = (1.0 + math.cos((tau ** 0.7) * math.pi)) / 2.0
+
+        return AMBIENT_TEMP_MIN + (AMBIENT_TEMP_MAX - AMBIENT_TEMP_MIN) * factor
 
     @staticmethod
     def _get_ambient_hum(now: datetime.datetime) -> float:
         """
-        Hitung kelembaban ambient (berkorelasi terbalik dengan suhu).
-        Siang kering, malam lembab.
+        Hitung kelembaban relatif ambient (korelasi terbalik dengan suhu).
+        Saat suhu turun malam hari, kelembaban relatif udara (RH) naik secara fisik.
         """
-        hour_fraction = now.hour + now.minute / 60.0
-        phase = (hour_fraction - 8.0) * math.pi / 12.0
-        return AMBIENT_HUM_BASE - AMBIENT_HUM_AMPLITUDE * math.sin(phase)
+        hour_fraction = now.hour + now.minute / 60.0 + now.second / 3600.0
+
+        if T_SUNRISE <= hour_fraction <= T_PEAK:
+            tau = (hour_fraction - T_SUNRISE) / (T_PEAK - T_SUNRISE)
+            factor = (1.0 - math.cos(tau * math.pi)) / 2.0
+        else:
+            dt = (hour_fraction - T_PEAK) if hour_fraction >= T_PEAK else (hour_fraction + 24.0 - T_PEAK)
+            tau = dt / 16.0
+            factor = (1.0 + math.cos((tau ** 0.7) * math.pi)) / 2.0
+
+        return AMBIENT_HUM_MAX - (AMBIENT_HUM_MAX - AMBIENT_HUM_MIN) * factor
 
     def update_thresholds(self, thresholds: dict):
         """Update threshold dari respons API."""
@@ -180,10 +220,9 @@ class KumbungState:
     def simulate_tick(self, dt_seconds: float):
         """
         Simulasikan perubahan mikroklimat selama dt_seconds untuk 3 sensor.
-        Tiap sensor punya offset zona + noise individual.
-        Lalu hitung rata-rata untuk keputusan aktuator.
+        Menerapkan hukum termodinamika realistis untuk exhaust fan dan misting nozzle.
         """
-        now = datetime.datetime.now()
+        now = get_wib_now()
         ambient_temp = self._get_ambient_temp(now)
         ambient_hum = self._get_ambient_hum(now)
 
@@ -196,16 +235,31 @@ class KumbungState:
             zone_ambient_temp = ambient_temp + zone_cfg['temp_offset']
             zone_ambient_hum = ambient_hum + zone_cfg['hum_offset']
 
-            # 1. Efek aktuator aktif
+            # 1. Efek aktuator aktif (Termodinamika riil)
+            # A. Misting (Pendinginan evaporatif dari kabut air halus)
             if self.is_misting_active:
-                s['temperature'] += MISTING_TEMP_EFFECT * dt_seconds
-                s['humidity'] += MISTING_HUM_EFFECT * dt_seconds
+                # Laju evaporasi berkurang jika udara mendekati titik jenuh (RH >= 95%)
+                evap_potential = max(0.0, (95.0 - s['humidity']) / 95.0)
+                # Batas suhu bola basah (wet-bulb): misting di iklim tropis lembab
+                # tidak bisa mendinginkan lebih rendah dari ~2.0°C di bawah ambient
+                wet_bulb_limit = zone_ambient_temp - 2.0
+                temp_drop_headroom = max(0.0, s['temperature'] - wet_bulb_limit)
 
+                s['temperature'] -= 0.02 * evap_potential * min(1.0, temp_drop_headroom / 1.5) * dt_seconds
+                s['humidity'] += 0.20 * evap_potential * dt_seconds
+
+            # B. Exhaust Fan (Konveksi paksa / pertukaran udara dengan luar)
             if self.is_fan_active:
-                s['temperature'] += FAN_TEMP_EFFECT * dt_seconds
-                s['humidity'] += FAN_HUM_EFFECT * dt_seconds
+                # Kipas hanya membuang akumulasi udara panas di atap kumbung ke luar ruangan.
+                # Kipas BUKAN AC pendingin; kipas TIDAK BISA mendinginkan ruangan di bawah ambient luar!
+                temp_excess = max(0.0, s['temperature'] - zone_ambient_temp)
+                s['temperature'] -= temp_excess * 0.08 * dt_seconds
 
-            # 2. Drift alami kembali ke ambient zona
+                # Udara dari luar masuk menarik kelembaban mendekati ambient luar
+                hum_diff = s['humidity'] - zone_ambient_hum
+                s['humidity'] -= hum_diff * 0.04 * dt_seconds
+
+            # 2. Drift alami menuju kesetimbangan ambient zona
             temp_diff = zone_ambient_temp - s['temperature']
             hum_diff = zone_ambient_hum - s['humidity']
             s['temperature'] += temp_diff * TEMP_RECOVERY_RATE * dt_seconds
@@ -215,7 +269,7 @@ class KumbungState:
             s['temperature'] += random.gauss(0, zone_cfg['noise_temp'])
             s['humidity'] += random.gauss(0, zone_cfg['noise_hum'])
 
-            # 4. Clamp ke batas fisik
+            # 4. Clamp ke batas fisik realistis
             s['temperature'] = max(TEMP_MIN_PHYSICAL, min(TEMP_MAX_PHYSICAL, s['temperature']))
             s['humidity'] = max(HUM_MIN_PHYSICAL, min(HUM_MAX_PHYSICAL, s['humidity']))
 
@@ -456,7 +510,7 @@ def main():
                 break
 
             tick_count += 1
-            timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+            timestamp = get_wib_now().strftime("%H:%M:%S WIB")
 
             # Simulasikan perubahan mikroklimat (interval 1 detik per tick)
             state.simulate_tick(dt_seconds=1.0)

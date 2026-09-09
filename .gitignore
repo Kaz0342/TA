@@ -6,3 +6,6 @@ sensor_24h_dump.json
 *.dump.json
 backend/.env
 backend/.env.production
+__pycache__/
+*.pyc
+
