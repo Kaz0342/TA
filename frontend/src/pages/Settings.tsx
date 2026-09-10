@@ -322,7 +322,7 @@ export default function Settings() {
               </div>
 
               <div className="text-xs font-semibold text-gray-600 sm:text-right">
-                Batas di bawah akan memicu penyemprot otomatis (Sprinkler) & blower.
+                Batas di bawah akan memicu penyemprot otomatis (Sprinkler) & Exhaust Fan.
               </div>
             </div>
 

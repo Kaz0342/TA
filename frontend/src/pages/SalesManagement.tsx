@@ -22,18 +22,14 @@ export default function SalesManagement() {
   const [buyerName, setBuyerName] = useState('');
   const [formError, setFormError] = useState('');
 
-  // Hanya admin yang bisa akses halaman sales
-  if (user?.role !== 'admin') {
-    return <Navigate to="/" replace />;
-  }
-
   // Fetch Sales
   const { data: sales, isLoading } = useQuery({
     queryKey: ['sales'],
     queryFn: async () => {
       const res = await api.get('/sales');
       return res.data.data;
-    }
+    },
+    enabled: user?.role === 'admin'
   });
 
   // Fetch Weekly Report
@@ -42,7 +38,8 @@ export default function SalesManagement() {
     queryFn: async () => {
       const res = await api.get(`/sales/weekly-report?offset=${weekOffset}`);
       return res.data.data;
-    }
+    },
+    enabled: user?.role === 'admin'
   });
 
   const createMutation = useMutation({
@@ -114,6 +111,11 @@ export default function SalesManagement() {
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+
+  // Guard hak akses: Hanya admin yang bisa akses halaman sales
+  if (user?.role !== 'admin') {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">

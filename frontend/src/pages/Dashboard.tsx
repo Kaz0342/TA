@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { 
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceArea 
+import {
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceArea
 } from 'recharts';
 import { Thermometer, Droplets, Package, Sprout, TrendingUp, AlertTriangle } from 'lucide-react';
 import api from '../services/api';
@@ -51,7 +51,7 @@ export default function Dashboard() {
   const humMin = Number(thresholds?.humidity_min ?? 80);
   const humMax = Number(thresholds?.humidity_max ?? 95);
 
-  const formatCurrency = (val: number) => 
+  const formatCurrency = (val: number) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
   // Helper format label waktu tanpa detik (HH:mm)
@@ -66,7 +66,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      
+
       {/* Alert Banner */}
       {hasAlerts && (
         <div className="bg-red-500 border-4 border-black p-4 flex items-start gap-3 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
@@ -103,7 +103,7 @@ export default function Dashboard() {
             <Droplets className="w-8 h-8 stroke-[3]" />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-black text-black uppercase leading-tight">Kelembaban</p>
+            <p className="text-xs font-black text-black uppercase leading-tight">Kelembapan</p>
             <p className="text-2xl sm:text-3xl font-black text-black leading-tight mt-1">
               {sensorLoading ? '...' : `${latestSensor?.humidity || '--'} %`}
             </p>
@@ -139,7 +139,7 @@ export default function Dashboard() {
 
       {/* Sensor Line Charts — Suhu & Kelembaban (Responsive Grid) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
+
         {/* Grafik Suhu (6 Jam) */}
         <Card className="bg-white">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-4 border-b-4 border-black pb-2">
@@ -159,18 +159,18 @@ export default function Dashboard() {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} margin={{ top: 10, right: 10, left: -5, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.4} stroke="#000" vertical={false} />
-                  <XAxis 
-                    dataKey="time_label" 
-                    tick={{ fontSize: 10, fill: '#000', fontWeight: 'bold' }} 
-                    tickLine={{ stroke: '#000' }} 
-                    axisLine={{ stroke: '#000', strokeWidth: 2 }} 
+                  <XAxis
+                    dataKey="time_label"
+                    tick={{ fontSize: 10, fill: '#000', fontWeight: 'bold' }}
+                    tickLine={{ stroke: '#000' }}
+                    axisLine={{ stroke: '#000', strokeWidth: 2 }}
                     minTickGap={30}
                     tickFormatter={formatTimeLabel}
                   />
-                  <YAxis 
-                    tick={{ fontSize: 10, fill: '#000', fontWeight: 'bold' }} 
-                    tickLine={{ stroke: '#000' }} 
-                    axisLine={{ stroke: '#000', strokeWidth: 2 }} 
+                  <YAxis
+                    tick={{ fontSize: 10, fill: '#000', fontWeight: 'bold' }}
+                    tickLine={{ stroke: '#000' }}
+                    axisLine={{ stroke: '#000', strokeWidth: 2 }}
                     domain={[
                       (dataMin: number) => Math.min(Math.floor(Number.isFinite(dataMin) ? dataMin : 20), tempMin - 1),
                       (dataMax: number) => Math.max(Math.ceil(Number.isFinite(dataMax) ? dataMax : 30), tempMax + 1)
@@ -178,7 +178,7 @@ export default function Dashboard() {
                     tickFormatter={(val) => `${val}°`}
                     width={32}
                   />
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{ borderRadius: '0px', border: '4px solid #000', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', backgroundColor: '#fff' }}
                     labelStyle={{ fontWeight: 'black', color: '#000', textTransform: 'uppercase' }}
                     labelFormatter={(label: any) => `WAKTU: ${formatTimeLabel(label)} WIB`}
@@ -186,23 +186,23 @@ export default function Dashboard() {
                     offset={15}
                     cursor={{ stroke: '#9ca3af', strokeWidth: 2, strokeDasharray: '4 4' }}
                   />
-                  <ReferenceArea 
-                    y1={tempMin} 
-                    y2={tempMax} 
-                    fill="#10b981" 
-                    fillOpacity={0.22} 
+                  <ReferenceArea
+                    y1={tempMin}
+                    y2={tempMax}
+                    fill="#10b981"
+                    fillOpacity={0.22}
                     stroke="#059669"
                     strokeDasharray="4 4"
                     strokeWidth={1.5}
                   />
-                  <Line 
-                    type="monotone" 
+                  <Line
+                    type="monotone"
                     name="Suhu (°C)"
-                    dataKey="temperature" 
-                    stroke="#eab308" 
-                    strokeWidth={3} 
+                    dataKey="temperature"
+                    stroke="#eab308"
+                    strokeWidth={3}
                     dot={false}
-                    activeDot={{ r: 5, stroke: '#000', strokeWidth: 2.5, fill: '#eab308' }} 
+                    activeDot={{ r: 5, stroke: '#000', strokeWidth: 2.5, fill: '#eab308' }}
                     isAnimationActive={false}
                   />
                 </LineChart>
@@ -222,12 +222,12 @@ export default function Dashboard() {
           </div>
         </Card>
 
-        {/* Grafik Kelembaban (6 Jam) */}
+        {/* Grafik Kelembapan (6 Jam) */}
         <Card className="bg-white">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-4 border-b-4 border-black pb-2">
             <div className="flex items-center gap-2">
               <Droplets className="w-6 h-6 stroke-[3] text-blue-500" />
-              <h2 className="text-lg sm:text-xl font-black text-black uppercase">Grafik Kelembaban (6 Jam)</h2>
+              <h2 className="text-lg sm:text-xl font-black text-black uppercase">Grafik Kelembapan (6 Jam)</h2>
             </div>
             <span className="text-xs font-black px-2.5 py-1 bg-emerald-100 text-emerald-900 border-2 border-black rounded shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
@@ -241,18 +241,18 @@ export default function Dashboard() {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} margin={{ top: 10, right: 10, left: -5, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.4} stroke="#000" vertical={false} />
-                  <XAxis 
-                    dataKey="time_label" 
-                    tick={{ fontSize: 10, fill: '#000', fontWeight: 'bold' }} 
-                    tickLine={{ stroke: '#000' }} 
-                    axisLine={{ stroke: '#000', strokeWidth: 2 }} 
+                  <XAxis
+                    dataKey="time_label"
+                    tick={{ fontSize: 10, fill: '#000', fontWeight: 'bold' }}
+                    tickLine={{ stroke: '#000' }}
+                    axisLine={{ stroke: '#000', strokeWidth: 2 }}
                     minTickGap={30}
                     tickFormatter={formatTimeLabel}
                   />
-                  <YAxis 
-                    tick={{ fontSize: 10, fill: '#000', fontWeight: 'bold' }} 
-                    tickLine={{ stroke: '#000' }} 
-                    axisLine={{ stroke: '#000', strokeWidth: 2 }} 
+                  <YAxis
+                    tick={{ fontSize: 10, fill: '#000', fontWeight: 'bold' }}
+                    tickLine={{ stroke: '#000' }}
+                    axisLine={{ stroke: '#000', strokeWidth: 2 }}
                     domain={[
                       (dataMin: number) => Math.max(0, Math.min(Math.floor(Number.isFinite(dataMin) ? dataMin : 70), humMin - 5)),
                       (dataMax: number) => Math.min(100, Math.max(Math.ceil(Number.isFinite(dataMax) ? dataMax : 90), humMax + 5))
@@ -260,7 +260,7 @@ export default function Dashboard() {
                     tickFormatter={(val) => `${val}%`}
                     width={36}
                   />
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{ borderRadius: '0px', border: '4px solid #000', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', backgroundColor: '#fff' }}
                     labelStyle={{ fontWeight: 'black', color: '#000', textTransform: 'uppercase' }}
                     labelFormatter={(label: any) => `WAKTU: ${formatTimeLabel(label)} WIB`}
@@ -268,23 +268,23 @@ export default function Dashboard() {
                     offset={15}
                     cursor={{ stroke: '#9ca3af', strokeWidth: 2, strokeDasharray: '4 4' }}
                   />
-                  <ReferenceArea 
-                    y1={humMin} 
-                    y2={humMax} 
-                    fill="#10b981" 
-                    fillOpacity={0.22} 
+                  <ReferenceArea
+                    y1={humMin}
+                    y2={humMax}
+                    fill="#10b981"
+                    fillOpacity={0.22}
                     stroke="#059669"
                     strokeDasharray="4 4"
                     strokeWidth={1.5}
                   />
-                  <Line 
-                    type="monotone" 
+                  <Line
+                    type="monotone"
                     name="Kelembaban (%)"
-                    dataKey="humidity" 
-                    stroke="#3b82f6" 
-                    strokeWidth={3} 
+                    dataKey="humidity"
+                    stroke="#3b82f6"
+                    strokeWidth={3}
                     dot={false}
-                    activeDot={{ r: 5, stroke: '#000', strokeWidth: 2.5, fill: '#3b82f6' }} 
+                    activeDot={{ r: 5, stroke: '#000', strokeWidth: 2.5, fill: '#3b82f6' }}
                     isAnimationActive={false}
                   />
                 </LineChart>
@@ -313,7 +313,7 @@ export default function Dashboard() {
             <h2 className="text-xl font-black text-black mb-2 uppercase border-b-4 border-black pb-2 text-left w-full">Panen Hari Ini</h2>
             <p className="text-sm font-bold text-gray-700 mb-6 text-left">Total berat jamur kuping yang dipanen hari ini.</p>
           </div>
-          
+
           <div className="text-center py-4">
             <div className="inline-flex items-center justify-center w-24 h-24 bg-[#28e085] text-black border-4 border-black mb-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 transition-transform">
               <Sprout className="w-12 h-12 stroke-[3]" />
@@ -322,7 +322,7 @@ export default function Dashboard() {
               {statsLoading ? '...' : `${parseFloat(stats?.today_harvest_kg || 0).toFixed(2)}`} <span className="text-2xl">Kg</span>
             </p>
           </div>
-          
+
           <p className="text-xs font-bold text-black mt-4 bg-yellow-400 px-3 py-1 border-2 border-black">
             Terakhir update: {new Date().toLocaleTimeString()}
           </p>
@@ -341,29 +341,29 @@ export default function Dashboard() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={harvestChartData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.4} stroke="#000" vertical={false} />
-                  <XAxis 
-                    dataKey="label" 
-                    tick={{ fontSize: 10, fill: '#000', fontWeight: 'bold' }} 
-                    tickLine={{ stroke: '#000' }} 
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 10, fill: '#000', fontWeight: 'bold' }}
+                    tickLine={{ stroke: '#000' }}
                     axisLine={{ stroke: '#000', strokeWidth: 2 }}
                   />
-                  <YAxis 
-                    tick={{ fontSize: 11, fill: '#000', fontWeight: 'bold' }} 
-                    tickLine={{ stroke: '#000' }} 
-                    axisLine={{ stroke: '#000', strokeWidth: 2 }} 
+                  <YAxis
+                    tick={{ fontSize: 11, fill: '#000', fontWeight: 'bold' }}
+                    tickLine={{ stroke: '#000' }}
+                    axisLine={{ stroke: '#000', strokeWidth: 2 }}
                     unit=" Kg"
                     width={45}
                   />
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{ borderRadius: '0px', border: '4px solid #000', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', backgroundColor: '#fff' }}
                     labelStyle={{ fontWeight: 'black', color: '#000', textTransform: 'uppercase' }}
                     formatter={(value: any) => [`${value} Kg`, 'Total Panen']}
                   />
-                  <Bar 
-                    dataKey="total_kg" 
+                  <Bar
+                    dataKey="total_kg"
                     name="Total Panen (Kg)"
-                    fill="#28e085" 
-                    stroke="#000" 
+                    fill="#28e085"
+                    stroke="#000"
                     strokeWidth={3}
                     radius={[0, 0, 0, 0]}
                   />
@@ -386,7 +386,7 @@ export default function Dashboard() {
           <h2 className="text-xl font-black text-black uppercase">Informasi Batch Penanaman Aktif</h2>
           <span className="text-sm bg-[#28e085] text-black border-2 border-black px-4 py-1 font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase">Jamur Kuping Hitam</span>
         </div>
-        
+
         <div className="overflow-x-auto border-4 border-black">
           <table className="w-full text-sm text-left font-bold">
             <thead className="text-xs text-black uppercase bg-gray-200 border-b-4 border-black">
@@ -432,7 +432,7 @@ export default function Dashboard() {
         <div className="flex items-center justify-between mb-6 border-b-4 border-black pb-4">
           <h2 className="text-xl font-black text-black uppercase">Log Aktivitas Kontrol Otomatis (Aktuator)</h2>
         </div>
-        
+
         <div className="overflow-x-auto border-4 border-black">
           <table className="w-full text-sm text-left font-bold">
             <thead className="text-xs text-black uppercase bg-gray-200 border-b-4 border-black">
@@ -456,10 +456,9 @@ export default function Dashboard() {
                       {new Date(log.started_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
                     </td>
                     <td className="px-4 py-3 border-r-4 border-black whitespace-nowrap">
-                      <span className={`px-2.5 py-1 text-xs font-black border-2 border-black uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${
-                        log.actuator === 'fan' ? 'bg-cyan-300 text-black' : 'bg-[#28e085] text-black'
-                      }`}>
-                        {log.actuator === 'fan' ? '🌀 Exhaust Fan' : '💦 Misting & Valve'}
+                      <span className={`px-2.5 py-1 text-xs font-black border-2 border-black uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${log.actuator === 'fan' ? 'bg-cyan-300 text-black' : 'bg-[#28e085] text-black'
+                        }`}>
+                        {log.actuator === 'fan' ? ' Exhaust Fan' : ' Misting & Valve'}
                       </span>
                     </td>
                     <td className="px-4 py-3 border-r-4 border-black text-black font-extrabold uppercase">
@@ -471,11 +470,10 @@ export default function Dashboard() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-black">
-                      <span className={`inline-block px-2.5 py-1 text-xs font-black border-2 border-black uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${
-                        log.stop_reason?.toLowerCase().includes('timeout') 
-                          ? 'bg-amber-300 text-black' 
-                          : 'bg-emerald-200 text-emerald-950'
-                      }`}>
+                      <span className={`inline-block px-2.5 py-1 text-xs font-black border-2 border-black uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${log.stop_reason?.toLowerCase().includes('timeout')
+                        ? 'bg-amber-300 text-black'
+                        : 'bg-emerald-200 text-emerald-950'
+                        }`}>
                         {log.stop_reason ?? 'Target Tercapai'}
                       </span>
                     </td>
