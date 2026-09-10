@@ -134,7 +134,9 @@ export default function HarvestManagement() {
                       {h.baglog_batch?.batch_code || 'N/A'}
                     </td>
                     <td className="px-4 py-3 border-r-4 border-black font-black text-[#28e085] bg-slate-50">{h.weight_kg} Kg</td>
-                    <td className="px-4 py-3 border-r-4 border-black text-gray-600">{h.user?.name}</td>
+                    <td className="px-4 py-3 border-r-4 border-black text-gray-600">
+                      {h.user?.name ? h.user.name.replace(/\bKing\s*/gi, '').trim() || 'Admin' : '-'}
+                    </td>
                     <td className="px-4 py-3 text-gray-600">{h.notes || '-'}</td>
                   </tr>
                 ))

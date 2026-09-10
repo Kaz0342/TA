@@ -134,13 +134,15 @@ export default function DashboardLayout() {
             isCollapsed && "lg:justify-center"
           )}>
             <div className="w-10 h-10 rounded-none border-4 border-black bg-[#28e085] flex items-center justify-center text-black font-black text-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] shrink-0">
-              {user?.name.charAt(0).toUpperCase()}
+              {(user?.name?.replace(/\bKing\s*/gi, '').trim() || 'Admin').charAt(0).toUpperCase()}
             </div>
             <div className={cn(
               "flex-1 min-w-0 transition-all duration-300 overflow-hidden",
               isCollapsed ? "lg:w-0 lg:opacity-0" : "w-auto opacity-100"
             )}>
-              <p className="text-sm font-black truncate">{user?.name}</p>
+              <p className="text-sm font-black truncate">
+                {user?.name?.replace(/\bKing\s*/gi, '').trim() || 'Admin'}
+              </p>
               <p className="text-xs font-bold text-gray-600 capitalize">{user?.role}</p>
             </div>
           </div>

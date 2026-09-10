@@ -24,7 +24,7 @@ class DatabaseSeeder extends Seeder
     {
         // 1. Buat Akun Admin & Worker
         $admin = User::create([
-            'name' => 'King Admin',
+            'name' => 'Admin',
             'email' => 'admin@jamurking.com',
             'password' => bcrypt('password'),
             'role' => 'admin',

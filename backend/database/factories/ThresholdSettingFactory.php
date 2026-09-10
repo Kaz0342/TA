@@ -24,6 +24,7 @@ class ThresholdSettingFactory extends Factory
             'temp_max' => 32.00,
             'humidity_min' => 80.00,
             'humidity_max' => 95.00,
+            'phase_mode' => ThresholdSetting::PHASE_FRUITING,
             'is_active' => true,
         ];
     }

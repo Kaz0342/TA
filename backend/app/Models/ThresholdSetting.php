@@ -28,6 +28,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $temp_max
  * @property string $humidity_min
  * @property string $humidity_max
+ * @property string $phase_mode
  * @property bool $is_active
  * @property Carbon $created_at
  * @property Carbon $updated_at
@@ -35,6 +36,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ThresholdSetting extends Model
 {
     use HasFactory;
+
+    public const PHASE_INCUBATION = 'incubation';
+    public const PHASE_PRIMORDIA = 'primordia';
+    public const PHASE_FRUITING = 'fruiting';
+    public const PHASE_CUSTOM = 'custom';
 
     /**
      * @var list<string>
@@ -45,6 +51,7 @@ class ThresholdSetting extends Model
         'temp_max',
         'humidity_min',
         'humidity_max',
+        'phase_mode',
         'is_active',
     ];
 
@@ -58,6 +65,7 @@ class ThresholdSetting extends Model
             'temp_max' => 'decimal:2',
             'humidity_min' => 'decimal:2',
             'humidity_max' => 'decimal:2',
+            'phase_mode' => 'string',
             'is_active' => 'boolean',
         ];
     }

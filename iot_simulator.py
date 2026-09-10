@@ -217,6 +217,7 @@ class KumbungState:
         self.temp_min = thresholds['temp_min']
         self.hum_min = thresholds['humidity_min']
         self.hum_max = thresholds['humidity_max']
+        self.phase_mode = thresholds.get('phase_mode', 'fruiting')
         self.rh_trigger_low = self.hum_min
         self.rh_trigger_high = self.hum_max - 2.0
 
@@ -404,10 +405,11 @@ def fetch_thresholds() -> dict:
         if response.status_code == 200:
             data = response.json().get('data', {})
             return {
-                'temp_max': float(data.get('temp_max', 30.0)),
-                'temp_min': float(data.get('temp_min', 23.0)),
+                'temp_max': float(data.get('temp_max', 32.0)),
+                'temp_min': float(data.get('temp_min', 24.0)),
                 'humidity_min': float(data.get('humidity_min', 80.0)),
-                'humidity_max': float(data.get('humidity_max', 90.0))
+                'humidity_max': float(data.get('humidity_max', 95.0)),
+                'phase_mode': data.get('phase_mode', 'fruiting')
             }
     except Exception as e:
         print(f"   ⚠️  Gagal fetch threshold: {e}")
@@ -507,9 +509,10 @@ def main():
     thresholds = fetch_thresholds()
     if thresholds:
         state.update_thresholds(thresholds)
-        print(f"   ✅ Threshold: T={state.temp_min}-{state.temp_max}°C | RH={state.hum_min}-{state.hum_max}%")
+        phase_label = thresholds.get('phase_mode', 'fruiting').upper()
+        print(f"   ✅ Threshold: T={state.temp_min}-{state.temp_max}°C | RH={state.hum_min}-{state.hum_max}% | FASE={phase_label}")
     else:
-        print(f"   ⚠️  Menggunakan threshold default")
+        print(f"   ⚠️  Menggunakan threshold default (Fase Fruiting)")
     print()
 
     # Timer non-blocking (seperti millis() di firmware)

@@ -48,7 +48,12 @@ class ThresholdSettingController extends Controller
             $threshold->is_active = true;
         }
 
-        $threshold->fill($request->validated());
+        $validated = $request->validated();
+        if (! isset($validated['phase_mode']) || $validated['phase_mode'] === null) {
+            unset($validated['phase_mode']);
+        }
+
+        $threshold->fill($validated);
         $threshold->save();
 
         return $this->success($threshold, 'Setting threshold berhasil diupdate');

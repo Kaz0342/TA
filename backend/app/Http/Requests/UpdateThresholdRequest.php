@@ -21,6 +21,7 @@ class UpdateThresholdRequest extends FormRequest
             'temp_max' => 'required|numeric|between:0,50|gte:temp_min',
             'humidity_min' => 'required|numeric|between:0,100',
             'humidity_max' => 'required|numeric|between:0,100|gte:humidity_min',
+            'phase_mode' => 'nullable|string|in:incubation,primordia,fruiting,custom',
         ];
     }
 

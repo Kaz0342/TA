@@ -380,4 +380,47 @@ class SecurityInjectionTest extends TestCase
 
         $response->assertStatus(422);
     }
+
+    /**
+     * PUT /api/thresholds berhasil menyimpan phase_mode yang valid.
+     */
+    public function test_threshold_can_update_phase_mode(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->putJson('/api/thresholds', [
+                'temp_min' => 26.00,
+                'temp_max' => 30.00,
+                'humidity_min' => 65.00,
+                'humidity_max' => 75.00,
+                'phase_mode' => 'incubation',
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.phase_mode', 'incubation');
+
+        $this->assertDatabaseHas('threshold_settings', [
+            'phase_mode' => 'incubation',
+        ]);
+    }
+
+    /**
+     * PUT /api/thresholds menolak phase_mode yang tidak valid.
+     */
+    public function test_threshold_rejects_invalid_phase_mode(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->putJson('/api/thresholds', [
+                'temp_min' => 24.00,
+                'temp_max' => 32.00,
+                'humidity_min' => 80.00,
+                'humidity_max' => 95.00,
+                'phase_mode' => 'hocus_pocus',
+            ]);
+
+        $response->assertStatus(422);
+    }
 }

@@ -75,6 +75,23 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Active Phase & Climate Profile Bar */}
+      <div className="border-4 border-black bg-white p-3 sm:px-5 flex flex-wrap items-center justify-between gap-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <div className="flex items-center gap-2.5">
+          <span className="w-3 h-3 bg-[#28e085] rounded-full border-2 border-black animate-pulse" />
+          <span className="text-xs font-black uppercase text-gray-600">Profil Fase Aktif:</span>
+          <span className="px-2.5 py-0.5 border-2 border-black font-black text-xs uppercase bg-black text-[#28e085] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+            {thresholds?.phase_mode === 'incubation' && '🌱 Inkubasi (Vegetatif)'}
+            {thresholds?.phase_mode === 'primordia' && '⚡ Primordia (Transisi)'}
+            {(!thresholds?.phase_mode || thresholds?.phase_mode === 'fruiting') && '🍄 Fruiting (Generatif / Panen)'}
+            {thresholds?.phase_mode === 'custom' && '🛠️ Mode Kustom'}
+          </span>
+        </div>
+        <div className="text-xs font-black text-black">
+          Batas Ideal: <span className="font-bold text-gray-800">{tempMin.toFixed(1)} - {tempMax.toFixed(1)}°C</span> | <span className="font-bold text-gray-800">{humMin.toFixed(1)} - {humMax.toFixed(1)}% RH</span>
+        </div>
+      </div>
+
       {/* Top Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {/* Real-time Temp */}
