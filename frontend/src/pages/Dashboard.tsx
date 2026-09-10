@@ -54,6 +54,13 @@ export default function Dashboard() {
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
+  // Helper format label waktu tanpa detik (HH:mm)
+  const formatTimeLabel = (val: any) => {
+    if (!val || typeof val !== 'string') return val;
+    const parts = val.split(':');
+    return parts.length >= 2 ? `${parts[0]}:${parts[1]}` : val;
+  };
+
   // Helper render Alert
   const hasAlerts = stats?.system_alerts?.length > 0;
 
@@ -158,6 +165,7 @@ export default function Dashboard() {
                     tickLine={{ stroke: '#000' }} 
                     axisLine={{ stroke: '#000', strokeWidth: 2 }} 
                     minTickGap={30}
+                    tickFormatter={formatTimeLabel}
                   />
                   <YAxis 
                     tick={{ fontSize: 10, fill: '#000', fontWeight: 'bold' }} 
@@ -173,6 +181,7 @@ export default function Dashboard() {
                   <Tooltip 
                     contentStyle={{ borderRadius: '0px', border: '4px solid #000', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', backgroundColor: '#fff' }}
                     labelStyle={{ fontWeight: 'black', color: '#000', textTransform: 'uppercase' }}
+                    labelFormatter={(label: any) => `WAKTU: ${formatTimeLabel(label)} WIB`}
                     formatter={(value: any) => [`${value} °C`, 'Suhu']}
                     offset={15}
                     cursor={{ stroke: '#9ca3af', strokeWidth: 2, strokeDasharray: '4 4' }}
@@ -238,6 +247,7 @@ export default function Dashboard() {
                     tickLine={{ stroke: '#000' }} 
                     axisLine={{ stroke: '#000', strokeWidth: 2 }} 
                     minTickGap={30}
+                    tickFormatter={formatTimeLabel}
                   />
                   <YAxis 
                     tick={{ fontSize: 10, fill: '#000', fontWeight: 'bold' }} 
@@ -253,6 +263,7 @@ export default function Dashboard() {
                   <Tooltip 
                     contentStyle={{ borderRadius: '0px', border: '4px solid #000', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)', backgroundColor: '#fff' }}
                     labelStyle={{ fontWeight: 'black', color: '#000', textTransform: 'uppercase' }}
+                    labelFormatter={(label: any) => `WAKTU: ${formatTimeLabel(label)} WIB`}
                     formatter={(value: any) => [`${value} %`, 'Kelembaban']}
                     offset={15}
                     cursor={{ stroke: '#9ca3af', strokeWidth: 2, strokeDasharray: '4 4' }}
