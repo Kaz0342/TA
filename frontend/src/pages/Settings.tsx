@@ -3,13 +3,13 @@ import { useAuthStore } from '../stores/authStore';
 import { useToastStore } from '../stores/toastStore';
 import { Card, Button } from '../components/ui';
 import api from '../services/api';
-import { 
-  Thermometer, 
-  Droplets, 
-  Save, 
-  Sprout, 
-  Sparkles, 
-  CheckCircle2, 
+import {
+  Thermometer,
+  Droplets,
+  Save,
+  Sprout,
+  Sparkles,
+  CheckCircle2,
   Sliders,
   Layers
 } from 'lucide-react';
@@ -75,13 +75,13 @@ const PHASE_PRESETS: PhasePreset[] = [
 
 export default function Settings() {
   const user = useAuthStore((state) => state.user);
-  
+
   const [minTemp, setMinTemp] = useState('24.00');
   const [maxTemp, setMaxTemp] = useState('32.00');
   const [minHum, setMinHum] = useState('80.00');
   const [maxHum, setMaxHum] = useState('95.00');
   const [phaseMode, setPhaseMode] = useState<PhaseMode>('fruiting');
-  
+
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const addToast = useToastStore((state) => state.addToast);
@@ -105,7 +105,7 @@ export default function Settings() {
         const fetchedMaxTemp = parseFloat(t.temp_max).toFixed(2);
         const fetchedMinHum = parseFloat(t.humidity_min).toFixed(2);
         const fetchedMaxHum = parseFloat(t.humidity_max).toFixed(2);
-        
+
         setMinTemp(fetchedMinTemp);
         setMaxTemp(fetchedMaxTemp);
         setMinHum(fetchedMinHum);
@@ -175,7 +175,7 @@ export default function Settings() {
       };
 
       const res = await api.put('/thresholds', payload);
-      
+
       if (res.data.success) {
         addToast('Konfigurasi batas & profil fase jamur berhasil disimpan!', 'success');
       }
@@ -191,17 +191,10 @@ export default function Settings() {
       {/* Header */}
       <div>
         <div className="flex items-center gap-2 mb-1">
-          <span className="px-2.5 py-1 bg-black text-white text-xs font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-            Kontrol Otomatisasi
-          </span>
-          <span className="text-xs font-bold text-gray-500">Auricularia auricula-judae</span>
         </div>
         <h1 className="text-3xl sm:text-4xl font-black text-black uppercase tracking-tight">
           Pengaturan Threshold & Fase
         </h1>
-        <p className="text-gray-700 font-bold text-sm sm:text-base mt-1">
-          Pilih profil fase pertumbuhan jamur kuping lewat 1 tombol preset, atau sesuaikan batas target mikroklimat secara manual.
-        </p>
       </div>
 
       {fetching ? (
@@ -217,11 +210,8 @@ export default function Settings() {
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-black text-black uppercase tracking-tight flex items-center gap-2">
                 <Layers className="w-5 h-5 stroke-[3]" />
-                1. Pilih Profil Fase Pertumbuhan (1-Klik)
+                Profil Fase Pertumbuhan
               </h2>
-              <span className="text-xs font-bold text-gray-600 hidden sm:inline">
-                Klik salah satu kartu untuk auto-fill parameter ideal
-              </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
@@ -230,22 +220,12 @@ export default function Settings() {
                 return (
                   <div
                     key={preset.id}
-                    className={`relative p-5 border-4 border-black transition-all duration-200 flex flex-col justify-between ${
-                      preset.colorBg
-                    } ${
-                      isActive
-                        ? 'shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] scale-[1.02] ring-4 ring-black/10'
+                    className={`relative p-5 border-4 border-black transition-all duration-200 flex flex-col justify-between ${preset.colorBg
+                      } ${isActive
+                        ? 'shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] scale-[1.03] ring-4 ring-[#28e085]'
                         : 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5'
-                    }`}
+                      }`}
                   >
-                    {/* Active Badge */}
-                    {isActive && (
-                      <div className="absolute -top-3.5 right-4 bg-black text-[#28e085] px-3 py-0.5 border-2 border-black font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                        <CheckCircle2 className="w-3.5 h-3.5 stroke-[3]" />
-                        Profil Aktif
-                      </div>
-                    )}
-
                     <div>
                       {/* Icon & Title */}
                       <div className="flex items-center gap-3 mb-3">
@@ -289,15 +269,14 @@ export default function Settings() {
                     <button
                       type="button"
                       onClick={() => handleApplyPreset(preset)}
-                      className={`w-full py-2.5 px-4 font-black text-xs uppercase tracking-wider border-2 border-black transition-all flex items-center justify-center gap-2 ${
-                        isActive
-                          ? 'bg-black text-white shadow-none cursor-default'
-                          : 'bg-white hover:bg-black hover:text-white text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5'
-                      }`}
+                      className={`w-full py-2.5 px-4 font-black text-xs uppercase tracking-wider border-2 border-black transition-all flex items-center justify-center gap-2 ${isActive
+                        ? 'bg-[#28e085] text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] cursor-default'
+                        : 'bg-white hover:bg-black hover:text-white text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5'
+                        }`}
                     >
                       {isActive ? (
                         <>
-                          <CheckCircle2 className="w-4 h-4 stroke-[3] text-[#28e085]" />
+                          <CheckCircle2 className="w-4 h-4 stroke-[3]" />
                           Sedang Digunakan
                         </>
                       ) : (
@@ -474,8 +453,8 @@ export default function Settings() {
                 <div className="text-xs font-bold text-gray-600">
                   Pastikan nilai batas sudah sesuai dengan observasi kondisi kumbung riil.
                 </div>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="w-full sm:w-auto flex items-center justify-center gap-3 px-10 py-3 text-base border-4 border-black bg-[#28e085] hover:bg-green-400 text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none"
                   disabled={loading}
                 >

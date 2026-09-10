@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { 
   LayoutDashboard, 
   Package, 
@@ -16,6 +17,9 @@ import {
 import { useAuthStore } from '../stores/authStore';
 import { Button } from './ui';
 import { cn } from '../utils/cn';
+import api from '../services/api';
+
+const fetchThresholds = async () => (await api.get('/thresholds/active')).data.data;
 
 export default function DashboardLayout() {
   const { user, logout } = useAuthStore();
@@ -25,6 +29,23 @@ export default function DashboardLayout() {
     return localStorage.getItem('sidebar-collapsed') === 'true';
   });
   const [time, setTime] = useState(new Date());
+
+  // Fetch fase aktif untuk ditampilkan di header
+  const { data: thresholds } = useQuery({
+    queryKey: ['thresholds'],
+    queryFn: fetchThresholds,
+    refetchInterval: 30000,
+  });
+
+  const phaseLabel = (() => {
+    switch (thresholds?.phase_mode) {
+      case 'incubation': return '🌱 Inkubasi';
+      case 'primordia': return '⚡ Primordia';
+      case 'fruiting': return '🍄 Fruiting';
+      case 'custom': return '🛠️ Kustom';
+      default: return '🍄 Fruiting';
+    }
+  })();
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -49,7 +70,7 @@ export default function DashboardLayout() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#f4f4f0] flex text-black transition-colors duration-200">
+    <div className="min-h-screen bg-white flex text-black transition-colors duration-200">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div 
@@ -178,6 +199,12 @@ export default function DashboardLayout() {
           </button>
 
           <div className="flex-1" />
+
+          {/* Fase Aktif Indicator */}
+          <div className="hidden sm:flex items-center gap-1.5 text-xs font-black border-2 border-black px-3 py-1.5 bg-[#28e085] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] shrink-0 mr-2">
+            <span className="w-2 h-2 bg-black rounded-full animate-pulse" />
+            <span className="uppercase">{phaseLabel}</span>
+          </div>
 
           <div className="text-xs sm:text-sm font-black border-2 border-black px-2.5 sm:px-4 py-1.5 sm:py-2 bg-yellow-400 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-1.5 sm:gap-2 shrink-0">
             <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" />

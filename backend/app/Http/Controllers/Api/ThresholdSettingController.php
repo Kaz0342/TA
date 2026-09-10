@@ -53,6 +53,11 @@ class ThresholdSettingController extends Controller
             unset($validated['phase_mode']);
         }
 
+        // Defensive check: pastikan kolom phase_mode ada di DB sebelum disimpan (antisipasi pending cloud migration)
+        if (isset($validated['phase_mode']) && ! \Illuminate\Support\Facades\Schema::hasColumn('threshold_settings', 'phase_mode')) {
+            unset($validated['phase_mode']);
+        }
+
         $threshold->fill($validated);
         $threshold->save();
 

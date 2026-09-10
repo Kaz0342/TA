@@ -188,9 +188,10 @@ if (app()->environment('local')) {
             ], 500);
         }
     });
+} // end if(local)
 
-    // Endpoint Darurat/Utility untuk Migrasi Database Supabase di Cloud
-    Route::get('/migrate-db', function () {
+// Endpoint Darurat/Utility untuk Migrasi Database Supabase di Cloud (dilindungi secret key)
+Route::get('/migrate-db', function () {
         $secret = request()->query('secret');
         if ($secret !== env('UTILITY_SECRET', 'ta-shroom-migrate-2026')) {
             return response()->json([
@@ -216,5 +217,4 @@ if (app()->environment('local')) {
         }
     });
 
-} // end if(local)
 

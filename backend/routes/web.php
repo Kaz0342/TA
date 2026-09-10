@@ -40,32 +40,33 @@ if (app()->environment('local')) {
         }
     });
 
-    // Endpoint Darurat/Utility untuk Migrasi & Seeder Database Supabase di Cloud
-    Route::get('/migrate-db', function () {
-        $secret = request()->query('secret');
-        if ($secret !== env('UTILITY_SECRET', 'ta-shroom-migrate-2026')) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Unauthorized. Secret key salah atau tidak disertakan.'
-            ], 403);
-        }
-
-        try {
-            Artisan::call('migrate', ['--force' => true]);
-            $output = Artisan::output();
-
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Migrasi Supabase berhasil dijalankan!',
-                'output' => $output,
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => $e->getMessage(),
-            ], 500);
-        }
-    });
-
 } // end if(local)
 
+// Endpoint Darurat/Utility untuk Migrasi & Seeder Database Supabase di Cloud (dilindungi secret key)
+Route::get('/migrate-db', function () {
+    $secret = request()->query('secret');
+    if ($secret !== env('UTILITY_SECRET', 'ta-shroom-migrate-2026')) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Unauthorized. Secret key salah atau tidak disertakan.'
+        ], 403);
+    }
+
+    try {
+        Artisan::call('migrate', ['--force' => true]);
+        $output = Artisan::output();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Migrasi Supabase berhasil dijalankan!',
+            'output' => $output,
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+        ], 500);
+    }
+});

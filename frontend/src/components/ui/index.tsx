@@ -10,7 +10,7 @@ const buttonVariants = {
   secondary: "bg-white hover:bg-gray-100 text-black", // Putih/Abu
   danger: "bg-red-500 hover:bg-red-400 text-black", // Merah
   warning: "bg-yellow-400 hover:bg-yellow-300 text-black", // Kuning
-  ghost: "bg-transparent border-transparent hover:bg-gray-200 text-black hover:shadow-none"
+  ghost: "bg-white hover:bg-gray-100 text-black"
 };
 
 const baseButtonClasses = "inline-flex items-center justify-center px-6 py-2 font-black border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:translate-x-1 active:shadow-none transition-all disabled:opacity-50 disabled:pointer-events-none";
