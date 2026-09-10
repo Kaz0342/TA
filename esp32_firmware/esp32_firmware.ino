@@ -120,6 +120,7 @@ unsigned long mistingStartTime = 0;
 // ============================================================
 bool isMistingActive = false;
 bool isFanActive     = false;
+String mistingTriggerReason = "";
 
 // Cache data sensor terakhir
 float lastTemp = 0.0;
@@ -301,20 +302,29 @@ void controlMisting(float temp, float hum) {
         Serial.println("[HOLD] Suhu panas TAPI RH sudah sangat tinggi! Pompa DITAHAN.");
         return;
       }
+      
+      if (hum < rhTriggerLow && temp > tempMax) {
+        mistingTriggerReason = "RH Rendah (" + String(hum, 1) + "% < " + String(rhTriggerLow, 1) + "%) & Suhu Panas (" + String(temp, 1) + "C > " + String(tempMax, 1) + "C)";
+      } else if (hum < rhTriggerLow) {
+        mistingTriggerReason = "Kelembaban Rendah (" + String(hum, 1) + "% < " + String(rhTriggerLow, 1) + "%)";
+      } else {
+        mistingTriggerReason = "Suhu Panas (" + String(temp, 1) + "C > " + String(tempMax, 1) + "C)";
+      }
       startMisting();
     }
   } else {
     // Kondisi trigger mati
     bool targetReached = (hum >= rhTriggerHigh && temp <= tempMax);
     if (targetReached) {
-      String reason = "Target mikroklimat tercapai (RH:" + String(hum, 1) + "% T:" + String(temp, 1) + "C)";
-      stopMisting(reason);
+      String stopReason = "Target tercapai (RH:" + String(hum, 1) + "% T:" + String(temp, 1) + "C)";
+      stopMisting(stopReason);
     }
   }
 }
 
 void startMisting() {
-  Serial.println("[AKSI] 💦 Memulai Misting...");
+  Serial.print("[AKSI] 💦 Memulai Misting... Pemicu: ");
+  Serial.println(mistingTriggerReason);
   digitalWrite(PIN_RELAY_SOLENOID, RELAY_ON);  // Buka valve dulu
   delay(200);                                   // Jeda 200ms biar valve kebuka
   digitalWrite(PIN_RELAY_PUMP, RELAY_ON);       // Nyalakan pompa
@@ -322,7 +332,7 @@ void startMisting() {
   mistingStartTime = millis();
 }
 
-void stopMisting(String reason) {
+void stopMisting(String stopReason) {
   digitalWrite(PIN_RELAY_PUMP, RELAY_OFF);      // Matikan pompa dulu
   delay(200);                                    // Jeda 200ms
   digitalWrite(PIN_RELAY_SOLENOID, RELAY_OFF);   // Tutup valve
@@ -332,10 +342,11 @@ void stopMisting(String reason) {
 
   Serial.print("[AKSI] 🛑 Misting OFF. Durasi: ");
   Serial.print(duration);
-  Serial.println(" detik.");
+  Serial.print(" detik — Status: ");
+  Serial.println(stopReason);
 
   // Kirim log penyiraman ke Laravel API
-  sendSprinklerLog(duration, reason);
+  sendSprinklerLog(duration, mistingTriggerReason, stopReason, "misting");
 }
 
 /**
@@ -480,7 +491,7 @@ void sendSensorData(float temp, float hum) {
  * POST /api/sprinkler-logs
  * Payload: { device_id, duration_seconds, trigger_reason }
  */
-void sendSprinklerLog(unsigned long durationSec, String reason) {
+void sendSprinklerLog(unsigned long durationSec, String triggerReason, String stopReason, String actuator = "misting") {
   if (WiFi.status() != WL_CONNECTED) return;
 
   WiFiClientSecure client;
@@ -493,19 +504,21 @@ void sendSprinklerLog(unsigned long durationSec, String reason) {
   http.addHeader("User-Agent", "ESP32-SmartShroom");
   http.setTimeout(10000);
 
-  StaticJsonDocument<256> doc;
+  StaticJsonDocument<384> doc;
   doc["device_id"]         = deviceId;
+  doc["actuator"]          = actuator;
   doc["duration_seconds"]  = (int)durationSec;
-  doc["trigger_reason"]    = reason;
+  doc["trigger_reason"]    = triggerReason;
+  doc["stop_reason"]       = stopReason;
 
   String requestBody;
   serializeJson(doc, requestBody);
 
   int httpCode = http.POST(requestBody);
   if (httpCode == 201) {
-    Serial.println("[API] ✅ Log misting terkirim!");
+    Serial.println("[API] ✅ Log aktuator terkirim!");
   } else {
-    Serial.printf("[API] ❌ Gagal kirim log misting (HTTP %d)\n", httpCode);
+    Serial.printf("[API] ❌ Gagal kirim log aktuator (HTTP %d)\n", httpCode);
   }
   http.end();
 }

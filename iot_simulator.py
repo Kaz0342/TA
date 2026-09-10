@@ -151,6 +151,9 @@ class KumbungState:
         self.is_fan_active = False
         self.misting_start_time = None
         self.misting_duration_total = 0
+        self.misting_trigger_reason = ""
+        self.fan_start_time = None
+        self.fan_trigger_reason = ""
 
         # Threshold dari web (akan di-fetch)
         self.temp_max = 32.0
@@ -321,11 +324,19 @@ def control_misting(state: KumbungState):
             if temp > state.temp_max and hum >= state.hum_max:
                 print(f"   ⚠️  [HOLD] Suhu panas ({temp}°C) TAPI RH tinggi ({hum}%). Pompa DITAHAN!")
                 return
-            # Mulai misting
+            # Mulai misting & simpan alasan pemicu
             state.is_misting_active = True
             state.misting_start_time = time.time()
             state.misting_duration_total = 0
-            print(f"   💦 [MISTING ON] Pompa + Solenoid AKTIF (RH:{hum}% T:{temp}°C)")
+
+            if hum < state.rh_trigger_low and temp > state.temp_max:
+                state.misting_trigger_reason = f"RH Rendah ({hum}% < {state.rh_trigger_low}%) & Suhu Panas ({temp}°C > {state.temp_max}°C)"
+            elif hum < state.rh_trigger_low:
+                state.misting_trigger_reason = f"Kelembaban Rendah ({hum}% < {state.rh_trigger_low}%)"
+            else:
+                state.misting_trigger_reason = f"Suhu Panas ({temp}°C > {state.temp_max}°C)"
+
+            print(f"   💦 [MISTING ON] Pompa + Solenoid AKTIF | Pemicu: {state.misting_trigger_reason}")
     else:
         # Cek kondisi trigger mati
         target_reached = (hum >= state.rh_trigger_high and temp <= state.temp_max)
@@ -334,16 +345,16 @@ def control_misting(state: KumbungState):
         if target_reached:
             state.is_misting_active = False
             state.misting_duration_total = int(elapsed)
-            reason = f"Target tercapai (RH:{hum}% T:{temp}°C)"
-            print(f"   🛑 [MISTING OFF] Durasi: {state.misting_duration_total}s — {reason}")
-            send_sprinkler_log(state.misting_duration_total, reason)
+            stop_reason = f"Target tercapai (RH:{hum}% T:{temp}°C)"
+            print(f"   🛑 [MISTING OFF] Durasi: {state.misting_duration_total}s — {stop_reason}")
+            send_actuator_log(state.misting_duration_total, state.misting_trigger_reason, stop_reason, "misting")
 
         elif elapsed >= MAX_MISTING_DURATION:
             state.is_misting_active = False
             state.misting_duration_total = MAX_MISTING_DURATION
-            reason = f"Safety timeout ({MAX_MISTING_DURATION}s)"
-            print(f"   🛑 [MISTING OFF] TIMEOUT! Durasi: {MAX_MISTING_DURATION}s — {reason}")
-            send_sprinkler_log(MAX_MISTING_DURATION, reason)
+            stop_reason = f"Safety timeout ({MAX_MISTING_DURATION}s)"
+            print(f"   🛑 [MISTING OFF] TIMEOUT! Durasi: {MAX_MISTING_DURATION}s — {stop_reason}")
+            send_actuator_log(MAX_MISTING_DURATION, state.misting_trigger_reason, stop_reason, "misting")
 
 
 def control_fan(state: KumbungState):
@@ -361,6 +372,8 @@ def control_fan(state: KumbungState):
     if max_temp > critical_threshold:
         if not state.is_fan_active:
             state.is_fan_active = True
+            state.fan_start_time = time.time()
+            state.fan_trigger_reason = f"Safety Override (Sensor Max {max_temp}°C > {critical_threshold}°C)"
             print(f"   🚨 [SAFETY OVERRIDE] Fan PAKSA ON! Sensor tertinggi {max_temp}°C > batas kritis {critical_threshold}°C")
         return  # Jangan matikan fan selama ada sensor kritis
 
@@ -368,11 +381,16 @@ def control_fan(state: KumbungState):
     if temp > state.temp_max:
         if not state.is_fan_active:
             state.is_fan_active = True
+            state.fan_start_time = time.time()
+            state.fan_trigger_reason = f"Suhu Tinggi (Avg {temp}°C > {state.temp_max}°C)"
             print(f"   🌀 [FAN ON] Exhaust Fan AKTIF (Suhu avg {temp}°C > {state.temp_max}°C)")
     elif temp <= state.temp_min:
         if state.is_fan_active:
             state.is_fan_active = False
+            duration = int(time.time() - (state.fan_start_time or time.time()))
+            stop_reason = f"Suhu normal (Avg {temp}°C <= {state.temp_min}°C)"
             print(f"   🌀 [FAN OFF] Exhaust Fan MATI (Suhu avg {temp}°C <= {state.temp_min}°C)")
+            send_actuator_log(max(1, duration), state.fan_trigger_reason or "Suhu Tinggi", stop_reason, "fan")
 
 
 # ============================================================
@@ -415,19 +433,24 @@ def send_sensor_data(temp: float, hum: float):
     return False
 
 
-def send_sprinkler_log(duration: int, reason: str):
-    """POST /api/sprinkler-logs — kirim log penyiraman."""
+def send_actuator_log(duration: int, trigger_reason: str, stop_reason: str, actuator: str = "misting"):
+    """POST /api/sprinkler-logs — kirim log aktivitas aktuator (misting / fan)."""
     payload = {
         "device_id": DEVICE_ID,
+        "actuator": actuator,
         "duration_seconds": duration,
-        "trigger_reason": reason
+        "trigger_reason": trigger_reason,
+        "stop_reason": stop_reason
     }
     try:
         response = requests.post(f"{API_BASE_URL}/sprinkler-logs", json=payload, timeout=10)
         if response.status_code != 201:
-            print(f"   ❌ Gagal kirim sprinkler log: HTTP {response.status_code}")
+            print(f"   ❌ Gagal kirim actuator log: HTTP {response.status_code}")
     except Exception as e:
-        print(f"   ⚠️  Error kirim sprinkler log: {e}")
+        print(f"   ⚠️  Error kirim actuator log: {e}")
+
+# Backward compatibility alias
+send_sprinkler_log = send_actuator_log
 
 
 # ============================================================

@@ -57,8 +57,8 @@ class DashboardService
             });
 
         $sprinklerLogs = SprinklerLog::orderBy('started_at', 'desc')
-            ->limit(5)
-            ->get(['started_at', 'duration_seconds', 'trigger_reason']);
+            ->limit(10)
+            ->get(['started_at', 'actuator', 'duration_seconds', 'trigger_reason', 'stop_reason']);
 
         return [
             'active_baglogs' => (int) $activeBaglogs,

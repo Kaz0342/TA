@@ -26,9 +26,11 @@ class StoreSprinklerLogRequest extends FormRequest
     {
         return [
             'device_id' => ['required', 'string', 'max:50'],
+            'actuator' => ['nullable', 'string', 'max:50'],
             'started_at' => ['nullable', 'date'],
             'duration_seconds' => ['required', 'integer', 'min:1', 'max:600'],
             'trigger_reason' => ['required', 'string', 'max:255'],
+            'stop_reason' => ['nullable', 'string', 'max:255'],
         ];
     }
 

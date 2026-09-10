@@ -202,9 +202,11 @@ erDiagram
     sprinkler_logs {
         int id PK
         string device_id "VARCHAR 50"
+        string actuator "VARCHAR 50 (misting, fan)"
         timestamp started_at "INDEX"
         int duration_seconds
         string trigger_reason
+        string stop_reason "nullable"
         timestamp created_at
         timestamp updated_at
     }

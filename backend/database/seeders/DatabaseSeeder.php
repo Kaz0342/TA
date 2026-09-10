@@ -6,6 +6,7 @@ use App\Models\BaglogBatch;
 use App\Models\Harvest;
 use App\Models\Sale;
 use App\Models\SensorData;
+use App\Models\SprinklerLog;
 use App\Models\ThresholdSetting;
 use App\Models\User;
 use Carbon\Carbon;
@@ -214,6 +215,63 @@ class DatabaseSeeder extends Seeder
         }
 
         $this->command->info('✅ Sales seeded: 14 records (2 minggu)');
+
+        // ─── 7. ACTUATOR LOGS (Misting & Fan) ───────────────────
+        $actuatorLogs = [
+            [
+                'device_id' => 'ESP32-KUMBUNG-01',
+                'actuator' => 'misting',
+                'started_at' => $now->copy()->subMinutes(12),
+                'duration_seconds' => 45,
+                'trigger_reason' => 'Kelembaban Rendah (76.8% < 80%)',
+                'stop_reason' => 'Target tercapai (RH:88.5% T:27.2°C)',
+                'created_at' => $now->copy()->subMinutes(12),
+                'updated_at' => $now->copy()->subMinutes(12),
+            ],
+            [
+                'device_id' => 'ESP32-KUMBUNG-01',
+                'actuator' => 'misting',
+                'started_at' => $now->copy()->subMinutes(48),
+                'duration_seconds' => 60,
+                'trigger_reason' => 'Kelembaban Rendah (77.4% < 80%)',
+                'stop_reason' => 'Target tercapai (RH:89.1% T:27.5°C)',
+                'created_at' => $now->copy()->subMinutes(48),
+                'updated_at' => $now->copy()->subMinutes(48),
+            ],
+            [
+                'device_id' => 'ESP32-KUMBUNG-01',
+                'actuator' => 'fan',
+                'started_at' => $now->copy()->subHours(2)->subMinutes(15),
+                'duration_seconds' => 120,
+                'trigger_reason' => 'Suhu Kritis (33.2°C > 32°C)',
+                'stop_reason' => 'Suhu normal (30.1°C <= 32°C)',
+                'created_at' => $now->copy()->subHours(2)->subMinutes(15),
+                'updated_at' => $now->copy()->subHours(2)->subMinutes(15),
+            ],
+            [
+                'device_id' => 'ESP32-KUMBUNG-01',
+                'actuator' => 'misting',
+                'started_at' => $now->copy()->subHours(3)->subMinutes(30),
+                'duration_seconds' => 90,
+                'trigger_reason' => 'Kelembaban Kritis (72.5% < 80%)',
+                'stop_reason' => 'Safety timeout (90 detik)',
+                'created_at' => $now->copy()->subHours(3)->subMinutes(30),
+                'updated_at' => $now->copy()->subHours(3)->subMinutes(30),
+            ],
+            [
+                'device_id' => 'ESP32-KUMBUNG-01',
+                'actuator' => 'misting',
+                'started_at' => $now->copy()->subHours(5),
+                'duration_seconds' => 52,
+                'trigger_reason' => 'Kelembaban Rendah (78.1% < 80%)',
+                'stop_reason' => 'Target tercapai (RH:88.0% T:26.8°C)',
+                'created_at' => $now->copy()->subHours(5),
+                'updated_at' => $now->copy()->subHours(5),
+            ],
+        ];
+
+        SprinklerLog::insert($actuatorLogs);
+        $this->command->info('✅ Actuator logs seeded: 5 records');
         $this->command->newLine();
         $this->command->info('🍄 Smart Shroom SCM database seeded successfully!');
         $this->command->info('   Login admin: admin@smartshroom.test / password123');

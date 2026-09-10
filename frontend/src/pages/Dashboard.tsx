@@ -416,43 +416,63 @@ export default function Dashboard() {
         </div>
       </Card>
 
-      {/* Log Aktivitas Sprinkler */}
+      {/* Log Aktivitas Aktuator (Sprinkler & Exhaust Fan) */}
       <Card className="bg-white">
         <div className="flex items-center justify-between mb-6 border-b-4 border-black pb-4">
-          <h2 className="text-xl font-black text-black uppercase">Log Aktivitas Penyiram Otomatis (Sprinkler)</h2>
+          <h2 className="text-xl font-black text-black uppercase">Log Aktivitas Kontrol Otomatis (Aktuator)</h2>
         </div>
         
         <div className="overflow-x-auto border-4 border-black">
           <table className="w-full text-sm text-left font-bold">
             <thead className="text-xs text-black uppercase bg-gray-200 border-b-4 border-black">
               <tr>
-                <th className="px-4 py-3 border-r-4 border-black">Waktu Kejadian</th>
-                <th className="px-4 py-3 border-r-4 border-black">Durasi Nyala</th>
-                <th className="px-4 py-3">Pemicu (Trigger)</th>
+                <th className="px-4 py-3 border-r-4 border-black whitespace-nowrap">Waktu Kejadian</th>
+                <th className="px-4 py-3 border-r-4 border-black whitespace-nowrap">Aktuator</th>
+                <th className="px-4 py-3 border-r-4 border-black">Pemicu Nyala (Trigger)</th>
+                <th className="px-4 py-3 border-r-4 border-black whitespace-nowrap">Durasi</th>
+                <th className="px-4 py-3">Kondisi Akhir (Status)</th>
               </tr>
             </thead>
             <tbody className="bg-white">
               {statsLoading ? (
                 <tr>
-                  <td colSpan={3} className="px-4 py-8 text-center text-gray-500 font-bold">Memuat data log...</td>
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500 font-bold">Memuat data log...</td>
                 </tr>
               ) : stats?.sprinkler_logs?.length > 0 ? (
                 stats.sprinkler_logs.map((log: any, index: number) => (
                   <tr key={index} className="border-b-4 border-black last:border-0 hover:bg-gray-100 transition-colors">
-                    <td className="px-4 py-3 border-r-4 border-black text-black">
+                    <td className="px-4 py-3 border-r-4 border-black text-black whitespace-nowrap">
                       {new Date(log.started_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
                     </td>
-                    <td className="px-4 py-3 border-r-4 border-black">
+                    <td className="px-4 py-3 border-r-4 border-black whitespace-nowrap">
+                      <span className={`px-2.5 py-1 text-xs font-black border-2 border-black uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${
+                        log.actuator === 'fan' ? 'bg-cyan-300 text-black' : 'bg-[#28e085] text-black'
+                      }`}>
+                        {log.actuator === 'fan' ? '🌀 Exhaust Fan' : '💦 Misting & Valve'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 border-r-4 border-black text-black font-extrabold uppercase">
+                      {log.trigger_reason}
+                    </td>
+                    <td className="px-4 py-3 border-r-4 border-black whitespace-nowrap">
                       <span className="px-3 py-1 bg-yellow-400 text-black border-2 border-black text-xs font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
                         {log.duration_seconds} detik
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-black font-black uppercase">{log.trigger_reason}</td>
+                    <td className="px-4 py-3 text-black">
+                      <span className={`inline-block px-2.5 py-1 text-xs font-black border-2 border-black uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${
+                        log.stop_reason?.toLowerCase().includes('timeout') 
+                          ? 'bg-amber-300 text-black' 
+                          : 'bg-emerald-200 text-emerald-950'
+                      }`}>
+                        {log.stop_reason ?? 'Target Tercapai'}
+                      </span>
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={3} className="px-4 py-8 text-center text-gray-500 font-bold">Belum ada aktivitas penyiraman.</td>
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500 font-bold">Belum ada aktivitas aktuator tercatat.</td>
                 </tr>
               )}
             </tbody>

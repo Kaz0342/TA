@@ -175,13 +175,14 @@ Halaman utama sistem yang merangkum seluruh kondisi kumbung dan performa bisnis 
 
 **Hubungan dengan TA:** Memenuhi **FR-2.1** (Baglog Lifecycle). Membantu petani memantau umur baglog tanpa harus buka halaman terpisah.
 
-### 5.8 Komponen: Log Aktivitas Sprinkler
+### 5.8 Komponen: Log Aktivitas Kontrol Otomatis (Aktuator)
 
-*   **Kolom:** Waktu Kejadian, Durasi Nyala (detik), Pemicu (Trigger).
-*   **Sumber:** Tabel `sprinkler_logs` (5 log terakhir).
-*   **Trigger:** Bisa `manual`, `scheduled`, atau `threshold` (otomatis saat kelembapan rendah).
+*   **Kolom:** Waktu Kejadian, Aktuator (Misting/Fan), Pemicu Nyala (Trigger ON), Durasi Nyala (detik), Kondisi Akhir (Status / Stop Reason).
+*   **Sumber:** Tabel `sprinkler_logs` (10 log terakhir).
+*   **Pemicu Nyala:** Menjelaskan secara spesifik alasan aktuator aktif (misal: `Kelembaban Rendah (76.8% < 80%)` atau `Suhu Kritis (33.2°C > 32°C)`).
+*   **Kondisi Akhir:** Menjelaskan alasan aktuator berhenti (misal: `Target tercapai` atau `Safety timeout`).
 
-**Hubungan dengan TA:** Memenuhi **FR-4.2** (Actuator Logging). Mencatat jejak aktivitas sistem penyiraman otomatis untuk audit dan evaluasi.
+**Hubungan dengan TA:** Memenuhi **FR-4.2** (Actuator Logging & Audit Trail). Mencatat jejak aktivitas seluruh aktuator kumbung secara transparan dan akuntabel.
 
 ---
 

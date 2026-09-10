@@ -25,6 +25,10 @@ class SprinklerLogController extends Controller
             $validated['started_at'] = now();
         }
 
+        if (empty($validated['actuator'])) {
+            $validated['actuator'] = 'misting';
+        }
+
         $log = SprinklerLog::create($validated);
 
         return $this->success($log, 'Sprinkler log saved successfully', 201);
