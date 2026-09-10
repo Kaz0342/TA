@@ -27,7 +27,7 @@
 
 ## 1. Ringkasan Eksekutif
 
-**Smart Shroom SCM** adalah sistem informasi berbasis web dan IoT yang dirancang untuk mendigitalisasi proses monitoring lingkungan dan manajemen rantai pasok budidaya jamur tiram. Sistem ini mengintegrasikan perangkat keras sensor (ESP32) dengan dashboard web interaktif untuk memberikan kemampuan pemantauan iklim mikro kumbung secara *real-time*, pengelolaan siklus hidup media tanam (baglog), pencatatan panen harian, dan pelacakan keuangan penjualan.
+**Smart Shroom SCM** adalah sistem informasi berbasis web dan IoT yang dirancang untuk mendigitalisasi proses monitoring lingkungan dan manajemen rantai pasok budidaya jamur kuping. Sistem ini mengintegrasikan perangkat keras sensor (ESP32) dengan dashboard web interaktif untuk memberikan kemampuan pemantauan iklim mikro kumbung secara *real-time*, pengelolaan siklus hidup media tanam (baglog), pencatatan panen harian, dan pelacakan keuangan penjualan.
 
 ---
 
@@ -35,14 +35,14 @@
 
 ### 2.1 Latar Belakang
 
-Budidaya jamur tiram (*Pleurotus ostreatus*) memerlukan pengendalian lingkungan yang ketat, khususnya suhu, kelembapan, kadar CO2, dan intensitas cahaya. Mayoritas petani jamur di Indonesia masih mengandalkan pencatatan manual dan intuisi dalam mengelola kumbung mereka, sehingga rentan terhadap:
+Budidaya jamur kuping (*Auricularia auricula-judae*) memerlukan pengendalian lingkungan yang ketat, khususnya suhu, kelembapan, kadar CO2, dan intensitas cahaya. Mayoritas petani jamur di Indonesia masih mengandalkan pencatatan manual dan intuisi dalam mengelola kumbung mereka, sehingga rentan terhadap:
 - **Kerugian akibat iklim** — Kegagalan mendeteksi perubahan suhu/kelembapan secara cepat yang menyebabkan kematian baglog.
 - **Data yang tidak terstruktur** — Pencatatan di buku tulis yang sulit dianalisis secara historis.
 - **Pengambilan keputusan yang lambat** — Tidak ada mekanisme peringatan dini (*early warning*).
 
 ### 2.2 Rumusan Masalah
 
-> *"Bagaimana merancang dan mengimplementasikan sistem informasi berbasis web dan IoT untuk mendigitalisasi proses monitoring dan manajemen rantai pasok budidaya jamur tiram?"*
+> *"Bagaimana merancang dan mengimplementasikan sistem informasi berbasis web dan IoT untuk mendigitalisasi proses monitoring dan manajemen rantai pasok budidaya jamur kuping?"*
 
 ---
 

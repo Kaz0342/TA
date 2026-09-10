@@ -1,6 +1,6 @@
 # Smart Shroom SCM 🍄
 
-Sistem Manajemen Rantai Pasok Jamur Tiram Berbasis IoT (**Smart Shroom SCM**) adalah sistem informasi terintegrasi yang dibangun untuk memantau iklim mikro kumbung jamur secara *real-time* dan mendigitalisasi proses rantai pasok budidaya jamur tiram, mulai dari manajemen *baglog*, pencatatan panen, hingga perhitungan pendapatan (revenue) otomatis. Proyek ini merupakan produk utama Tugas Akhir (TA) di bidang Sistem Informasi.
+Sistem Manajemen Rantai Pasok Jamur Kuping Berbasis IoT (**Smart Shroom SCM**) adalah sistem informasi terintegrasi yang dibangun untuk memantau iklim mikro kumbung jamur secara *real-time* dan mendigitalisasi proses rantai pasok budidaya jamur kuping (*Auricularia auricula-judae*), mulai dari manajemen *baglog*, pencatatan panen, hingga perhitungan pendapatan (revenue) otomatis. Proyek ini merupakan produk utama Tugas Akhir (TA) di bidang Sistem Informasi.
 
 ---
 

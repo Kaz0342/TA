@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
  * Factory untuk model ThresholdSetting.
- * Default: batas optimal jamur tiram (20-30°C, 70-90%).
+ * Default: batas optimal jamur kuping (24-32°C, 80-95%).
  *
  * @extends Factory<ThresholdSetting>
  */
@@ -20,10 +20,10 @@ class ThresholdSettingFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
-            'temp_min' => 20.00,
-            'temp_max' => 30.00,
-            'humidity_min' => 70.00,
-            'humidity_max' => 90.00,
+            'temp_min' => 24.00,
+            'temp_max' => 32.00,
+            'humidity_min' => 80.00,
+            'humidity_max' => 95.00,
             'is_active' => true,
         ];
     }
@@ -42,10 +42,10 @@ class ThresholdSettingFactory extends Factory
     public function strict(): static
     {
         return $this->state(fn () => [
-            'temp_min' => 24.00,
-            'temp_max' => 26.00,
-            'humidity_min' => 80.00,
-            'humidity_max' => 85.00,
+            'temp_min' => 26.00,
+            'temp_max' => 30.00,
+            'humidity_min' => 85.00,
+            'humidity_max' => 92.00,
         ]);
     }
 }

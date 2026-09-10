@@ -19,7 +19,7 @@
 ## 1. Pendahuluan
 
 ### 1.1 Nama Sistem
-**Smart Shroom SCM** — Sistem Manajemen Rantai Pasok Jamur Tiram Berbasis IoT
+**Smart Shroom SCM** — Sistem Manajemen Rantai Pasok Jamur Kuping Berbasis IoT
 
 ### 1.2 Tujuan Sistem
 Sistem ini dibangun sebagai produk utama **Tugas Akhir (TA)** bidang Sistem Informasi, dengan tujuan:
@@ -31,7 +31,7 @@ Sistem ini dibangun sebagai produk utama **Tugas Akhir (TA)** bidang Sistem Info
 
 ### 1.3 Konteks TA
 Sistem ini menjawab rumusan masalah utama dalam TA, yaitu:
-> *"Bagaimana merancang dan mengimplementasikan sistem informasi berbasis web dan IoT untuk mendigitalisasi proses monitoring dan manajemen rantai pasok budidaya jamur tiram?"*
+> *"Bagaimana merancang dan mengimplementasikan sistem informasi berbasis web dan IoT untuk mendigitalisasi proses monitoring dan manajemen rantai pasok budidaya jamur kuping?"*
 
 ---
 
@@ -235,7 +235,7 @@ Memenuhi **FR-3.x** (Harvest Data Collection). Menjawab: *"Bagaimana mencatat da
 ## 8. Halaman Sales (Penjualan)
 
 ### 8.1 Tujuan
-Mencatat transaksi penjualan jamur tiram ke pembeli, termasuk ringkasan keuangan mingguan.
+Mencatat transaksi penjualan jamur kuping ke pembeli, termasuk ringkasan keuangan mingguan.
 
 ### 8.2 Fitur
 
@@ -266,10 +266,10 @@ Mengonfigurasi batas ambang (threshold) parameter iklim yang menjadi dasar siste
 
 | Parameter | Default | Satuan | Penjelasan |
 |---|---|---|---|
-| `temp_min` | 20.00 | °C | Suhu minimum untuk jamur tiram |
-| `temp_max` | 30.00 | °C | Suhu maksimum |
-| `humidity_min` | 70.00 | % | Kelembapan minimum |
-| `humidity_max` | 90.00 | % | Kelembapan maksimum |
+| `temp_min` | 24.00 | °C | Suhu minimum untuk jamur kuping |
+| `temp_max` | 32.00 | °C | Suhu maksimum |
+| `humidity_min` | 80.00 | % | Kelembapan minimum |
+| `humidity_max` | 95.00 | % | Kelembapan maksimum |
 
 ### 9.3 Mekanisme
 1. Admin mengubah nilai threshold melalui form di halaman Settings.

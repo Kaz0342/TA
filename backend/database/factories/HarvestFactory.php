@@ -25,7 +25,7 @@ class HarvestFactory extends Factory
             'user_id' => User::factory(),
             'baglog_batch_id' => BaglogBatch::factory(),
             'harvest_date' => fake()->dateTimeBetween('-14 days', 'now'),
-            // Panen jamur tiram per hari: 0.5 - 15 Kg (realistis untuk skala kecil)
+            // Panen jamur kuping per hari: 0.5 - 15 Kg (realistis untuk skala kecil)
             'weight_kg' => fake()->randomFloat(2, 0.5, 15),
             'notes' => fake()->optional(0.2)->randomElement([
                 'Panen pagi, kualitas bagus',

@@ -4,7 +4,7 @@
  * ============================================================
  * 
  * Firmware ESP32 untuk monitoring & kontrol otomatis 
- * mikroklimat kumbung budidaya JAMUR TIRAM.
+ * mikroklimat kumbung budidaya JAMUR KUPING (Auricularia auricula-judae).
  * Kumbung: 5m x 7m x 3.5m (Volume: 122.5 m³)
  * 
  * FITUR:

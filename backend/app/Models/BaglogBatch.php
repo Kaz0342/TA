@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Model BaglogBatch — batch media tanam jamur tiram.
+ * Model BaglogBatch — batch media tanam jamur kuping.
  *
  * Baglog = kantong plastik berisi serbuk kayu + dedak + kapur
  * yang sudah disterilisasi, siap ditanami bibit jamur.

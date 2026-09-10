@@ -9,10 +9,10 @@ import { Navigate } from 'react-router-dom';
 export default function Settings() {
   const user = useAuthStore((state) => state.user);
   
-  const [minTemp, setMinTemp] = useState('20.00');
-  const [maxTemp, setMaxTemp] = useState('30.00');
-  const [minHum, setMinHum] = useState('70.00');
-  const [maxHum, setMaxHum] = useState('90.00');
+  const [minTemp, setMinTemp] = useState('24.00');
+  const [maxTemp, setMaxTemp] = useState('32.00');
+  const [minHum, setMinHum] = useState('80.00');
+  const [maxHum, setMaxHum] = useState('95.00');
   
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);

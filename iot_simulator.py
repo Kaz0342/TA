@@ -2,7 +2,7 @@
 Smart Shroom IoT Simulator v3.0 — Multi-Sensor (3x DHT22)
 =========================================================
 Script ini mensimulasikan perilaku 3 sensor DHT22 + aktuator (Misting & Fan)
-di kumbung jamur tiram berukuran 5m x 7m x 3.5m.
+di kumbung jamur kuping (Auricularia auricula-judae) berukuran 5m x 7m x 3.5m.
 
 Penempatan sensor: Segitiga Diagonal
   Sensor A: Zona Atas (dekat pintu, 2.5m) — paling panas & kering
@@ -68,15 +68,15 @@ def get_wib_now() -> datetime.datetime:
 # ============================================================
 # MODEL FISIKA KUMBUNG JAMUR
 # ============================================================
-# Konstanta lingkungan kumbung jamur tiram (Pleurotus ostreatus)
+# Konstanta lingkungan kumbung jamur kuping (Auricularia auricula-judae)
 # Karakteristik mikroklimat kumbung tropis dataran menengah-rendah:
-# - Pagi/Fajar (titik terdingin): ~21.5°C
-# - Siang bolong (puncak panas): ~28.5°C
+# - Pagi/Fajar (titik terdingin): ~22.0°C
+# - Siang bolong (puncak panas): ~29.5°C
 # - Kelembaban berkorelasi terbalik dengan suhu (hukum psikrometrik)
-AMBIENT_TEMP_MIN = 21.5        # Suhu minimum harian saat subuh (°C)
-AMBIENT_TEMP_MAX = 28.5        # Suhu maksimum harian saat siang bolong (°C)
-AMBIENT_HUM_MIN = 78.0         # Kelembaban terendah saat siang hari (%)
-AMBIENT_HUM_MAX = 92.0         # Kelembaban tertinggi saat dini hari/subuh (%)
+AMBIENT_TEMP_MIN = 22.0        # Suhu minimum harian saat subuh (°C) — kumbung jamur kuping lebih hangat
+AMBIENT_TEMP_MAX = 29.5        # Suhu maksimum harian saat siang bolong (°C)
+AMBIENT_HUM_MIN = 82.0         # Kelembaban terendah saat siang hari (%) — butuh kelembaban tinggi
+AMBIENT_HUM_MAX = 95.0         # Kelembaban tertinggi saat dini hari/subuh (%)
 
 # Titik kritis siklus diurnal (WIB)
 T_SUNRISE = 5.5                # Subuh / titik terdingin: 05:30 WIB
@@ -153,12 +153,12 @@ class KumbungState:
         self.misting_duration_total = 0
 
         # Threshold dari web (akan di-fetch)
-        self.temp_max = 30.0
-        self.temp_min = 23.0
+        self.temp_max = 32.0
+        self.temp_min = 24.0
         self.hum_min = 80.0
-        self.hum_max = 90.0
+        self.hum_max = 95.0
         self.rh_trigger_low = 80.0       # = hum_min
-        self.rh_trigger_high = 88.0      # = hum_max - 2.0
+        self.rh_trigger_high = 93.0      # = hum_max - 2.0 (95 - 2 = 93)
 
     @staticmethod
     def _get_ambient_temp(now: datetime.datetime) -> float:

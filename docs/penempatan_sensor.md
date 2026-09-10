@@ -1,7 +1,7 @@
 # Strategi Penempatan Sensor DHT22 (Multi-Sensor)
 **Smart Shroom SCM — Tugas Akhir**
 
-Dokumen ini menjelaskan strategi penempatan 3 sensor DHT22 di kumbung jamur tiram
+Dokumen ini menjelaskan strategi penempatan 3 sensor DHT22 di kumbung jamur kuping
 berukuran **5m × 7m × 3.5m** (Volume: 122.5 m³) dan alasan teknis di balik keputusan desain.
 
 ---

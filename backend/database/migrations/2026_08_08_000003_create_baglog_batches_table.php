@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Migration untuk tabel baglog_batches.
  *
- * Baglog = media tanam jamur tiram (serbuk kayu + dedak yang dibungkus plastik).
+ * Baglog = media tanam jamur kuping (serbuk kayu + dedak yang dibungkus plastik).
  * Tabel ini mencatat keluar-masuk batch baglog dari supplier.
  *
  * Umur baglog dihitung otomatis dari entry_date di Model (accessor),

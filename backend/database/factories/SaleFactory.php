@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 /**
  * Factory untuk model Sale.
  *
- * Harga jamur tiram di pasaran Indonesia: Rp 15.000 - Rp 35.000/Kg
+ * Harga jamur kuping di pasaran Indonesia: Rp 18.000 - Rp 35.000/Kg
  * total_revenue dihitung otomatis dari quantity × price.
  *
  * @extends Factory<Sale>
@@ -24,7 +24,7 @@ class SaleFactory extends Factory
     public function definition(): array
     {
         $quantityKg = fake()->randomFloat(2, 1, 20);
-        $pricePerKg = fake()->randomElement([15000, 18000, 20000, 22000, 25000, 28000, 30000, 35000]);
+        $pricePerKg = fake()->randomElement([18000, 20000, 22000, 25000, 28000, 30000, 35000]);
         $totalRevenue = bcmul((string) $quantityKg, (string) $pricePerKg, 2);
 
         return [

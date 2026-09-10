@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Migration untuk tabel harvests.
  *
- * Mencatat hasil panen harian jamur tiram.
+ * Mencatat hasil panen harian jamur kuping.
  * Setiap record panen dikaitkan dengan batch baglog tertentu
  * sehingga bisa dianalisis produktivitas per batch.
  *

@@ -45,11 +45,11 @@ export default function Dashboard() {
     refetchInterval: 30000, // Refetch tiap 30 detik
   });
 
-  // Nilai numerik batas optimal dengan fallback standar budidaya jamur tiram
-  const tempMin = Number(thresholds?.temp_min ?? 20);
-  const tempMax = Number(thresholds?.temp_max ?? 30);
-  const humMin = Number(thresholds?.humidity_min ?? 70);
-  const humMax = Number(thresholds?.humidity_max ?? 90);
+  // Nilai numerik batas optimal dengan fallback standar budidaya jamur kuping
+  const tempMin = Number(thresholds?.temp_min ?? 24);
+  const tempMax = Number(thresholds?.temp_max ?? 32);
+  const humMin = Number(thresholds?.humidity_min ?? 80);
+  const humMax = Number(thresholds?.humidity_max ?? 95);
 
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
@@ -300,7 +300,7 @@ export default function Dashboard() {
         <Card className="flex flex-col justify-between bg-white text-center items-center">
           <div className="w-full">
             <h2 className="text-xl font-black text-black mb-2 uppercase border-b-4 border-black pb-2 text-left w-full">Panen Hari Ini</h2>
-            <p className="text-sm font-bold text-gray-700 mb-6 text-left">Total berat jamur tiram yang dipanen hari ini.</p>
+            <p className="text-sm font-bold text-gray-700 mb-6 text-left">Total berat jamur kuping yang dipanen hari ini.</p>
           </div>
           
           <div className="text-center py-4">
@@ -373,7 +373,7 @@ export default function Dashboard() {
       <Card className="bg-white">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 border-b-4 border-black pb-4 gap-4">
           <h2 className="text-xl font-black text-black uppercase">Informasi Batch Penanaman Aktif</h2>
-          <span className="text-sm bg-[#28e085] text-black border-2 border-black px-4 py-1 font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase">Jamur Tiram Putih</span>
+          <span className="text-sm bg-[#28e085] text-black border-2 border-black px-4 py-1 font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase">Jamur Kuping Hitam</span>
         </div>
         
         <div className="overflow-x-auto border-4 border-black">

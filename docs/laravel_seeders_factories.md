@@ -50,7 +50,7 @@ class DatabaseSeeder extends Seeder
             'batch_code' => 'BATCH-KUPING-002',
             'entry_date' => Carbon::now()->subDays(30),
             'quantity' => 800,
-            'supplier' => 'Koperasi Jamur Tiram',
+            'supplier' => 'Koperasi Jamur Kuping',
             'is_active' => true,
         ]);
 

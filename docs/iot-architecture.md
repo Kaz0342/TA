@@ -17,7 +17,7 @@ Sistem IoT ini berpusat pada mikrokontroler yang terhubung ke jaringan internet 
     *   **Sensor B** (GPIO 15): Zona Tengah, pusat kumbung, ketinggian 1.5m — referensi utama.
     *   **Sensor C** (GPIO 2): Zona Bawah, pojok belakang, ketinggian 0.5m — mendeteksi dead zone.
 *   **Logika:** ESP32 membaca ketiga sensor, menghitung **rata-rata aritmatika** (averaging), dan menggunakan nilai rata-rata tersebut untuk keputusan aktuator dan pengiriman ke API. Jika salah satu sensor error, hanya sensor yang valid yang dihitung.
-*   **Fungsi:** Mengukur suhu ruangan (°C) dan kelembapan relatif (%). DHT22 dipilih karena jangkauan bacaan yang lebih luas dan presisi yang lebih tinggi dibanding DHT11, sangat krusial untuk pertumbuhan miselium jamur tiram (suhu optimal 20-30°C, kelembaban 70-90%).
+*   **Fungsi:** Mengukur suhu ruangan (°C) dan kelembapan relatif (%). DHT22 dipilih karena jangkauan bacaan yang lebih luas dan presisi yang lebih tinggi dibanding DHT11, sangat krusial untuk pertumbuhan miselium jamur kuping (suhu optimal 24-32°C, kelembaban 80-95%).
 *   **Referensi:** Lihat `docs/penempatan_sensor.md` untuk detail strategi penempatan.
 
 ### 1.3 Sensor Kadar CO2
@@ -26,7 +26,7 @@ Sistem IoT ini berpusat pada mikrokontroler yang terhubung ke jaringan internet 
 
 ### 1.4 Sensor Intensitas Cahaya
 *   **Komponen:** BH1750 (Digital Light Sensor) atau modul LDR (Light Dependent Resistor)
-*   **Fungsi:** Mengukur intensitas paparan cahaya di dalam kumbung (dalam satuan Lux). Cahaya yang berlebihan dapat menghambat pertumbuhan jamur tiram, sehingga data ini diperlukan untuk menjaga kumbung tetap teduh.
+*   **Fungsi:** Mengukur intensitas paparan cahaya di dalam kumbung (dalam satuan Lux). Cahaya yang berlebihan dapat menghambat pertumbuhan jamur kuping, sehingga data ini diperlukan untuk menjaga kumbung tetap teduh.
 
 ---
 

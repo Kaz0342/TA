@@ -22,7 +22,7 @@ use Illuminate\Database\Seeder;
  * - 5 batch baglog (3 aktif, 1 kontaminasi, 1 disposed)
  * - ~28 record panen (2 minggu, 2 panen/hari)
  * - ~14 record penjualan (2 minggu, 1/hari)
- * - 1 threshold setting (default optimal jamur tiram)
+ * - 1 threshold setting (default optimal jamur kuping)
  */
 class DatabaseSeeder extends Seeder
 {
@@ -51,13 +51,13 @@ class DatabaseSeeder extends Seeder
         $this->command->info('✅ Users seeded: 1 admin + 1 worker');
 
         // ─── 2. THRESHOLD SETTINGS ──────────────────────────────
-        // Default threshold optimal untuk jamur tiram
+        // Default threshold optimal untuk jamur kuping (Auricularia auricula-judae)
         ThresholdSetting::factory()->create([
             'user_id' => $admin->id,
-            'temp_min' => 20.00,
-            'temp_max' => 30.00,
-            'humidity_min' => 70.00,
-            'humidity_max' => 90.00,
+            'temp_min' => 24.00,
+            'temp_max' => 32.00,
+            'humidity_min' => 80.00,
+            'humidity_max' => 95.00,
             'is_active' => true,
         ]);
 
@@ -72,26 +72,26 @@ class DatabaseSeeder extends Seeder
         for ($i = 287; $i >= 0; $i--) {
             $recordedAt = $now->copy()->subMinutes($i * 5);
 
-            // Simulasi suhu yang berfluktuasi secara natural
-            // Siang lebih panas (25-32°C), malam lebih dingin (20-26°C)
+            // Simulasi suhu yang berfluktuasi secara natural (Jamur Kuping: 24-32°C)
+            // Siang lebih hangat (26-32°C), malam lebih sejuk (23-27°C)
             $hour = (int) $recordedAt->format('H');
             $isDaytime = $hour >= 6 && $hour < 18;
 
             if ($isDaytime) {
-                $baseTemp = 27.0;
-                $tempVariance = 4.0;
-            } else {
-                $baseTemp = 23.0;
+                $baseTemp = 28.5;
                 $tempVariance = 3.0;
+            } else {
+                $baseTemp = 25.0;
+                $tempVariance = 2.0;
             }
 
-            // Tambah random noise agar data terlihat natural
+            // Tambah random noise agar data terlihat natural (kelembaban jamur kuping 80-95%)
             $temperature = round($baseTemp + (mt_rand(-100, 100) / 100) * $tempVariance, 2);
-            $humidity = round(80.0 + (mt_rand(-100, 100) / 100) * 10, 2);
+            $humidity = round(88.0 + (mt_rand(-100, 100) / 100) * 7.0, 2);
 
             // Clamp values ke range yang masuk akal
-            $temperature = max(15.0, min(40.0, $temperature));
-            $humidity = max(50.0, min(99.0, $humidity));
+            $temperature = max(18.0, min(40.0, $temperature));
+            $humidity = max(60.0, min(99.0, $humidity));
 
             $sensorReadings[] = [
                 'temperature' => $temperature,
@@ -105,11 +105,11 @@ class DatabaseSeeder extends Seeder
         }
 
         // Tambahkan beberapa data extreme untuk test alert
-        // Suhu tinggi (simulasi siang yang terik)
-        $sensorReadings[100]['temperature'] = 33.50;
-        $sensorReadings[101]['temperature'] = 34.20;
-        // Kelembaban rendah
-        $sensorReadings[150]['humidity'] = 62.00;
+        // Suhu tinggi (simulasi siang yang terik di atas 32°C)
+        $sensorReadings[100]['temperature'] = 34.50;
+        $sensorReadings[101]['temperature'] = 35.20;
+        // Kelembaban rendah (di bawah 80%)
+        $sensorReadings[150]['humidity'] = 72.00;
 
         // Bulk insert biar cepat
         foreach (array_chunk($sensorReadings, 50) as $chunk) {
@@ -195,7 +195,7 @@ class DatabaseSeeder extends Seeder
             'Mas Adi (Tengkulak)',
             'Ibu Dewi (Toko Sayur)',
         ];
-        $prices = [20000, 22000, 25000, 28000, 30000];
+        $prices = [20000, 22000, 25000, 28000, 30000, 35000];
 
         for ($day = 13; $day >= 0; $day--) {
             $saleDate = $now->copy()->subDays($day)->toDateString();
