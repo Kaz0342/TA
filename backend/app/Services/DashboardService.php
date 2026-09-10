@@ -33,8 +33,9 @@ class DashboardService
         // 2. Total Panen Hari Ini
         $todayHarvest = Harvest::today()->sum('weight_kg');
 
-        // 3. Revenue Bulan Ini
+        // 3. Revenue Bulan Ini & Minggu Ini
         $monthlyRevenue = Sale::thisMonth()->sum('total_revenue');
+        $weeklyRevenue = Sale::thisWeek()->sum('total_revenue');
 
         // 4. Alert dari Sensor Terbaru
         $latestSensor = $this->sensorRepository->getLatest();
@@ -62,8 +63,11 @@ class DashboardService
 
         return [
             'active_baglogs' => (int) $activeBaglogs,
+            'active_baglogs_count' => (int) $activeBaglogs,
             'today_harvest_kg' => (float) $todayHarvest,
             'monthly_revenue_idr' => (float) $monthlyRevenue,
+            'weekly_revenue' => (float) $weeklyRevenue,
+            'weekly_revenue_idr' => (float) $weeklyRevenue,
             'system_alerts' => $alerts,
             'latest_batches' => $latestBatches,
             'sprinkler_logs' => $sprinklerLogs,

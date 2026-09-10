@@ -118,7 +118,11 @@ export default function Dashboard() {
           <div className="min-w-0">
             <p className="text-xs font-black text-black uppercase leading-tight">Baglog Aktif</p>
             <p className="text-2xl sm:text-3xl font-black text-black leading-tight mt-1">
-              {statsLoading ? '...' : stats?.active_baglogs_count ?? '--'}
+              {statsLoading ? '...' : (
+                (stats?.active_baglogs ?? stats?.active_baglogs_count) !== undefined
+                  ? Number(stats?.active_baglogs ?? stats?.active_baglogs_count).toLocaleString('id-ID')
+                  : '--'
+              )}
             </p>
           </div>
         </Card>
@@ -130,8 +134,8 @@ export default function Dashboard() {
           </div>
           <div className="min-w-0">
             <p className="text-xs font-black text-black uppercase leading-tight">Omset Minggu Ini</p>
-            <p className="text-xl sm:text-2xl font-black text-black leading-tight mt-1 truncate" title={stats ? formatCurrency(stats.weekly_revenue) : ''}>
-              {statsLoading ? '...' : formatCurrency(stats?.weekly_revenue || 0)}
+            <p className="text-xl sm:text-2xl font-black text-black leading-tight mt-1 truncate" title={stats ? formatCurrency(stats.weekly_revenue ?? stats.weekly_revenue_idr ?? stats.monthly_revenue_idr ?? 0) : ''}>
+              {statsLoading ? '...' : formatCurrency(stats?.weekly_revenue ?? stats?.weekly_revenue_idr ?? stats?.monthly_revenue_idr ?? 0)}
             </p>
           </div>
         </Card>
