@@ -7,6 +7,24 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::get('/favicon.ico', function () {
+    return file_exists(public_path('favicon.ico'))
+        ? response()->file(public_path('favicon.ico'))
+        : response('', 404);
+});
+
+Route::get('/favicon.png', function () {
+    return file_exists(public_path('favicon.png'))
+        ? response()->file(public_path('favicon.png'), ['Content-Type' => 'image/png'])
+        : response('', 404);
+});
+
+Route::get('/favicon.svg', function () {
+    return file_exists(public_path('favicon.svg'))
+        ? response()->file(public_path('favicon.svg'), ['Content-Type' => 'image/svg+xml'])
+        : response('', 404);
+});
+
 // ============================================================
 // UTILITY ENDPOINTS — HANYA AKTIF DI LOCAL DEVELOPMENT
 // @see Audit Keamanan C2
