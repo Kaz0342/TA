@@ -4,6 +4,7 @@ import {
 } from 'recharts';
 import { Thermometer, Droplets, Package, Sprout, TrendingUp, AlertTriangle } from 'lucide-react';
 import api from '../services/api';
+import { Link } from 'react-router-dom';
 import { Card } from '../components/ui';
 
 // Fetchers
@@ -63,34 +64,56 @@ export default function Dashboard() {
 
   // Helper render Alert
   const hasAlerts = stats?.system_alerts?.length > 0;
+  const isTempAlert = stats?.system_alerts?.some((a: any) => a.type?.startsWith('temp'));
+  const isHumAlert = stats?.system_alerts?.some((a: any) => a.type?.startsWith('humidity'));
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
 
-      {/* Alert Banner */}
+      {/* Compact Alert Bar (Ramping & Elegan, tidak bikin card turun) */}
       {hasAlerts && (
-        <div className="bg-red-500 border-4 border-black p-4 flex items-start gap-3 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-          <AlertTriangle className="text-black w-8 h-8 shrink-0 mt-0.5 stroke-[3]" />
-          <div>
-            <h3 className="font-black text-black text-lg uppercase">Peringatan Sistem!</h3>
-            <ul className="list-disc ml-6 text-black font-bold mt-1">
+        <div className="bg-[#ff4d4d] border-4 border-black px-3.5 py-2 sm:py-2.5 flex flex-wrap items-center justify-between gap-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-in slide-in-from-top-2 duration-300">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="flex items-center gap-1.5 bg-black text-white px-2 py-0.5 text-xs font-black uppercase tracking-wider border border-black shadow-[2px_2px_0px_0px_rgba(255,255,255,0.8)] shrink-0">
+              <AlertTriangle className="w-3.5 h-3.5 text-yellow-300 animate-pulse stroke-[3]" />
+              Peringatan Iklim
+            </span>
+            <div className="flex flex-wrap items-center gap-1.5">
               {stats.system_alerts.map((a: any, i: number) => (
-                <li key={i}>{a.message}</li>
+                <span
+                  key={i}
+                  className="inline-flex items-center px-2 py-0.5 text-xs font-black bg-white text-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                >
+                  {a.message}
+                </span>
               ))}
-            </ul>
+            </div>
           </div>
+          <Link
+            to="/settings"
+            className="text-[11px] font-black uppercase bg-yellow-300 hover:bg-yellow-400 active:scale-95 text-black px-2.5 py-1 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] transition-all ml-auto shrink-0"
+          >
+            Sesuaikan Threshold →
+          </Link>
         </div>
       )}
 
       {/* Top Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {/* Real-time Temp */}
-        <Card className="flex items-center gap-3 p-4 bg-yellow-400 group">
+        <Card className="flex items-center gap-3 p-4 bg-yellow-400 group relative">
           <div className="p-2 bg-white border-4 border-black text-black group-hover:scale-110 transition-transform shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] shrink-0">
             <Thermometer className="w-8 h-8 stroke-[3]" />
           </div>
-          <div className="min-w-0">
-            <p className="text-xs font-black text-black uppercase leading-tight">Suhu Saat Ini</p>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-1">
+              <p className="text-xs font-black text-black uppercase leading-tight">Suhu Saat Ini</p>
+              {isTempAlert && (
+                <span className="text-[10px] font-black uppercase bg-red-600 text-white px-1.5 py-0.5 border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] animate-pulse">
+                  Luar Zona
+                </span>
+              )}
+            </div>
             <p className="text-2xl sm:text-3xl font-black text-black leading-tight mt-1">
               {sensorLoading ? '...' : `${latestSensor?.temperature || '--'} °C`}
             </p>
@@ -98,12 +121,19 @@ export default function Dashboard() {
         </Card>
 
         {/* Real-time Humidity */}
-        <Card className="flex items-center gap-3 p-4 bg-[#60a5fa] group">
+        <Card className="flex items-center gap-3 p-4 bg-[#60a5fa] group relative">
           <div className="p-2 bg-white border-4 border-black text-black group-hover:scale-110 transition-transform shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] shrink-0">
             <Droplets className="w-8 h-8 stroke-[3]" />
           </div>
-          <div className="min-w-0">
-            <p className="text-xs font-black text-black uppercase leading-tight">Kelembapan</p>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-1">
+              <p className="text-xs font-black text-black uppercase leading-tight">Kelembapan</p>
+              {isHumAlert && (
+                <span className="text-[10px] font-black uppercase bg-red-600 text-white px-1.5 py-0.5 border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] animate-pulse">
+                  Luar Zona
+                </span>
+              )}
+            </div>
             <p className="text-2xl sm:text-3xl font-black text-black leading-tight mt-1">
               {sensorLoading ? '...' : `${latestSensor?.humidity || '--'} %`}
             </p>
