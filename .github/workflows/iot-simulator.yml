@@ -2,17 +2,17 @@ name: 🍄 24/7 IoT Sensor Simulator
 
 on:
   schedule:
-    # Trigger setiap 2 jam di menit 17 (UTC: 01:17, 03:17, 05:17, dst)
-    # Menghindari menit :00 yang sering mengalami antrean overload dan di-drop oleh GitHub Actions scheduler
-    - cron: '17 */2 * * *'
+    # Trigger setiap 1 jam di menit 17 (UTC: tiap jam)
+    # Runner hidup selama 5.5 jam (19.800s), jadi meskipun GitHub Actions menunda beberapa cron,
+    # runner sebelumnya masih tetap hidup dan streaming data nonstop tanpa pernah ada jeda kosong.
+    - cron: '17 * * * *'
   workflow_dispatch: # Tombol manual trigger di GitHub Actions UI
   push:
     paths:
       - 'iot_simulator.py'
       - '.github/workflows/iot-simulator.yml'
 
-# Cegah race condition: saat runner baru masuk, runner lama otomatis di-cancel
-# Overlap 30 menit (durasi 2.5 jam vs jadwal 2 jam) menjamin data tidak pernah terputus
+# Cegah race condition: saat runner baru masuk, runner lama otomatis di-cancel secara graceful
 concurrency:
   group: iot-sensor-simulator
   cancel-in-progress: true
@@ -21,7 +21,7 @@ jobs:
   simulate:
     name: Running Telemetry Simulator
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 350
 
     steps:
       - name: Checkout Kode
@@ -36,11 +36,12 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: Jalankan Simulasi Sensor (Buffer 2.5 Jam)
-        # 9.000 detik = 2.5 jam. Cron jalan tiap 2 jam sehingga ada overlap aman 30 menit.
-        # Concurrency cancel-in-progress akan menghentikan runner lama secara graceful saat runner baru aktif.
+      - name: Jalankan Simulasi Sensor (Durasi Maksimal 5.5 Jam)
+        # 19.800 detik = 5.5 jam (mendekati batas maksimal GitHub runner 6 jam).
+        # Dengan cron tiap 1 jam + buffer raksasa 4.5 jam, data dijamin 100% ngalir 24/7 nonstop!
         env:
           TZ: 'Asia/Jakarta'
         run: |
-          python -u iot_simulator.py --duration 9000
+          python -u iot_simulator.py --duration 19800
+
 
