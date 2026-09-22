@@ -123,16 +123,161 @@ SENSOR_ZONES = {
 
 
 # ============================================================
+# STOCHASTIC WEATHER GENERATOR (Model Rantai Markov Cuaca Musiman)
+# ============================================================
+# 4 Status Cuaca Stokastik dengan parameter termodinamika mikroklimat
+WEATHER_STATES = {
+    'CERAH_TERIK': {
+        'label': '☀️ Cerah Terik (Panas)',
+        'temp_shift': +1.8,    # Suhu luar naik, kumbung naik ~1.8°C
+        'hum_shift': -6.0,     # RH turun ~6%
+        'duration_min_sec': 120,   # 2 menit s.d. 5 menit dalam run real-time
+        'duration_max_sec': 300,
+    },
+    'BERAWAN_MENDUNG': {
+        'label': '⛅ Berawan / Mendung',
+        'temp_shift': -0.8,    # Redup, suhu kumbung turun ~0.8°C
+        'hum_shift': +4.0,     # RH naik ~4%
+        'duration_min_sec': 90,
+        'duration_max_sec': 240,
+    },
+    'HUJAN_SEDANG': {
+        'label': '🌧️ Hujan Sedang',
+        'temp_shift': -2.5,    # Hujan mendinginkan atap kumbung
+        'hum_shift': +10.0,    # RH melonjak tinggi
+        'duration_min_sec': 60,
+        'duration_max_sec': 180,
+    },
+    'HUJAN_LEBAT': {
+        'label': '⛈️ Hujan Lebat / Badai',
+        'temp_shift': -3.8,    # Sangat dingin
+        'hum_shift': +15.0,    # Mendekati titik jenuh 98-99%
+        'duration_min_sec': 45,
+        'duration_max_sec': 120,
+    },
+}
+
+# Probabilitas Monsun Iklim Indonesia (khususnya wilayah Jawa/DIY)
+SEASON_CONFIGS = {
+    'MUSIM_HUJAN': {  # Des, Jan, Feb (DJF - Monsun Barat)
+        'name': 'Musim Hujan (Monsun Barat)',
+        'weights': {
+            'CERAH_TERIK': 0.15,
+            'BERAWAN_MENDUNG': 0.35,
+            'HUJAN_SEDANG': 0.35,
+            'HUJAN_LEBAT': 0.15,
+        }
+    },
+    'MUSIM_KEMARAU': {  # Jun, Jul, Agu (JJA - Monsun Timur / Bediding)
+        'name': 'Musim Kemarau (Monsun Timur)',
+        'weights': {
+            'CERAH_TERIK': 0.70,
+            'BERAWAN_MENDUNG': 0.22,
+            'HUJAN_SEDANG': 0.07,
+            'HUJAN_LEBAT': 0.01,
+        }
+    },
+    'PANCAROBA': {  # Mar, Apr, Mei & Sep, Okt, Nov
+        'name': 'Musim Pancaroba (Transisi)',
+        'weights': {
+            'CERAH_TERIK': 0.45,
+            'BERAWAN_MENDUNG': 0.30,
+            'HUJAN_SEDANG': 0.20,
+            'HUJAN_LEBAT': 0.05,
+        }
+    }
+}
+
+
+class WeatherGenerator:
+    """Stochastic Weather Generator berbasis Rantai Markov & Iklim Musiman Indonesia."""
+
+    def __init__(self, forced_weather: str = "auto", custom_month: int = 0):
+        self.forced_weather = (forced_weather or "auto").lower()
+        self.custom_month = custom_month
+
+        now = get_wib_now()
+        month = custom_month if (1 <= custom_month <= 12) else now.month
+
+        if month in [12, 1, 2]:
+            self.season_code = 'MUSIM_HUJAN'
+        elif month in [6, 7, 8]:
+            self.season_code = 'MUSIM_KEMARAU'
+        else:
+            self.season_code = 'PANCAROBA'
+
+        self.season_name = SEASON_CONFIGS[self.season_code]['name']
+        self.current_state = 'BERAWAN_MENDUNG'
+        self.state_end_time = 0.0
+        self.current_temp_shift = 0.0
+        self.current_hum_shift = 0.0
+        self.target_temp_shift = 0.0
+        self.target_hum_shift = 0.0
+
+        self._pick_initial_state()
+
+    def _pick_initial_state(self):
+        if self.forced_weather == "cerah":
+            self.current_state = "CERAH_TERIK"
+        elif self.forced_weather == "mendung":
+            self.current_state = "BERAWAN_MENDUNG"
+        elif self.forced_weather == "hujan":
+            self.current_state = "HUJAN_SEDANG"
+        elif self.forced_weather == "badai":
+            self.current_state = "HUJAN_LEBAT"
+        else:
+            weights = SEASON_CONFIGS[self.season_code]['weights']
+            states = list(weights.keys())
+            probs = list(weights.values())
+            self.current_state = random.choices(states, weights=probs, k=1)[0]
+
+        cfg = WEATHER_STATES[self.current_state]
+        self.target_temp_shift = cfg['temp_shift']
+        self.target_hum_shift = cfg['hum_shift']
+        self.current_temp_shift = self.target_temp_shift
+        self.current_hum_shift = self.target_hum_shift
+        duration = random.uniform(cfg['duration_min_sec'], cfg['duration_max_sec'])
+        self.state_end_time = time.time() + duration
+
+    def tick(self, dt_seconds: float):
+        now = time.time()
+
+        # Cek transisi state jika mode auto
+        if self.forced_weather == "auto" and now >= self.state_end_time:
+            weights = SEASON_CONFIGS[self.season_code]['weights']
+            states = list(weights.keys())
+            probs = list(weights.values())
+            self.current_state = random.choices(states, weights=probs, k=1)[0]
+            cfg = WEATHER_STATES[self.current_state]
+            self.target_temp_shift = cfg['temp_shift']
+            self.target_hum_shift = cfg['hum_shift']
+            duration = random.uniform(cfg['duration_min_sec'], cfg['duration_max_sec'])
+            self.state_end_time = now + duration
+
+        # Inersia termal & kelembaban (transisi halus secara asimtotik)
+        alpha_t = min(1.0, 0.03 * dt_seconds)
+        alpha_h = min(1.0, 0.04 * dt_seconds)
+        self.current_temp_shift += (self.target_temp_shift - self.current_temp_shift) * alpha_t
+        self.current_hum_shift += (self.target_hum_shift - self.current_hum_shift) * alpha_h
+
+    @property
+    def current_weather_label(self) -> str:
+        return WEATHER_STATES[self.current_state]['label']
+
+
+# ============================================================
 # STATE SIMULATOR
 # ============================================================
 class KumbungState:
     """State mikroklimat kumbung jamur dengan 3 sensor (Segitiga Diagonal)."""
 
-    def __init__(self):
+    def __init__(self, weather_gen: WeatherGenerator = None):
+        self.weather_gen = weather_gen or WeatherGenerator()
+
         # Inisialisasi dari kondisi ambient WIB saat ini
         now = get_wib_now()
-        base_temp = self._get_ambient_temp(now)
-        base_hum = self._get_ambient_hum(now)
+        base_temp = self._get_ambient_temp(now) + self.weather_gen.current_temp_shift
+        base_hum = self._get_ambient_hum(now) + self.weather_gen.current_hum_shift
 
         # State per-sensor (suhu & kelembaban masing-masing zona)
         self.sensors = {}
@@ -226,9 +371,20 @@ class KumbungState:
         Simulasikan perubahan mikroklimat selama dt_seconds untuk 3 sensor.
         Menerapkan hukum termodinamika realistis untuk exhaust fan dan misting nozzle.
         """
+        # 0. Update state cuaca musiman stokastik
+        self.weather_gen.tick(dt_seconds)
+
         now = get_wib_now()
-        ambient_temp = self._get_ambient_temp(now)
-        ambient_hum = self._get_ambient_hum(now)
+        base_ambient_temp = self._get_ambient_temp(now)
+        base_ambient_hum = self._get_ambient_hum(now)
+
+        # Modifikasi cuaca stokastik (hujan, terik, mendung)
+        ambient_temp = base_ambient_temp + self.weather_gen.current_temp_shift
+        ambient_hum = base_ambient_hum + self.weather_gen.current_hum_shift
+
+        # Batas fisik
+        ambient_temp = max(TEMP_MIN_PHYSICAL, min(TEMP_MAX_PHYSICAL, ambient_temp))
+        ambient_hum = max(HUM_MIN_PHYSICAL, min(HUM_MAX_PHYSICAL, ambient_hum))
 
         sum_t, sum_h = 0.0, 0.0
 
@@ -474,19 +630,38 @@ def print_lcd(temp: float, hum: float, misting: bool, fan: bool):
 # ============================================================
 
 def main():
+    global API_BASE_URL
     parser = argparse.ArgumentParser(description="Smart Shroom IoT Simulator")
     parser.add_argument("--duration", type=int, default=0, help="Durasi simulasi dalam detik (0 = tanpa batas)")
     parser.add_argument("--interval", type=int, default=SENSOR_SEND_INTERVAL, help="Interval pengiriman data sensor (detik)")
+    parser.add_argument("--local", action="store_true", help="Gunakan backend lokal (http://127.0.0.1:8000/api)")
+    parser.add_argument("--api", type=str, default="", help="Custom API Base URL")
+    parser.add_argument("--weather", type=str, default="auto", choices=["auto", "cerah", "mendung", "hujan", "badai"], help="Paksa status cuaca simulasi (default: auto berdasarkan bulan & musim)")
+    parser.add_argument("--month", type=int, default=0, help="Simulasikan bulan tertentu (1-12, misal 1=Januari [Hujan], 7=Juli [Kemarau])")
     args = parser.parse_args()
+
+    if args.local:
+        API_BASE_URL = "http://127.0.0.1:8000/api"
+    elif args.api:
+        API_BASE_URL = args.api.rstrip("/")
 
     duration = args.duration
     send_interval = args.interval
 
+    # Inisialisasi Weather Generator (Stochastic Markov Chain)
+    weather_gen = WeatherGenerator(forced_weather=args.weather, custom_month=args.month)
+
     print("=" * 60)
-    print("  🍄 Smart Shroom IoT Simulator v3.0 (Multi-Sensor)")
+    print("  🍄 Smart Shroom IoT Simulator v3.5 (Seasonal Stochastic)")
     print(f"  Device: {DEVICE_ID}")
     print(f"  Backend: {API_BASE_URL}")
     print(f"  Sensor: 3x DHT22 (Segitiga Diagonal)")
+    print(f"  🌦️  Musim: {weather_gen.season_name} ({weather_gen.season_code})")
+    print(f"  🌤️  Status Cuaca: {weather_gen.current_weather_label}")
+    if args.weather != "auto":
+        print(f"       ⚠️  Mode Cuaca Manual: {args.weather.upper()}")
+    if args.month > 0:
+        print(f"       ⚠️  Bulan Simulasi: {args.month}")
     if duration > 0:
         print(f"  Durasi: {duration}s ({round(duration/3600, 2)} jam)")
     print(f"  Interval Kirim: {send_interval}s")
@@ -494,7 +669,7 @@ def main():
     print()
 
     # Inisialisasi state kumbung
-    state = KumbungState()
+    state = KumbungState(weather_gen=weather_gen)
     print(f"[INIT] Kondisi awal kumbung (3 sensor):")
     zones = state.get_zone_readings()
     for zid, (zt, zh) in zones.items():
@@ -561,7 +736,8 @@ def main():
                 # Kirim rata-rata ke API
                 success = send_sensor_data(temp, hum)
                 status = "✅" if success else "❌"
-                print(f"   {status} AVG → API: Suhu {temp}°C | RH {hum}%")
+                weather_info = f"{state.weather_gen.current_weather_label} (ΔT: {state.weather_gen.current_temp_shift:+.1f}°C, ΔRH: {state.weather_gen.current_hum_shift:+.1f}%)"
+                print(f"   {status} AVG → API: Suhu {temp}°C | RH {hum}% | {weather_info}")
 
                 # Tampilkan LCD virtual
                 print_lcd(temp, hum, state.is_misting_active, state.is_fan_active)
