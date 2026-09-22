@@ -51,6 +51,7 @@ DEVICE_ID = "ESP32-KUMBUNG-01"
 SENSOR_SEND_INTERVAL = 60       # Kirim data sensor tiap 60 detik (1 menit)
 THRESHOLD_FETCH_INTERVAL = 30   # Fetch threshold dari web tiap 30 detik
 MAX_MISTING_DURATION = 90       # Safety timeout misting (detik)
+MISTING_COOLDOWN = 150          # Jeda wajib setelah misting OFF (detik) — waktu evaporasi & difusi kabut
 CRITICAL_TEMP_OFFSET = 2.0      # Safety Override: jika SATU sensor > tempMax + offset ini, paksa Fan ON
 
 # ============================================================
@@ -297,6 +298,7 @@ class KumbungState:
         self.misting_start_time = None
         self.misting_duration_total = 0
         self.misting_trigger_reason = ""
+        self.misting_last_stop_time = 0.0  # Timestamp terakhir misting dimatikan (untuk cooldown)
         self.fan_start_time = None
         self.fan_trigger_reason = ""
 
@@ -493,6 +495,15 @@ def control_misting(state: KumbungState):
     critical_low_rh = state.rh_trigger_low - 4.0
 
     if not state.is_misting_active:
+        # Cooldown guard: cegah short-cycling sebelum kabut dari siklus sebelumnya evaporasi penuh
+        if state.misting_last_stop_time > 0:
+            elapsed_since_stop = time.time() - state.misting_last_stop_time
+            if elapsed_since_stop < MISTING_COOLDOWN:
+                remaining = int(MISTING_COOLDOWN - elapsed_since_stop)
+                if int(elapsed_since_stop) % 30 == 0 and int(elapsed_since_stop) > 0:
+                    print(f"   ⏳ [COOLDOWN] Pompa istirahat... {remaining}s tersisa (evaporasi kabut)")
+                return
+
         # Pemicu 1: Tier 2 - Safety Override (Satu sensor kritis kekeringan, e.g. Rak Atas)
         if min_hum < critical_low_rh:
             # Safety check: jangan semprot kalau RH rata-rata sudah di atas hum_max
@@ -534,6 +545,7 @@ def control_misting(state: KumbungState):
         if is_pulse and elapsed >= 30:
             state.is_misting_active = False
             state.is_pulse_misting = False
+            state.misting_last_stop_time = time.time()
             state.misting_duration_total = int(elapsed)
             stop_reason = f"Pulse misting selesai (30s, Min RH: {min_hum}%)"
             print(f"   🛑 [MISTING OFF] {stop_reason}")
@@ -545,6 +557,7 @@ def control_misting(state: KumbungState):
         if target_reached:
             state.is_misting_active = False
             state.is_pulse_misting = False
+            state.misting_last_stop_time = time.time()
             state.misting_duration_total = int(elapsed)
             stop_reason = f"Target tercapai (RH:{hum}% T:{temp}°C)"
             print(f"   🛑 [MISTING OFF] Durasi: {state.misting_duration_total}s — {stop_reason}")
@@ -553,6 +566,7 @@ def control_misting(state: KumbungState):
         elif elapsed >= MAX_MISTING_DURATION:
             state.is_misting_active = False
             state.is_pulse_misting = False
+            state.misting_last_stop_time = time.time()
             state.misting_duration_total = MAX_MISTING_DURATION
             stop_reason = f"Safety timeout ({MAX_MISTING_DURATION}s)"
             print(f"   🛑 [MISTING OFF] TIMEOUT! Durasi: {MAX_MISTING_DURATION}s — {stop_reason}")
@@ -816,6 +830,11 @@ def main():
                 if state.is_misting_active:
                     elapsed = int(now - state.misting_start_time)
                     actuators.append(f"💦 Misting: ON ({elapsed}s/{MAX_MISTING_DURATION}s)")
+                elif state.misting_last_stop_time > 0:
+                    cooldown_elapsed = int(now - state.misting_last_stop_time)
+                    if cooldown_elapsed < MISTING_COOLDOWN:
+                        remaining = MISTING_COOLDOWN - cooldown_elapsed
+                        actuators.append(f"⏳ Misting: COOLDOWN ({remaining}s/{MISTING_COOLDOWN}s)")
                 if state.is_fan_active:
                     actuators.append("🌀 Fan: ON")
                 if not actuators:
