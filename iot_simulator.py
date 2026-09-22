@@ -52,7 +52,17 @@ SENSOR_SEND_INTERVAL = 60       # Kirim data sensor tiap 60 detik (1 menit)
 THRESHOLD_FETCH_INTERVAL = 30   # Fetch threshold dari web tiap 30 detik
 MAX_MISTING_DURATION = 90       # Safety timeout misting (detik)
 MISTING_COOLDOWN = 150          # Jeda wajib setelah misting OFF (detik) — waktu evaporasi & difusi kabut
+POST_MISTING_FAN_DELAY = 60     # Jeda wajib setelah misting OFF sebelum fan boleh nyala (detik) — waktu kabut mengendap
+FAN_HOMOGENIZE_COOLDOWN = 120   # Jeda wajib setelah fan homogenisasi OFF (detik) — relaksasi udara & sirkulasi
 CRITICAL_TEMP_OFFSET = 2.0      # Safety Override: jika SATU sensor > tempMax + offset ini, paksa Fan ON
+
+# Konstanta Night Mode (Malam Hari: 17:00 - 06:00 WIB)
+NIGHT_START_HOUR = 17           # 17:00 WIB: Mulai mode malam (Misting lockout)
+NIGHT_END_HOUR = 6              # 06:00 WIB: Selesai mode malam
+NIGHT_FAN_DURATION = 45         # Durasi pasti nyala fan malam (detik)
+NIGHT_FAN_PERIODIC_INTERVAL = 3600  # Tiap 60 menit (3600 detik) fan nyala 45s buat buang CO2
+NIGHT_FAN_COOLDOWN = 1800       # Cooldown 30 menit (1800 detik) setelah over-humidity purge
+NIGHT_OVER_HUMIDITY_THRESHOLD = 96.0  # Batas atas RH malam pemicu purge (96.0%)
 
 # ============================================================
 # ZONA WAKTU & WAKTU LOKAL KUMBUNG
@@ -301,6 +311,10 @@ class KumbungState:
         self.misting_last_stop_time = 0.0  # Timestamp terakhir misting dimatikan (untuk cooldown)
         self.fan_start_time = None
         self.fan_trigger_reason = ""
+        self.fan_last_stop_time = 0.0  # Timestamp terakhir fan homogenisasi dimatikan (untuk cooldown)
+        self.last_night_periodic_fan_time = 0.0  # Timestamp terakhir periodic CO2 flush malam
+        self.last_night_purge_fan_time = 0.0     # Timestamp terakhir over-humidity purge malam
+        self.is_night_fan = False                # Flag apakah fan sedang running di mode malam
 
         # Threshold dari web (akan di-fetch)
         self.temp_max = 32.0
@@ -494,7 +508,17 @@ def control_misting(state: KumbungState):
     min_hum = state.get_min_hum()
     critical_low_rh = state.rh_trigger_low - 4.0
 
+    now_dt = get_wib_now()
+    hour = now_dt.hour
+    is_night = (hour >= NIGHT_START_HOUR or hour < NIGHT_END_HOUR)
+
     if not state.is_misting_active:
+        # 0. NIGHT LOCKOUT (17:00 - 06:00 WIB): Misting DILARANG nyala agar jamur tidak tidur basah kuyup
+        if is_night:
+            # Pengecualian darurat ekstrem: hanya boleh nyala jika RH anjlok < 75%
+            if hum >= 75.0 and min_hum >= 75.0:
+                return
+
         # Cooldown guard: cegah short-cycling sebelum kabut dari siklus sebelumnya evaporasi penuh
         if state.misting_last_stop_time > 0:
             elapsed_since_stop = time.time() - state.misting_last_stop_time
@@ -580,35 +604,105 @@ def control_fan(state: KumbungState):
     - Tier 2: NYALA PAKSA jika SATU sensor > tempMax + CRITICAL_TEMP_OFFSET (Safety Override)
     - Tier 3: NYALA KILAT (30s) jika disparitas RH |A - C| > 8.0% (Homogenisasi / aduk udara)
     """
-    temp, _ = state.get_readings()
+    temp, hum = state.get_readings()
     max_temp = state.get_max_temp()
     hum_disparity = state.get_hum_disparity()
     critical_threshold = state.temp_max + CRITICAL_TEMP_OFFSET
 
-    # 1. Tier 2: Safety Override Suhu Kritis Atas
+    now_dt = get_wib_now()
+    hour = now_dt.hour
+    is_night = (hour >= NIGHT_START_HOUR or hour < NIGHT_END_HOUR)
+
+    # 1. Tier 2: Safety Override Suhu Kritis Atas (BYPASS SEMUA DELAY & COOLDOWN!)
     if max_temp > critical_threshold:
         if not state.is_fan_active:
             state.is_fan_active = True
             state.is_homogenizing = False
+            state.is_night_fan = False
             state.fan_start_time = time.time()
             state.fan_trigger_reason = f"Safety Override (Sensor Max {max_temp}°C > {critical_threshold}°C)"
             print(f"   🚨 [SAFETY OVERRIDE] Fan PAKSA ON! Sensor tertinggi {max_temp}°C > batas kritis {critical_threshold}°C")
         return
 
-    # 2. Tier 3: Homogenisasi Mikroklimat (Aduk udara jika disparitas > 8%)
+    # 2. Settling Delay Guard: Fan dilarang nyala jika misting baru mati < 60 detik lalu
+    # Memberi waktu kabut mikro mendarat di baglog dan tidak tersedot keluar
+    if state.misting_last_stop_time > 0:
+        elapsed_misting_stop = time.time() - state.misting_last_stop_time
+        if elapsed_misting_stop < POST_MISTING_FAN_DELAY:
+            return
+
+    # 3. NIGHT MODE FAN (17:00 - 06:00 WIB)
+    if is_night:
+        # Jika sedang aktif siklus fan malam (durasi pasti 45s)
+        if getattr(state, 'is_night_fan', False):
+            elapsed = time.time() - (state.fan_start_time or time.time())
+            if elapsed >= NIGHT_FAN_DURATION:
+                state.is_fan_active = False
+                state.is_night_fan = False
+                state.fan_last_stop_time = time.time()
+                stop_reason = f"Night ventilation selesai {NIGHT_FAN_DURATION}s (RH: {hum}%)"
+                print(f"   🌙 [NIGHT FAN OFF] {stop_reason}")
+                send_actuator_log(int(elapsed), state.fan_trigger_reason, stop_reason, "fan")
+                return
+            return
+
+        if not state.is_fan_active and not state.is_misting_active:
+            now_ts = time.time()
+
+            # Pemicu Malam 1: Over-Humidity Purge (RH >= 96.0%, Cooldown 30 menit)
+            if hum >= NIGHT_OVER_HUMIDITY_THRESHOLD:
+                if (now_ts - state.last_night_purge_fan_time) >= NIGHT_FAN_COOLDOWN:
+                    state.is_fan_active = True
+                    state.is_night_fan = True
+                    state.is_homogenizing = False
+                    state.fan_start_time = now_ts
+                    state.last_night_purge_fan_time = now_ts
+                    state.fan_trigger_reason = f"Night Over-Humidity Purge (RH {hum}% >= {NIGHT_OVER_HUMIDITY_THRESHOLD}%)"
+                    print(f"   🌙 [NIGHT FAN ON] Over-Humidity Purge (45s) | Pemicu: RH {hum}% >= {NIGHT_OVER_HUMIDITY_THRESHOLD}%")
+                    return
+
+            # Pemicu Malam 2: Periodic CO2 Flush (Tiap 60 Menit sekali)
+            if state.last_night_periodic_fan_time == 0.0:
+                state.last_night_periodic_fan_time = now_ts
+            elif (now_ts - state.last_night_periodic_fan_time) >= NIGHT_FAN_PERIODIC_INTERVAL:
+                state.is_fan_active = True
+                state.is_night_fan = True
+                state.is_homogenizing = False
+                state.fan_start_time = now_ts
+                state.last_night_periodic_fan_time = now_ts
+                state.fan_trigger_reason = "Night Periodic CO2 Flush (Siklus 60 Menit)"
+                print(f"   🌙 [NIGHT FAN ON] Periodic CO2 Flush (45s) | Siklus 60 Menit")
+                return
+
+        # Di malam hari, tidak menjalankan daytime temperature/homogenize triggers
+        return
+
+    # 4. DAYTIME LOGIC (06:00 - 17:00 WIB)
+    # A. Tier 3: Homogenisasi Mikroklimat (Aduk udara jika disparitas > 8%)
     is_homo = getattr(state, 'is_homogenizing', False)
     if is_homo:
         elapsed = time.time() - (state.fan_start_time or time.time())
         if elapsed >= 30:
             state.is_fan_active = False
             state.is_homogenizing = False
+            state.fan_last_stop_time = time.time()
             stop_reason = f"Homogenisasi selesai 30s (Disparitas: {hum_disparity}%)"
             print(f"   🌀 [FAN OFF] {stop_reason}")
             send_actuator_log(int(elapsed), state.fan_trigger_reason, stop_reason, "fan")
             return
         return
 
-    if not state.is_fan_active and not state.is_misting_active and hum_disparity > 8.0:
+    # Cooldown guard khusus untuk Homogenisasi (cegah short-cycling relay fan)
+    can_homogenize = True
+    if state.fan_last_stop_time > 0:
+        elapsed_since_fan_stop = time.time() - state.fan_last_stop_time
+        if elapsed_since_fan_stop < FAN_HOMOGENIZE_COOLDOWN:
+            can_homogenize = False
+            if int(elapsed_since_fan_stop) % 30 == 0 and int(elapsed_since_fan_stop) > 0:
+                remaining = int(FAN_HOMOGENIZE_COOLDOWN - elapsed_since_fan_stop)
+                print(f"   ⏳ [FAN COOLDOWN] Kipas istirahat... {remaining}s tersisa (relaksasi sirkulasi)")
+
+    if not state.is_fan_active and not state.is_misting_active and can_homogenize and hum_disparity > 8.0:
         state.is_fan_active = True
         state.is_homogenizing = True
         state.fan_start_time = time.time()
@@ -616,7 +710,7 @@ def control_fan(state: KumbungState):
         print(f"   🔄 [FAN HOMOGENISASI] Sirkulasi Aktif (30s) | Pemicu: Disparitas RH {hum_disparity}% > 8.0%")
         return
 
-    # 3. Tier 1: Logika normal (pakai rata-rata tertimbang)
+    # B. Tier 1: Logika normal siang hari (pakai rata-rata tertimbang)
     if temp > state.temp_max:
         if not state.is_fan_active:
             state.is_fan_active = True
@@ -627,6 +721,7 @@ def control_fan(state: KumbungState):
     elif temp <= state.temp_min:
         if state.is_fan_active and not is_homo:
             state.is_fan_active = False
+            state.fan_last_stop_time = time.time()
             duration = int(time.time() - (state.fan_start_time or time.time()))
             stop_reason = f"Suhu normal (Avg {temp}°C <= {state.temp_min}°C)"
             print(f"   🌀 [FAN OFF] Exhaust Fan MATI (Suhu avg {temp}°C <= {state.temp_min}°C)")
@@ -837,6 +932,11 @@ def main():
                         actuators.append(f"⏳ Misting: COOLDOWN ({remaining}s/{MISTING_COOLDOWN}s)")
                 if state.is_fan_active:
                     actuators.append("🌀 Fan: ON")
+                elif state.fan_last_stop_time > 0:
+                    fan_cooldown_elapsed = int(now - state.fan_last_stop_time)
+                    if fan_cooldown_elapsed < FAN_HOMOGENIZE_COOLDOWN:
+                        rem_fan = FAN_HOMOGENIZE_COOLDOWN - fan_cooldown_elapsed
+                        actuators.append(f"⏳ Fan: COOLDOWN ({rem_fan}s/{FAN_HOMOGENIZE_COOLDOWN}s)")
                 if not actuators:
                     actuators.append("💤 Semua aktuator: OFF")
                 for a in actuators:
