@@ -391,8 +391,8 @@ void controlMisting(float temp, float hum, float minHum) {
   if (!isMistingActive) {
     // 0. NIGHT LOCKOUT (17:00 - 06:00 WIB): Misting DILARANG nyala agar jamur tidak tidur basah kuyup
     if (isNight) {
-      // Pengecualian darurat ekstrem: hanya boleh nyala jika RH anjlok < 75%
-      if (hum >= 75.0 && minHum >= 75.0) {
+      // Pengecualian darurat ekstrem: hanya boleh nyala jika terjadi dehidrasi parah (RH rata-rata < 70% atau sensor < 65%)
+      if (hum >= 70.0 && minHum >= 65.0) {
         return;
       }
     }

@@ -134,21 +134,21 @@ SENSOR_ZONES = {
 
 
 # ============================================================
-# STOCHASTIC WEATHER GENERATOR (Model Rantai Markov Cuaca Musiman)
+# STOCHASTIC WEATHER GENERATOR (Model Rantai Markov Musiman & Diurnal)
 # ============================================================
-# 4 Status Cuaca Stokastik dengan parameter termodinamika mikroklimat
-WEATHER_STATES = {
+# Status Cuaca Siang Hari (06:00 - 17:00 WIB)
+DAY_WEATHER_STATES = {
     'CERAH_TERIK': {
         'label': '☀️ Cerah Terik (Panas)',
-        'temp_shift': +1.8,    # Suhu luar naik, kumbung naik ~1.8°C
-        'hum_shift': -6.0,     # RH turun ~6%
-        'duration_min_sec': 120,   # 2 menit s.d. 5 menit dalam run real-time
+        'temp_shift': +1.8,    # Radiasi matahari kuat menaikkan suhu
+        'hum_shift': -6.0,     # RH turun karena udara memuai panas
+        'duration_min_sec': 120,
         'duration_max_sec': 300,
     },
     'BERAWAN_MENDUNG': {
         'label': '⛅ Berawan / Mendung',
-        'temp_shift': -0.8,    # Redup, suhu kumbung turun ~0.8°C
-        'hum_shift': +4.0,     # RH naik ~4%
+        'temp_shift': -0.8,    # Radiasi terhalang awan
+        'hum_shift': +4.0,     # RH naik
         'duration_min_sec': 90,
         'duration_max_sec': 240,
     },
@@ -168,9 +168,35 @@ WEATHER_STATES = {
     },
 }
 
-# Probabilitas Monsun Iklim Indonesia (khususnya wilayah Jawa/DIY)
-SEASON_CONFIGS = {
-    'MUSIM_HUJAN': {  # Des, Jan, Feb (DJF - Monsun Barat)
+# Status Cuaca Malam Hari (17:00 - 06:00 WIB)
+# Jamur kuping di malam hari: tidak ada matahari, pendinginan radiatif ke langit malam
+NIGHT_WEATHER_STATES = {
+    'MALAM_CERAH': {
+        'label': '🌙 Malam Cerah (Sejuk)',
+        'temp_shift': -1.2,    # Langit bersih = radiasi bumi lepas ke angkasa, suhu lebih dingin alami
+        'hum_shift': +4.0,     # Suhu turun membuat RH alami naik mendekati embun
+        'duration_min_sec': 150,
+        'duration_max_sec': 360,
+    },
+    'MALAM_BERAWAN': {
+        'label': '☁️ Malam Berawan (Stabil)',
+        'temp_shift': -0.2,    # Awan menahan radiasi balik, suhu sejuk stabil
+        'hum_shift': +2.0,     # RH stabil nyaman
+        'duration_min_sec': 120,
+        'duration_max_sec': 300,
+    },
+    'HUJAN_MALAM': {
+        'label': '🌧️ Hujan Malam (Dingin Basah)',
+        'temp_shift': -2.2,    # Hujan malam membuat kumbung dingin
+        'hum_shift': +9.0,     # RH mendekati titik jenuh 96-98%
+        'duration_min_sec': 90,
+        'duration_max_sec': 240,
+    },
+}
+
+# Probabilitas Monsun Iklim Indonesia Siang Hari
+DAY_SEASON_CONFIGS = {
+    'MUSIM_HUJAN': {
         'name': 'Musim Hujan (Monsun Barat)',
         'weights': {
             'CERAH_TERIK': 0.15,
@@ -179,7 +205,7 @@ SEASON_CONFIGS = {
             'HUJAN_LEBAT': 0.15,
         }
     },
-    'MUSIM_KEMARAU': {  # Jun, Jul, Agu (JJA - Monsun Timur / Bediding)
+    'MUSIM_KEMARAU': {
         'name': 'Musim Kemarau (Monsun Timur)',
         'weights': {
             'CERAH_TERIK': 0.70,
@@ -188,7 +214,7 @@ SEASON_CONFIGS = {
             'HUJAN_LEBAT': 0.01,
         }
     },
-    'PANCAROBA': {  # Mar, Apr, Mei & Sep, Okt, Nov
+    'PANCAROBA': {
         'name': 'Musim Pancaroba (Transisi)',
         'weights': {
             'CERAH_TERIK': 0.45,
@@ -199,9 +225,34 @@ SEASON_CONFIGS = {
     }
 }
 
+# Probabilitas Monsun Iklim Indonesia Malam Hari (17:00 - 06:00 WIB)
+NIGHT_SEASON_CONFIGS = {
+    'MUSIM_HUJAN': {
+        'weights': {
+            'MALAM_CERAH': 0.20,
+            'MALAM_BERAWAN': 0.40,
+            'HUJAN_MALAM': 0.40,
+        }
+    },
+    'MUSIM_KEMARAU': {
+        'weights': {
+            'MALAM_CERAH': 0.70,   # Kemarau malam hari di Jawa (Bediding) langit sangat cerah dan dingin
+            'MALAM_BERAWAN': 0.25,
+            'HUJAN_MALAM': 0.05,
+        }
+    },
+    'PANCAROBA': {
+        'weights': {
+            'MALAM_CERAH': 0.45,
+            'MALAM_BERAWAN': 0.35,
+            'HUJAN_MALAM': 0.20,
+        }
+    }
+}
+
 
 class WeatherGenerator:
-    """Stochastic Weather Generator berbasis Rantai Markov & Iklim Musiman Indonesia."""
+    """Stochastic Weather Generator berbasis Rantai Markov Musiman & Diurnal (Siang/Malam)."""
 
     def __init__(self, forced_weather: str = "auto", custom_month: int = 0):
         self.forced_weather = (forced_weather or "auto").lower()
@@ -217,32 +268,47 @@ class WeatherGenerator:
         else:
             self.season_code = 'PANCAROBA'
 
-        self.season_name = SEASON_CONFIGS[self.season_code]['name']
-        self.current_state = 'BERAWAN_MENDUNG'
+        self.season_name = DAY_SEASON_CONFIGS[self.season_code]['name']
+        self.current_state = ''
+        self.is_currently_night = self._check_is_night()
         self.state_end_time = 0.0
         self.current_temp_shift = 0.0
         self.current_hum_shift = 0.0
         self.target_temp_shift = 0.0
         self.target_hum_shift = 0.0
 
-        self._pick_initial_state()
+        self._pick_state()
 
-    def _pick_initial_state(self):
-        if self.forced_weather == "cerah":
-            self.current_state = "CERAH_TERIK"
-        elif self.forced_weather == "mendung":
-            self.current_state = "BERAWAN_MENDUNG"
-        elif self.forced_weather == "hujan":
-            self.current_state = "HUJAN_SEDANG"
-        elif self.forced_weather == "badai":
-            self.current_state = "HUJAN_LEBAT"
+    def _check_is_night(self) -> bool:
+        h = get_wib_now().hour
+        return (h >= NIGHT_START_HOUR or h < NIGHT_END_HOUR)
+
+    def _get_active_states_pool(self, is_night: bool) -> tuple:
+        if is_night:
+            states_dict = NIGHT_WEATHER_STATES
+            weights_dict = NIGHT_SEASON_CONFIGS[self.season_code]['weights']
         else:
-            weights = SEASON_CONFIGS[self.season_code]['weights']
-            states = list(weights.keys())
-            probs = list(weights.values())
+            states_dict = DAY_WEATHER_STATES
+            weights_dict = DAY_SEASON_CONFIGS[self.season_code]['weights']
+        return states_dict, weights_dict
+
+    def _pick_state(self):
+        is_night = self._check_is_night()
+        self.is_currently_night = is_night
+        states_dict, weights_dict = self._get_active_states_pool(is_night)
+
+        if self.forced_weather == "cerah":
+            self.current_state = "MALAM_CERAH" if is_night else "CERAH_TERIK"
+        elif self.forced_weather == "mendung":
+            self.current_state = "MALAM_BERAWAN" if is_night else "BERAWAN_MENDUNG"
+        elif self.forced_weather in ["hujan", "badai"]:
+            self.current_state = "HUJAN_MALAM" if is_night else ("HUJAN_LEBAT" if self.forced_weather == "badai" else "HUJAN_SEDANG")
+        else:
+            states = list(weights_dict.keys())
+            probs = list(weights_dict.values())
             self.current_state = random.choices(states, weights=probs, k=1)[0]
 
-        cfg = WEATHER_STATES[self.current_state]
+        cfg = states_dict[self.current_state]
         self.target_temp_shift = cfg['temp_shift']
         self.target_hum_shift = cfg['hum_shift']
         self.current_temp_shift = self.target_temp_shift
@@ -252,14 +318,29 @@ class WeatherGenerator:
 
     def tick(self, dt_seconds: float):
         now = time.time()
+        is_night_now = self._check_is_night()
 
-        # Cek transisi state jika mode auto
-        if self.forced_weather == "auto" and now >= self.state_end_time:
-            weights = SEASON_CONFIGS[self.season_code]['weights']
-            states = list(weights.keys())
-            probs = list(weights.values())
-            self.current_state = random.choices(states, weights=probs, k=1)[0]
-            cfg = WEATHER_STATES[self.current_state]
+        # Deteksi pergantian siklus siang-malam atau timeout durasi
+        phase_changed = (is_night_now != self.is_currently_night)
+        time_expired = (now >= self.state_end_time)
+
+        if phase_changed or (self.forced_weather == "auto" and time_expired):
+            self.is_currently_night = is_night_now
+            states_dict, weights_dict = self._get_active_states_pool(is_night_now)
+
+            if self.forced_weather != "auto":
+                if self.forced_weather == "cerah":
+                    self.current_state = "MALAM_CERAH" if is_night_now else "CERAH_TERIK"
+                elif self.forced_weather == "mendung":
+                    self.current_state = "MALAM_BERAWAN" if is_night_now else "BERAWAN_MENDUNG"
+                elif self.forced_weather in ["hujan", "badai"]:
+                    self.current_state = "HUJAN_MALAM" if is_night_now else ("HUJAN_LEBAT" if self.forced_weather == "badai" else "HUJAN_SEDANG")
+            else:
+                states = list(weights_dict.keys())
+                probs = list(weights_dict.values())
+                self.current_state = random.choices(states, weights=probs, k=1)[0]
+
+            cfg = states_dict[self.current_state]
             self.target_temp_shift = cfg['temp_shift']
             self.target_hum_shift = cfg['hum_shift']
             duration = random.uniform(cfg['duration_min_sec'], cfg['duration_max_sec'])
@@ -273,7 +354,11 @@ class WeatherGenerator:
 
     @property
     def current_weather_label(self) -> str:
-        return WEATHER_STATES[self.current_state]['label']
+        if self.current_state in NIGHT_WEATHER_STATES:
+            return NIGHT_WEATHER_STATES[self.current_state]['label']
+        if self.current_state in DAY_WEATHER_STATES:
+            return DAY_WEATHER_STATES[self.current_state]['label']
+        return "🌤️ Normal"
 
 
 # ============================================================
@@ -293,9 +378,13 @@ class KumbungState:
         # State per-sensor (suhu & kelembaban masing-masing zona)
         self.sensors = {}
         for zone_id, zone in SENSOR_ZONES.items():
+            init_t = base_temp + zone['temp_offset']
+            init_h = base_hum + zone['hum_offset']
             self.sensors[zone_id] = {
-                'temperature': base_temp + zone['temp_offset'],
-                'humidity': base_hum + zone['hum_offset'],
+                'true_temperature': init_t,
+                'true_humidity': init_h,
+                'temperature': init_t,
+                'humidity': init_h,
             }
 
         # Nilai rata-rata (yang dikirim ke API dan dipakai aktuator)
@@ -411,41 +500,43 @@ class KumbungState:
             zone_ambient_temp = ambient_temp + zone_cfg['temp_offset']
             zone_ambient_hum = ambient_hum + zone_cfg['hum_offset']
 
-            # 1. Efek aktuator aktif (Termodinamika riil)
+            # 1. Efek aktuator aktif (Termodinamika riil pada kondisi fisik ruang)
             # A. Misting (Pendinginan evaporatif dari kabut air halus)
             if self.is_misting_active:
                 # Laju evaporasi berkurang jika udara mendekati titik jenuh (RH >= 95%)
-                evap_potential = max(0.0, (95.0 - s['humidity']) / 95.0)
+                evap_potential = max(0.0, (95.0 - s['true_humidity']) / 95.0)
                 # Batas suhu bola basah (wet-bulb): misting di iklim tropis lembab
                 # tidak bisa mendinginkan lebih rendah dari ~2.0°C di bawah ambient
                 wet_bulb_limit = zone_ambient_temp - 2.0
-                temp_drop_headroom = max(0.0, s['temperature'] - wet_bulb_limit)
+                temp_drop_headroom = max(0.0, s['true_temperature'] - wet_bulb_limit)
 
-                s['temperature'] -= 0.02 * evap_potential * min(1.0, temp_drop_headroom / 1.5) * dt_seconds
-                s['humidity'] += 0.20 * evap_potential * dt_seconds
+                s['true_temperature'] -= 0.02 * evap_potential * min(1.0, temp_drop_headroom / 1.5) * dt_seconds
+                s['true_humidity'] += 0.20 * evap_potential * dt_seconds
 
             # B. Exhaust Fan (Konveksi paksa / pertukaran udara dengan luar)
             if self.is_fan_active:
                 # Kipas hanya membuang akumulasi udara panas di atap kumbung ke luar ruangan.
                 # Kipas BUKAN AC pendingin; kipas TIDAK BISA mendinginkan ruangan di bawah ambient luar!
-                temp_excess = max(0.0, s['temperature'] - zone_ambient_temp)
-                s['temperature'] -= temp_excess * 0.08 * dt_seconds
+                temp_excess = max(0.0, s['true_temperature'] - zone_ambient_temp)
+                s['true_temperature'] -= temp_excess * 0.08 * dt_seconds
 
                 # Udara dari luar masuk menarik kelembaban mendekati ambient luar
-                hum_diff = s['humidity'] - zone_ambient_hum
-                s['humidity'] -= hum_diff * 0.04 * dt_seconds
+                hum_diff = s['true_humidity'] - zone_ambient_hum
+                s['true_humidity'] -= hum_diff * 0.04 * dt_seconds
 
             # 2. Drift alami menuju kesetimbangan ambient zona
-            temp_diff = zone_ambient_temp - s['temperature']
-            hum_diff = zone_ambient_hum - s['humidity']
-            s['temperature'] += temp_diff * TEMP_RECOVERY_RATE * dt_seconds
-            s['humidity'] += hum_diff * HUM_RECOVERY_RATE * dt_seconds
+            temp_diff = zone_ambient_temp - s['true_temperature']
+            hum_diff = zone_ambient_hum - s['true_humidity']
+            s['true_temperature'] += temp_diff * TEMP_RECOVERY_RATE * dt_seconds
+            s['true_humidity'] += hum_diff * HUM_RECOVERY_RATE * dt_seconds
 
-            # 3. Sensor noise per zona (DHT22 accuracy: ±0.5°C, ±2%)
-            s['temperature'] += random.gauss(0, zone_cfg['noise_temp'])
-            s['humidity'] += random.gauss(0, zone_cfg['noise_hum'])
+            # 3. Clamp keadaan fisik aktual ke batas fisik realistis
+            s['true_temperature'] = max(TEMP_MIN_PHYSICAL, min(TEMP_MAX_PHYSICAL, s['true_temperature']))
+            s['true_humidity'] = max(HUM_MIN_PHYSICAL, min(HUM_MAX_PHYSICAL, s['true_humidity']))
 
-            # 4. Clamp ke batas fisik realistis
+            # 4. Pembacaan sensor DHT22 (Kondisi fisik + Jitter pengukuran non-akumulatif)
+            s['temperature'] = round(s['true_temperature'] + random.gauss(0, zone_cfg['noise_temp']), 1)
+            s['humidity'] = round(s['true_humidity'] + random.gauss(0, zone_cfg['noise_hum']), 1)
             s['temperature'] = max(TEMP_MIN_PHYSICAL, min(TEMP_MAX_PHYSICAL, s['temperature']))
             s['humidity'] = max(HUM_MIN_PHYSICAL, min(HUM_MAX_PHYSICAL, s['humidity']))
 
@@ -515,8 +606,8 @@ def control_misting(state: KumbungState):
     if not state.is_misting_active:
         # 0. NIGHT LOCKOUT (17:00 - 06:00 WIB): Misting DILARANG nyala agar jamur tidak tidur basah kuyup
         if is_night:
-            # Pengecualian darurat ekstrem: hanya boleh nyala jika RH anjlok < 75%
-            if hum >= 75.0 and min_hum >= 75.0:
+            # Pengecualian darurat ekstrem: hanya boleh nyala jika terjadi dehidrasi parah (RH rata-rata < 70% atau sensor < 65%)
+            if hum >= 70.0 and min_hum >= 65.0:
                 return
 
         # Cooldown guard: cegah short-cycling sebelum kabut dari siklus sebelumnya evaporasi penuh
