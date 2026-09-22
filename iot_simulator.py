@@ -436,9 +436,17 @@ class KumbungState:
             sum_t += s['temperature']
             sum_h += s['humidity']
 
-        # 5. Hitung rata-rata 3 sensor
-        self.temperature = sum_t / len(SENSOR_ZONES)
-        self.humidity = sum_h / len(SENSOR_ZONES)
+        # 5. Hitung Rata-Rata Tertimbang (Weighted Sensor Fusion - Opsi 3)
+        # Bobot: Sensor A (Atas/Pintu) = 0.35, Sensor B (Tengah/Pusat) = 0.40, Sensor C (Bawah/Pojok) = 0.25
+        t_a = self.sensors['A']['temperature']
+        t_b = self.sensors['B']['temperature']
+        t_c = self.sensors['C']['temperature']
+        h_a = self.sensors['A']['humidity']
+        h_b = self.sensors['B']['humidity']
+        h_c = self.sensors['C']['humidity']
+
+        self.temperature = (0.35 * t_a) + (0.40 * t_b) + (0.25 * t_c)
+        self.humidity = (0.35 * h_a) + (0.40 * h_b) + (0.25 * h_c)
 
     def get_readings(self) -> tuple:
         """Return rata-rata pembacaan sensor (yang dikirim ke API)."""
@@ -460,29 +468,53 @@ class KumbungState:
         """Return kelembaban TERENDAH dari semua sensor (untuk Safety Override)."""
         return round(min(s['humidity'] for s in self.sensors.values()), 1)
 
+    def get_hum_disparity(self) -> float:
+        """Return selisih absolut kelembaban antara Sensor A (Atas) dan Sensor C (Bawah)."""
+        return round(abs(self.sensors['A']['humidity'] - self.sensors['C']['humidity']), 1)
+
+    def get_temp_disparity(self) -> float:
+        """Return selisih absolut suhu antara Sensor A (Atas) dan Sensor C (Bawah)."""
+        return round(abs(self.sensors['A']['temperature'] - self.sensors['C']['temperature']), 1)
+
 
 # ============================================================
-# KONTROL AKTUATOR (IDENTIK dengan esp32_firmware.ino)
+# KONTROL AKTUATOR (Opsi 3: Two-Tier Multi-Zone Control)
 # ============================================================
 
 def control_misting(state: KumbungState):
     """
-    Logika Histeresis Misting — mirror dari controlMisting() di firmware.
-    - NYALA  jika RH < rhTriggerLow  ATAU suhu > tempMax
-    - MATI   jika RH >= rhTriggerHigh DAN suhu <= tempMax
-    - DITAHAN jika suhu panas TAPI RH sudah terlalu tinggi (cegah busuk)
+    Logika Histeresis Misting dengan Safety Override (Opsi 3 Hibrida).
+    - Tier 1 (Normal): NYALA jika RH rata-rata tertimbang < rhTriggerLow
+    - Tier 2 (Safety Override): NYALA KILAT (Pulse 30s) jika SATU sensor drop < threshold - 4%
+    - Safety Hold: TAHAN jika suhu panas TAPI RH sudah terlalu tinggi (cegah busuk)
     """
     temp, hum = state.get_readings()
+    min_hum = state.get_min_hum()
+    critical_low_rh = state.rh_trigger_low - 4.0
 
     if not state.is_misting_active:
-        # Cek kondisi trigger nyala
+        # Pemicu 1: Tier 2 - Safety Override (Satu sensor kritis kekeringan, e.g. Rak Atas)
+        if min_hum < critical_low_rh:
+            # Safety check: jangan semprot kalau RH rata-rata sudah di atas hum_max
+            if hum >= state.hum_max:
+                print(f"   ⚠️  [HOLD] Sensor kritis ({min_hum}%) TAPI rata-rata kumbung basah ({hum}%). Pompa DITAHAN!")
+                return
+            state.is_misting_active = True
+            state.is_pulse_misting = True
+            state.misting_start_time = time.time()
+            state.misting_duration_total = 0
+            state.misting_trigger_reason = f"Safety Override: Sensor Terkering ({min_hum}% < {critical_low_rh:.1f}%)"
+            print(f"   🚨 [SAFETY OVERRIDE] Pulse Misting AKTIF (30s) | Pemicu: {state.misting_trigger_reason}")
+            return
+
+        # Pemicu 2: Tier 1 - Kondisi Normal (Rata-rata tertimbang di bawah batas)
         if hum < state.rh_trigger_low or temp > state.temp_max:
             # Safety: jangan nyiram kalau RH udah tinggi banget
             if temp > state.temp_max and hum >= state.hum_max:
                 print(f"   ⚠️  [HOLD] Suhu panas ({temp}°C) TAPI RH tinggi ({hum}%). Pompa DITAHAN!")
                 return
-            # Mulai misting & simpan alasan pemicu
             state.is_misting_active = True
+            state.is_pulse_misting = False
             state.misting_start_time = time.time()
             state.misting_duration_total = 0
 
@@ -495,12 +527,24 @@ def control_misting(state: KumbungState):
 
             print(f"   💦 [MISTING ON] Pompa + Solenoid AKTIF | Pemicu: {state.misting_trigger_reason}")
     else:
-        # Cek kondisi trigger mati
-        target_reached = (hum >= state.rh_trigger_high and temp <= state.temp_max)
         elapsed = time.time() - state.misting_start_time
+        is_pulse = getattr(state, 'is_pulse_misting', False)
 
+        # Pulse Misting timeout (maksimal 30 detik agar rak bawah tidak becek)
+        if is_pulse and elapsed >= 30:
+            state.is_misting_active = False
+            state.is_pulse_misting = False
+            state.misting_duration_total = int(elapsed)
+            stop_reason = f"Pulse misting selesai (30s, Min RH: {min_hum}%)"
+            print(f"   🛑 [MISTING OFF] {stop_reason}")
+            send_actuator_log(state.misting_duration_total, state.misting_trigger_reason, stop_reason, "misting")
+            return
+
+        # Kondisi normal: trigger mati
+        target_reached = (hum >= state.rh_trigger_high and temp <= state.temp_max)
         if target_reached:
             state.is_misting_active = False
+            state.is_pulse_misting = False
             state.misting_duration_total = int(elapsed)
             stop_reason = f"Target tercapai (RH:{hum}% T:{temp}°C)"
             print(f"   🛑 [MISTING OFF] Durasi: {state.misting_duration_total}s — {stop_reason}")
@@ -508,6 +552,7 @@ def control_misting(state: KumbungState):
 
         elif elapsed >= MAX_MISTING_DURATION:
             state.is_misting_active = False
+            state.is_pulse_misting = False
             state.misting_duration_total = MAX_MISTING_DURATION
             stop_reason = f"Safety timeout ({MAX_MISTING_DURATION}s)"
             print(f"   🛑 [MISTING OFF] TIMEOUT! Durasi: {MAX_MISTING_DURATION}s — {stop_reason}")
@@ -516,33 +561,57 @@ def control_misting(state: KumbungState):
 
 def control_fan(state: KumbungState):
     """
-    Logika Exhaust Fan — mirror dari controlFan() di firmware.
-    - NYALA jika suhu rata-rata > tempMax (buang udara panas)
-    - NYALA PAKSA jika SATU sensor > tempMax + CRITICAL_TEMP_OFFSET (Safety Override)
-    - MATI  jika suhu rata-rata <= tempMin DAN tidak ada sensor kritis (histeresis)
+    Logika Exhaust Fan dengan Homogenisasi Udara (Opsi 3 Hibrida).
+    - Tier 1: NYALA jika suhu rata-rata tertimbang > tempMax (buang panas)
+    - Tier 2: NYALA PAKSA jika SATU sensor > tempMax + CRITICAL_TEMP_OFFSET (Safety Override)
+    - Tier 3: NYALA KILAT (30s) jika disparitas RH |A - C| > 8.0% (Homogenisasi / aduk udara)
     """
     temp, _ = state.get_readings()
     max_temp = state.get_max_temp()
+    hum_disparity = state.get_hum_disparity()
     critical_threshold = state.temp_max + CRITICAL_TEMP_OFFSET
 
-    # Safety Override: cek apakah ada sensor individu yang melewati batas kritis
+    # 1. Tier 2: Safety Override Suhu Kritis Atas
     if max_temp > critical_threshold:
         if not state.is_fan_active:
             state.is_fan_active = True
+            state.is_homogenizing = False
             state.fan_start_time = time.time()
             state.fan_trigger_reason = f"Safety Override (Sensor Max {max_temp}°C > {critical_threshold}°C)"
             print(f"   🚨 [SAFETY OVERRIDE] Fan PAKSA ON! Sensor tertinggi {max_temp}°C > batas kritis {critical_threshold}°C")
-        return  # Jangan matikan fan selama ada sensor kritis
+        return
 
-    # Logika normal (pakai rata-rata)
+    # 2. Tier 3: Homogenisasi Mikroklimat (Aduk udara jika disparitas > 8%)
+    is_homo = getattr(state, 'is_homogenizing', False)
+    if is_homo:
+        elapsed = time.time() - (state.fan_start_time or time.time())
+        if elapsed >= 30:
+            state.is_fan_active = False
+            state.is_homogenizing = False
+            stop_reason = f"Homogenisasi selesai 30s (Disparitas: {hum_disparity}%)"
+            print(f"   🌀 [FAN OFF] {stop_reason}")
+            send_actuator_log(int(elapsed), state.fan_trigger_reason, stop_reason, "fan")
+            return
+        return
+
+    if not state.is_fan_active and not state.is_misting_active and hum_disparity > 8.0:
+        state.is_fan_active = True
+        state.is_homogenizing = True
+        state.fan_start_time = time.time()
+        state.fan_trigger_reason = f"Homogenisasi Sirkulasi (Disparitas RH {hum_disparity}% > 8.0%)"
+        print(f"   🔄 [FAN HOMOGENISASI] Sirkulasi Aktif (30s) | Pemicu: Disparitas RH {hum_disparity}% > 8.0%")
+        return
+
+    # 3. Tier 1: Logika normal (pakai rata-rata tertimbang)
     if temp > state.temp_max:
         if not state.is_fan_active:
             state.is_fan_active = True
+            state.is_homogenizing = False
             state.fan_start_time = time.time()
             state.fan_trigger_reason = f"Suhu Tinggi (Avg {temp}°C > {state.temp_max}°C)"
             print(f"   🌀 [FAN ON] Exhaust Fan AKTIF (Suhu avg {temp}°C > {state.temp_max}°C)")
     elif temp <= state.temp_min:
-        if state.is_fan_active:
+        if state.is_fan_active and not is_homo:
             state.is_fan_active = False
             duration = int(time.time() - (state.fan_start_time or time.time()))
             stop_reason = f"Suhu normal (Avg {temp}°C <= {state.temp_min}°C)"
