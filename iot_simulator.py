@@ -50,7 +50,7 @@ DEVICE_ID = "ESP32-KUMBUNG-01"
 # Interval pengiriman data (detik)
 SENSOR_SEND_INTERVAL = 60       # Kirim data sensor tiap 60 detik (1 menit)
 THRESHOLD_FETCH_INTERVAL = 30   # Fetch threshold dari web tiap 30 detik
-MAX_MISTING_DURATION = 90       # Safety timeout misting (detik)
+MAX_MISTING_DURATION = 60       # Safety timeout misting (detik) — 60s maksimal agar baglog tidak tergenang/becek
 MISTING_COOLDOWN = 150          # Jeda wajib setelah misting OFF (detik) — waktu evaporasi & difusi kabut
 POST_MISTING_FAN_DELAY = 60     # Jeda wajib setelah misting OFF sebelum fan boleh nyala (detik) — waktu kabut mengendap
 FAN_HOMOGENIZE_COOLDOWN = 900   # Jeda wajib setelah fan homogenisasi OFF (detik) — 15 menit relaksasi udara & sirkulasi
@@ -406,13 +406,18 @@ class KumbungState:
         self.last_night_purge_fan_time = 0.0     # Timestamp terakhir over-humidity purge malam
         self.is_night_fan = False                # Flag apakah fan sedang running di mode malam
 
+        # Buffer kebasahan permukaan baglog & lantai kumbung (0.0% - 100.0%)
+        # Air semprotan yang jatuh ke lantai, rak & kantung baglog tidak langsung hilang,
+        # tapi menguap secara bertahap (passive evaporation) menyangga kelembaban udara mikro.
+        self.surface_moisture = 30.0
+
         # Threshold dari web (akan di-fetch)
         self.temp_max = 32.0
         self.temp_min = 24.0
         self.hum_min = 80.0
         self.hum_max = 95.0
         self.rh_trigger_low = 80.0       # = hum_min
-        self.rh_trigger_high = 93.0      # = hum_max - 2.0 (95 - 2 = 93)
+        self.rh_trigger_high = 87.0      # Histeresis stop realistis (87.0% di siang hari cegah waterlogging baglog)
 
     @staticmethod
     def _get_ambient_temp(now: datetime.datetime) -> float:
@@ -470,7 +475,9 @@ class KumbungState:
         self.hum_max = thresholds['humidity_max']
         self.phase_mode = thresholds.get('phase_mode', 'fruiting')
         self.rh_trigger_low = self.hum_min
-        self.rh_trigger_high = min(self.hum_max - 2.0, self.hum_min + 5.0)  # Histeresis stop realistis (misal 85 + 5 = 90.0%)
+        # Histeresis stop realistis: di siang hari terik, 85-88% optimal untuk jamur kuping.
+        # Menghindari pompa memaksa semprot sampai 90%+ yang bikin baglog becek/menggenang.
+        self.rh_trigger_high = min(self.hum_max - 2.0, self.hum_min + 2.0)  # Misal 85 + 2 = 87.0%
 
     def simulate_tick(self, dt_seconds: float):
         """
@@ -494,6 +501,14 @@ class KumbungState:
 
         sum_t, sum_h = 0.0, 0.0
 
+        # Update akumulasi kebasahan permukaan (air di lantai, rak, dan permukaan kantung baglog)
+        if self.is_misting_active:
+            # Kabut mikro mengendap dan membasahi permukaan baglog, dinding terpal, dan lantai tanah
+            self.surface_moisture = min(100.0, self.surface_moisture + 0.6 * dt_seconds)
+        elif self.is_fan_active:
+            # Aliran konveksi paksa exhaust fan mempercepat pengeringan permukaan basah
+            self.surface_moisture = max(0.0, self.surface_moisture - 0.20 * dt_seconds)
+
         for zone_id, zone_cfg in SENSOR_ZONES.items():
             s = self.sensors[zone_id]
 
@@ -502,34 +517,40 @@ class KumbungState:
             zone_ambient_hum = ambient_hum + zone_cfg['hum_offset']
 
             # 1. Efek aktuator aktif (Termodinamika riil pada kondisi fisik ruang)
-            # A. Misting (Pendinginan evaporatif dari kabut air halus)
+            # A. Misting (Pendinginan evaporatif dari kabut air mikro bertekanan tinggi)
             if self.is_misting_active:
-                # Laju evaporasi berkurang jika udara mendekati titik jenuh (RH >= 95%)
-                evap_potential = max(0.0, (95.0 - s['true_humidity']) / 95.0)
-                # Batas suhu bola basah (wet-bulb): misting di iklim tropis lembab
-                # tidak bisa mendinginkan lebih rendah dari ~2.0°C di bawah ambient
+                # Partikel kabut halus (micro-droplets) menyebar cepat mengisi kubikasi 122.5 m³
+                evap_potential = max(0.05, (98.0 - s['true_humidity']) / 25.0)
                 wet_bulb_limit = zone_ambient_temp - 2.0
                 temp_drop_headroom = max(0.0, s['true_temperature'] - wet_bulb_limit)
 
-                s['true_temperature'] -= 0.02 * evap_potential * min(1.0, temp_drop_headroom / 1.5) * dt_seconds
-                s['true_humidity'] += 0.20 * evap_potential * dt_seconds
+                s['true_temperature'] -= 0.025 * evap_potential * min(1.0, temp_drop_headroom / 1.5) * dt_seconds
+                s['true_humidity'] += 0.16 * evap_potential * dt_seconds
 
             # B. Exhaust Fan (Konveksi paksa / pertukaran udara dengan luar)
             if self.is_fan_active:
-                # Kipas hanya membuang akumulasi udara panas di atap kumbung ke luar ruangan.
-                # Kipas BUKAN AC pendingin; kipas TIDAK BISA mendinginkan ruangan di bawah ambient luar!
                 temp_excess = max(0.0, s['true_temperature'] - zone_ambient_temp)
                 s['true_temperature'] -= temp_excess * 0.08 * dt_seconds
 
-                # Udara dari luar masuk menarik kelembaban mendekati ambient luar
                 hum_diff = s['true_humidity'] - zone_ambient_hum
                 s['true_humidity'] -= hum_diff * 0.04 * dt_seconds
 
-            # 2. Drift alami menuju kesetimbangan ambient zona
+            # 2. Passive Moisture Buffering (Penguapan dari permukaan basah: lantai, dinding, baglog)
+            # Air yang menempel tidak hilang, tapi menguap perlahan menjaga kelembaban udara mikro
+            if self.surface_moisture > 5.0 and not self.is_misting_active:
+                passive_evap = (self.surface_moisture / 100.0) * 0.015 * dt_seconds
+                s['true_humidity'] += passive_evap
+                s['true_temperature'] -= passive_evap * 0.03
+                # Permukaan basah perlahan mengering
+                self.surface_moisture = max(0.0, self.surface_moisture - (passive_evap * 0.35))
+
+            # 3. Drift alami menuju kesetimbangan ambient zona
+            # Jika lantai & baglog basah, laju kehilangan kelembaban udara tertahan signifikan (dampening)
+            surface_buffer_ratio = max(0.25, 1.0 - (self.surface_moisture / 100.0) * 0.65)
             temp_diff = zone_ambient_temp - s['true_temperature']
             hum_diff = zone_ambient_hum - s['true_humidity']
             s['true_temperature'] += temp_diff * TEMP_RECOVERY_RATE * dt_seconds
-            s['true_humidity'] += hum_diff * HUM_RECOVERY_RATE * dt_seconds
+            s['true_humidity'] += hum_diff * (HUM_RECOVERY_RATE * surface_buffer_ratio) * dt_seconds
 
             # 3. Clamp keadaan fisik aktual ke batas fisik realistis
             s['true_temperature'] = max(TEMP_MIN_PHYSICAL, min(TEMP_MAX_PHYSICAL, s['true_temperature']))
@@ -1044,6 +1065,7 @@ def main():
                     actuators.append("💤 Semua aktuator: OFF")
                 for a in actuators:
                     print(f"   {a}")
+                print(f"   💧 Buffer Basah Permukaan: {state.surface_moisture:.1f}% (Lantai & Baglog)")
 
                 print()
 
