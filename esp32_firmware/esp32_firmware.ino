@@ -116,7 +116,7 @@ float humMax   = 95.0;   // Batas atas RH (%)
 
 // Histeresis lokal
 float rhTriggerLow  = 80.0;  // = humMin
-float rhTriggerHigh = 93.0;  // = humMax - 2.0
+float rhTriggerHigh = 90.0;  // Histeresis stop realistis (misal 85 + 5 = 90.0%)
 
 // ============================================================
 // TIMER NON-BLOCKING (millis)
@@ -384,7 +384,7 @@ void loop() {
 
 void controlMisting(float temp, float hum, float minHum) {
   unsigned long now = millis();
-  float criticalLowRh = rhTriggerLow - 4.0;
+  float criticalLowRh = 75.0; // Batas darurat dehidrasi rak tunggal (75.0%), membiarkan Tier 1 mengontrol rata-rata dengan stabil
   int currentHour = getCurrentHourWIB();
   bool isNight = (currentHour >= NIGHT_START_HOUR || currentHour < NIGHT_END_HOUR);
 
@@ -666,7 +666,7 @@ void fetchThresholds() {
       humMax  = doc["data"]["humidity_max"].as<float>();
 
       rhTriggerLow  = humMin;
-      rhTriggerHigh = humMax - 2.0;
+      rhTriggerHigh = min(humMax - 2.0f, humMin + 5.0f);  // Histeresis stop realistis (misal 85 + 5 = 90.0%)
 
       Serial.printf("[API] Threshold Sinkron! T:%.1f-%.1f°C | RH:%.1f-%.1f%%\n",
                     tempMin, tempMax, humMin, humMax);

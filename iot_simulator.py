@@ -470,7 +470,7 @@ class KumbungState:
         self.hum_max = thresholds['humidity_max']
         self.phase_mode = thresholds.get('phase_mode', 'fruiting')
         self.rh_trigger_low = self.hum_min
-        self.rh_trigger_high = self.hum_max - 2.0
+        self.rh_trigger_high = min(self.hum_max - 2.0, self.hum_min + 5.0)  # Histeresis stop realistis (misal 85 + 5 = 90.0%)
 
     def simulate_tick(self, dt_seconds: float):
         """
@@ -598,7 +598,7 @@ def control_misting(state: KumbungState):
     """
     temp, hum = state.get_readings()
     min_hum = state.get_min_hum()
-    critical_low_rh = state.rh_trigger_low - 4.0
+    critical_low_rh = 75.0  # Batas darurat dehidrasi rak tunggal (75.0%), membiarkan Tier 1 mengontrol rata-rata dengan stabil
 
     now_dt = get_wib_now()
     hour = now_dt.hour
