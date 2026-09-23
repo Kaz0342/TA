@@ -53,7 +53,8 @@ THRESHOLD_FETCH_INTERVAL = 30   # Fetch threshold dari web tiap 30 detik
 MAX_MISTING_DURATION = 90       # Safety timeout misting (detik)
 MISTING_COOLDOWN = 150          # Jeda wajib setelah misting OFF (detik) — waktu evaporasi & difusi kabut
 POST_MISTING_FAN_DELAY = 60     # Jeda wajib setelah misting OFF sebelum fan boleh nyala (detik) — waktu kabut mengendap
-FAN_HOMOGENIZE_COOLDOWN = 120   # Jeda wajib setelah fan homogenisasi OFF (detik) — relaksasi udara & sirkulasi
+FAN_HOMOGENIZE_COOLDOWN = 900   # Jeda wajib setelah fan homogenisasi OFF (detik) — 15 menit relaksasi udara & sirkulasi
+HUM_DISPARITY_THRESHOLD = 12.0  # Batas selisih RH atas-bawah pemicu fan homogenisasi (%) — baseline fisik kumbung ~9%
 CRITICAL_TEMP_OFFSET = 2.0      # Safety Override: jika SATU sensor > tempMax + offset ini, paksa Fan ON
 
 # Konstanta Night Mode (Malam Hari: 17:00 - 06:00 WIB)
@@ -604,6 +605,12 @@ def control_misting(state: KumbungState):
     is_night = (hour >= NIGHT_START_HOUR or hour < NIGHT_END_HOUR)
 
     if not state.is_misting_active:
+        # MUTUAL EXCLUSION (INTERLOCK):
+        # Jika Exhaust Fan sedang aktif, Misting DILARANG nyala!
+        # Mencegah kabut mikro disedot langsung keluar dan terbuang sia-sia.
+        if state.is_fan_active:
+            return
+
         # 0. NIGHT LOCKOUT (17:00 - 06:00 WIB): Misting DILARANG nyala agar jamur tidak tidur basah kuyup
         if is_night:
             # Pengecualian darurat ekstrem: hanya boleh nyala jika terjadi dehidrasi parah (RH rata-rata < 70% atau sensor < 65%)
@@ -706,6 +713,11 @@ def control_fan(state: KumbungState):
 
     # 1. Tier 2: Safety Override Suhu Kritis Atas (BYPASS SEMUA DELAY & COOLDOWN!)
     if max_temp > critical_threshold:
+        # Jika misting sedang aktif, potong/matikan misting agar tidak bentrok dengan kipas darurat
+        if state.is_misting_active:
+            state.is_misting_active = False
+            state.misting_last_stop_time = time.time()
+            print("   ⚠️  [INTERLOCK] Misting DIPOTONG oleh Safety Override Kipas!")
         if not state.is_fan_active:
             state.is_fan_active = True
             state.is_homogenizing = False
@@ -769,7 +781,7 @@ def control_fan(state: KumbungState):
         return
 
     # 4. DAYTIME LOGIC (06:00 - 17:00 WIB)
-    # A. Tier 3: Homogenisasi Mikroklimat (Aduk udara jika disparitas > 8%)
+    # A. Tier 3: Homogenisasi Mikroklimat (Aduk udara jika disparitas ekstrem)
     is_homo = getattr(state, 'is_homogenizing', False)
     if is_homo:
         elapsed = time.time() - (state.fan_start_time or time.time())
@@ -789,21 +801,21 @@ def control_fan(state: KumbungState):
         elapsed_since_fan_stop = time.time() - state.fan_last_stop_time
         if elapsed_since_fan_stop < FAN_HOMOGENIZE_COOLDOWN:
             can_homogenize = False
-            if int(elapsed_since_fan_stop) % 30 == 0 and int(elapsed_since_fan_stop) > 0:
+            if int(elapsed_since_fan_stop) % 60 == 0 and int(elapsed_since_fan_stop) > 0:
                 remaining = int(FAN_HOMOGENIZE_COOLDOWN - elapsed_since_fan_stop)
                 print(f"   ⏳ [FAN COOLDOWN] Kipas istirahat... {remaining}s tersisa (relaksasi sirkulasi)")
 
-    if not state.is_fan_active and not state.is_misting_active and can_homogenize and hum_disparity > 8.0:
+    if not state.is_fan_active and not state.is_misting_active and can_homogenize and hum_disparity > HUM_DISPARITY_THRESHOLD:
         state.is_fan_active = True
         state.is_homogenizing = True
         state.fan_start_time = time.time()
-        state.fan_trigger_reason = f"Homogenisasi Sirkulasi (Disparitas RH {hum_disparity}% > 8.0%)"
-        print(f"   🔄 [FAN HOMOGENISASI] Sirkulasi Aktif (30s) | Pemicu: Disparitas RH {hum_disparity}% > 8.0%")
+        state.fan_trigger_reason = f"Homogenisasi Sirkulasi (Disparitas RH {hum_disparity}% > {HUM_DISPARITY_THRESHOLD}%)"
+        print(f"   🔄 [FAN HOMOGENISASI] Sirkulasi Aktif (30s) | Pemicu: Disparitas RH {hum_disparity}% > {HUM_DISPARITY_THRESHOLD}%")
         return
 
     # B. Tier 1: Logika normal siang hari (pakai rata-rata tertimbang)
     if temp > state.temp_max:
-        if not state.is_fan_active:
+        if not state.is_fan_active and not state.is_misting_active:
             state.is_fan_active = True
             state.is_homogenizing = False
             state.fan_start_time = time.time()

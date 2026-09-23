@@ -88,12 +88,12 @@ const unsigned long PULSE_MISTING_DURATION_MS   = 30000;   // 30 detik pulse mis
 const unsigned long MISTING_COOLDOWN_MS         = 150000;  // 150 detik (2.5 menit) jeda evaporasi kabut
 const unsigned long POST_MISTING_FAN_DELAY_MS   = 60000;   // 60 detik jeda kabut mengendap sebelum fan boleh ON
 const unsigned long FAN_HOMOGENIZE_DURATION_MS  = 30000;   // 30 detik durasi fan homogenisasi siang
-const unsigned long FAN_HOMOGENIZE_COOLDOWN_MS  = 120000;  // 120 detik (2 menit) jeda relaksasi sirkulasi siang
+const unsigned long FAN_HOMOGENIZE_COOLDOWN_MS  = 900000;  // 15 menit (900 detik) jeda relaksasi sirkulasi siang
 const unsigned long NIGHT_FAN_DURATION_MS       = 45000;   // 45 detik durasi pasti fan malam
 const unsigned long NIGHT_FAN_PERIODIC_MS       = 3600000; // 60 menit (1 jam) siklus berkala flush CO2 malam
 const unsigned long NIGHT_FAN_COOLDOWN_MS       = 1800000; // 30 menit cooldown over-humidity purge malam
 const float NIGHT_OVER_HUMIDITY_THRESHOLD       = 96.0;    // Batas RH malam pemicu purge (96.0%)
-const float HUM_DISPARITY_THRESHOLD             = 8.0;     // Disparitas RH > 8.0% pemicu homogenisasi
+const float HUM_DISPARITY_THRESHOLD             = 12.0;    // Disparitas RH > 12.0% pemicu homogenisasi (baseline alami ~9%)
 const float CRITICAL_TEMP_OFFSET                = 2.0;     // Offset suhu kritis: tempMax + 2.0°C
 const int NIGHT_START_HOUR                      = 17;      // 17:00 WIB
 const int NIGHT_END_HOUR                        = 6;       // 06:00 WIB
@@ -389,6 +389,13 @@ void controlMisting(float temp, float hum, float minHum) {
   bool isNight = (currentHour >= NIGHT_START_HOUR || currentHour < NIGHT_END_HOUR);
 
   if (!isMistingActive) {
+    // MUTUAL EXCLUSION (INTERLOCK):
+    // Jika Exhaust Fan sedang aktif, Misting DILARANG nyala!
+    // Mencegah kabut mikro disedot langsung keluar dan terbuang sia-sia.
+    if (isFanActive) {
+      return;
+    }
+
     // 0. NIGHT LOCKOUT (17:00 - 06:00 WIB): Misting DILARANG nyala agar jamur tidak tidur basah kuyup
     if (isNight) {
       // Pengecualian darurat ekstrem: hanya boleh nyala jika terjadi dehidrasi parah (RH rata-rata < 70% atau sensor < 65%)
@@ -491,6 +498,9 @@ void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum)
 
   // 1. TIER 2: Safety Override Suhu Kritis (BYPASS SEMUA DELAY & COOLDOWN!)
   if (maxTemp > criticalThreshold) {
+    if (isMistingActive) {
+      stopMisting("Dipotong Safety Override Kipas (Suhu Kritis)");
+    }
     if (!isFanActive || isHomogenizing || isNightFan) {
       String reason = "Safety Override (Sensor Max " + String(maxTemp, 1) + "C > " + String(criticalThreshold, 1) + "C)";
       startFan(reason, false, false);
@@ -541,14 +551,14 @@ void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum)
   }
 
   // 4. DAYTIME LOGIC (06:00 - 17:00 WIB)
-  // A. Tier 3: Homogenisasi Mikroklimat (Disparitas RH > 8.0%)
+  // A. Tier 3: Homogenisasi Mikroklimat (Disparitas RH > 12.0%)
   if (!isFanActive && !isMistingActive && disparity > HUM_DISPARITY_THRESHOLD) {
-    // Cooldown Guard khusus homogenisasi (120 detik)
+    // Cooldown Guard khusus homogenisasi (15 menit / 900 detik)
     bool canHomogenize = true;
     if (fanLastStopTime > 0 && (now - fanLastStopTime < FAN_HOMOGENIZE_COOLDOWN_MS)) {
       canHomogenize = false;
       unsigned long rem = (FAN_HOMOGENIZE_COOLDOWN_MS - (now - fanLastStopTime)) / 1000;
-      if (rem % 30 == 0) {
+      if (rem % 60 == 0) {
         Serial.printf("   ⏳ [FAN COOLDOWN] Kipas istirahat... %lu detik tersisa (relaksasi sirkulasi)\n", rem);
       }
     }
@@ -562,7 +572,7 @@ void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum)
 
   // B. Tier 1: Logika Normal (Buang Panas via Rata-rata Tertimbang)
   if (avgTemp > tempMax) {
-    if (!isFanActive) {
+    if (!isFanActive && !isMistingActive) {
       String reason = "Suhu Tinggi (Avg " + String(avgTemp, 1) + "C > " + String(tempMax, 1) + "C)";
       startFan(reason, false, false);
     }
