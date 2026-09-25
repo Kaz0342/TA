@@ -13,12 +13,15 @@ Sistem IoT ini berpusat pada mikrokontroler yang terhubung ke jaringan internet 
 ### 1.2 Sensor Suhu & Kelembapan (3 Unit — Segitiga Diagonal)
 *   **Komponen:** 3x DHT22
 *   **Penempatan:** Formasi Segitiga Diagonal di kumbung 5m × 7m × 3.5m:
-    *   **Sensor A** (GPIO 4): Zona Atas, dekat pintu, ketinggian 2.5m — mendeteksi udara panas dan gangguan pintu.
-    *   **Sensor B** (GPIO 15): Zona Tengah, pusat kumbung, ketinggian 1.5m — referensi utama.
-    *   **Sensor C** (GPIO 2): Zona Bawah, pojok belakang, ketinggian 0.5m — mendeteksi dead zone.
-*   **Logika:** ESP32 membaca ketiga sensor, menghitung **rata-rata aritmatika** (averaging), dan menggunakan nilai rata-rata tersebut untuk keputusan aktuator dan pengiriman ke API. Jika salah satu sensor error, hanya sensor yang valid yang dihitung.
+    *   **Sensor A** (GPIO 4): Zona Atas, dekat pintu, ketinggian 2.5m — mendeteksi udara panas dan gangguan pintu (Bobot 35%).
+    *   **Sensor B** (GPIO 15): Zona Tengah, pusat kumbung, ketinggian 1.5m — referensi inti rak produksi (Bobot 40%).
+    *   **Sensor C** (GPIO 2): Zona Bawah, pojok belakang, ketinggian 0.5m — mendeteksi dead zone & udara dingin (Bobot 25%).
+*   **Logika:** ESP32 membaca ketiga sensor dan menghitung **Weighted Sensor Fusion**:
+    $$T_{\text{avg}} = 0.35 \cdot T_A + 0.40 \cdot T_B + 0.25 \cdot T_C$$
+    $$RH_{\text{avg}} = 0.35 \cdot RH_A + 0.40 \cdot RH_B + 0.25 \cdot RH_C$$
+    Jika salah satu sensor mengalami kegagalan baca (NaN), firmware secara otomatis menormalisasi ulang bobot dari sensor yang masih valid.
 *   **Fungsi:** Mengukur suhu ruangan (°C) dan kelembapan relatif (%). DHT22 dipilih karena jangkauan bacaan yang lebih luas dan presisi yang lebih tinggi dibanding DHT11, sangat krusial untuk pertumbuhan miselium jamur kuping (suhu optimal 24-32°C, kelembaban 80-95%).
-*   **Referensi:** Lihat `docs/penempatan_sensor.md` untuk detail strategi penempatan.
+*   **Referensi:** Lihat `docs/penempatan_sensor.md` dan `docs/logika_aktuator.md` untuk detail komprehensif.
 
 ### 1.3 Sensor Kadar CO2
 *   **Komponen:** MQ-135 (General Air Quality) atau MH-Z19 (NDIR CO2 Sensor)
@@ -28,6 +31,11 @@ Sistem IoT ini berpusat pada mikrokontroler yang terhubung ke jaringan internet 
 *   **Komponen:** BH1750 (Digital Light Sensor) atau modul LDR (Light Dependent Resistor)
 *   **Fungsi:** Mengukur intensitas paparan cahaya di dalam kumbung (dalam satuan Lux). Cahaya yang berlebihan dapat menghambat pertumbuhan jamur kuping, sehingga data ini diperlukan untuk menjaga kumbung tetap teduh.
 
+### 1.5 Aktuator Pengendali Mikroklimat
+*   **Pompa Misting High-Pressure 12V DC:** Disambungkan ke nozzle pengabut 0.15mm untuk menaikkan kelembapan dan evaporative cooling tanpa membanjiri baglog.
+*   **Exhaust Fan 12V / 220V AC:** Membuang akumulasi gas CO2 di lantai dan menarik udara segar dari luar.
+*   **Relay Modul 2-Channel:** Driver saklar berisolasi optocoupler untuk mencegah spike induktif motor mengganggu ESP32.
+
 ---
 
 ## 2. Arsitektur Komunikasi & Alur Data
@@ -36,11 +44,12 @@ Sistem tidak menggunakan protokol MQTT, melainkan memanfaatkan protokol HTTP/HTT
 
 ### 2.1 Skema Aliran Data
 1.  **Multi-Sensor Reading (Pembacaan 3 Sensor):** ESP32 secara periodik membaca nilai dari ketiga sensor DHT22 di zona Atas, Tengah, dan Bawah (setiap 5 detik).
-2.  **Averaging (Rata-rata):** ESP32 menghitung rata-rata suhu dan kelembapan dari sensor yang valid. Sensor yang error (NaN) otomatis diabaikan.
-3.  **Serialization:** ESP32 merakit data rata-rata tersebut menjadi struktur JSON tunggal.
-4.  **Transmission:** ESP32 melakukan request `HTTP POST` ke endpoint publik server: `POST /api/sensor-data`.
-5.  **Validation:** Laravel Backend menerima payload dan memvalidasinya menggunakan `FormRequest`. Proses ini mencegah injeksi data kotor (misal: suhu berupa teks alih-alih angka, atau batas data yang tidak masuk akal).
-6.  **Storage:** Jika data lolos validasi, backend menyimpannya secara *immutable* ke dalam database (MySQL/PostgreSQL) dengan presisi `DECIMAL(5,2)` agar tidak terjadi *floating-point error*.
+2.  **Weighted Sensor Fusion:** ESP32 menghitung nilai rata-rata tertimbang (A=35%, B=40%, C=25%). Sensor yang error (NaN) otomatis diabaikan dan bobot dinormalisasi ulang.
+3.  **Local Closed-Loop Decision Engine:** Firmware v3.5 mengevaluasi histeresis misting/fan, Universal Guard, interlock keselamatan, dan cooldown sebelum memutuskan aktivasi relay.
+4.  **Serialization:** ESP32 merakit data hasil fusi dan pembacaan optik/gas menjadi struktur JSON tunggal.
+5.  **Transmission:** ESP32 melakukan request `HTTP POST` ke endpoint publik server: `POST /api/sensor-data`.
+6.  **Validation:** Laravel Backend menerima payload dan memvalidasinya menggunakan `StoreSensorDataRequest`.
+7.  **Storage & Feedback:** Backend menyimpan data secara *immutable* ke dalam database (`DECIMAL(5,2)`), mengecek ambang batas threshold, dan mengembalikan status alert jika terjadi anomali iklim.
 
 ### 2.2 Format Payload (JSON)
 

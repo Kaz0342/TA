@@ -12,11 +12,11 @@
  * [IoT]       Fetch threshold dinamis dari Web Dashboard
  * [Hardware]  3x DHT22 (Segitiga Diagonal), LCD I2C 16x2, 3x Relay Module
  * [Fusion]    Weighted Sensor Fusion (35% Atas, 40% Tengah, 25% Bawah)
- * [Control]   Dual Cooldown Guard (Misting 150s & Fan Homogenisasi 120s)
+ * [Control]   Dual Cooldown Guard (Misting 150s & Fan Homogenisasi 900s)
  * [Safety]    Pulse Misting (30s) untuk Rak Atas kering kritis
  * [Safety]    Safety Override: Suhu Kritis (>34°C) paksa Fan ON (Bypass Cooldown)
  * [Safety]    Safety Hold: Tahan misting jika RH >= 95% cegah jamur busuk
- * [Safety]    Timeout darurat misting maks 90 detik per siklus
+ * [Safety]    Timeout darurat misting maks 60 detik per siklus (cegah baglog menggenang)
  * [Design]    Non-blocking millis() — ESP32 stabil 24/7 tanpa freeze
  * 
  * PIN ASSIGNMENT (3 Sensor DHT22 — Segitiga Diagonal):
@@ -95,6 +95,9 @@ const unsigned long NIGHT_FAN_COOLDOWN_MS       = 1800000; // 30 menit cooldown 
 const float NIGHT_OVER_HUMIDITY_THRESHOLD       = 96.0;    // Batas RH malam pemicu purge (96.0%)
 const float HUM_DISPARITY_THRESHOLD             = 12.0;    // Disparitas RH > 12.0% pemicu homogenisasi (baseline alami ~9%)
 const float CRITICAL_TEMP_OFFSET                = 2.0;     // Offset suhu kritis: tempMax + 2.0°C
+const unsigned long MAX_FAN_COOLING_DURATION_MS = 180000;  // 180 detik (3 menit) timeout maksimal fan pendinginan siang (cegah dehidrasi)
+const unsigned long FAN_COOLING_COOLDOWN_MS     = 60000;   // 60 detik (1 menit) cooldown anti-chattering fan pendinginan siang
+const float TEMP_HYSTERESIS                     = 1.5;     // Histeresis stop fan pendinginan (tempMax - 1.5°C)
 const int NIGHT_START_HOUR                      = 17;      // 17:00 WIB
 const int NIGHT_END_HOUR                        = 6;       // 06:00 WIB
 
@@ -116,7 +119,7 @@ float humMax   = 95.0;   // Batas atas RH (%)
 
 // Histeresis lokal
 float rhTriggerLow  = 80.0;  // = humMin
-float rhTriggerHigh = 87.0;  // Histeresis stop realistis (misal 85 + 2 = 87.0%)
+float rhTriggerHigh = 90.0;  // Histeresis stop realistis (misal 85 + 5 = 90.0%, deadband 5% kurva landai)
 
 // ============================================================
 // TIMER NON-BLOCKING (millis)
@@ -138,13 +141,16 @@ bool isPulseMisting  = false;
 bool isFanActive     = false;
 bool isHomogenizing  = false;
 bool isNightFan      = false;
+bool isCriticalOverride = false; // Flag apakah fan sedang running mode Safety Override suhu kritis
 
 unsigned long mistingStartTime           = 0;
 unsigned long mistingLastStopTime        = 0;
 unsigned long fanStartTime               = 0;
 unsigned long fanLastStopTime            = 0;
+unsigned long fanCoolingLastStopTime     = 0;  // Tracking cooldown anti-chattering fan pendinginan siang (60s)
 unsigned long lastNightPeriodicFanTime   = 0;
 unsigned long lastNightPurgeFanTime      = 0;
+unsigned long lastNightFanStopTime       = 0;  // Timestamp terakhir night fan berhenti (independen dari cooldown homogenisasi)
 
 String mistingTriggerReason = "";
 String fanTriggerReason     = "";
@@ -161,7 +167,7 @@ float humDisparity   = 0.0;
 // ============================================================
 void startMisting(String reason, bool isPulse);
 void stopMisting(String stopReason);
-void startFan(String reason, bool homogenize, bool nightMode);
+void startFan(String reason, bool homogenize, bool nightMode, bool criticalOverride = false);
 void stopFan(String stopReason);
 void controlMisting(float temp, float hum, float minHum);
 void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum);
@@ -356,7 +362,7 @@ void loop() {
     fetchThresholds();
   }
 
-  // ── D. SAFETY WATCHDOG: MISTING TIMEOUT (90s / 30s) ────────
+  // ── D. SAFETY WATCHDOG: MISTING TIMEOUT (60s / 30s) ────────
   if (isMistingActive) {
     unsigned long elapsed = now - mistingStartTime;
     if (isPulseMisting && elapsed >= PULSE_MISTING_DURATION_MS) {
@@ -374,6 +380,31 @@ void loop() {
     if (elapsed >= FAN_HOMOGENIZE_DURATION_MS) {
       Serial.println("[HOMO] 🌀 Siklus sirkulasi homogenisasi (30s) selesai.");
       stopFan("Homogenisasi selesai 30s (Disparitas: " + String(humDisparity, 1) + "%)");
+    }
+  }
+
+  // ── F. WATCHDOG: NIGHT FAN & MORNING TRANSITION (45s / 06:00 WIB) ──
+  // Timer night fan independen + failsafe transisi pagi agar flag isNightFan tidak nyangkut.
+  if (isFanActive && isNightFan && !isHomogenizing) {
+    unsigned long elapsed = now - fanStartTime;
+    int currentHour = getCurrentHourWIB();
+    bool isStillNight = (currentHour >= NIGHT_START_HOUR || currentHour < NIGHT_END_HOUR);
+    if (elapsed >= NIGHT_FAN_DURATION_MS || !isStillNight) {
+      String reason = (!isStillNight && elapsed < NIGHT_FAN_DURATION_MS)
+        ? "Transisi ke Pagi Hari (06:00 WIB)"
+        : "Night ventilation selesai 45s (RH: " + String(lastHum, 1) + "%)";
+      Serial.println("[NIGHT] 🌙 " + reason);
+      stopFan(reason);
+    }
+  }
+
+  // ── G. WATCHDOG: FAN PENDINGINAN SIANG / SAFETY OVERRIDE (180s) ────
+  // Cegah exhaust fan running tanpa henti jika suhu luar ruangan panas.
+  if (isFanActive && !isHomogenizing && !isNightFan) {
+    unsigned long elapsed = now - fanStartTime;
+    if (elapsed >= MAX_FAN_COOLING_DURATION_MS) {
+      Serial.println("[SAFETY] 🛑 Fan pendinginan siang TIMEOUT (180s)! Mematikan fan cegah dehidrasi.");
+      stopFan("Safety timeout fan pendinginan (180s, cegah dehidrasi baglog)");
     }
   }
 }
@@ -503,7 +534,7 @@ void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum)
     }
     if (!isFanActive || isHomogenizing || isNightFan) {
       String reason = "Safety Override (Sensor Max " + String(maxTemp, 1) + "C > " + String(criticalThreshold, 1) + "C)";
-      startFan(reason, false, false);
+      startFan(reason, false, false, true);
       Serial.printf("   🚨 [SAFETY OVERRIDE] Fan PAKSA ON! Sensor tertinggi %.1f°C > batas kritis %.1f°C\n", 
                     maxTemp, criticalThreshold);
     }
@@ -515,33 +546,49 @@ void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum)
     return; // Tunggu kabut mengendap
   }
 
-  // 3. NIGHT MODE FAN (17:00 - 06:00 WIB)
+  // 3. NIGHT MODE FAN INTERLOCK
+  // Jika night fan sedang aktif (berjalan 45s atau menyeberang pagi), tahan agar tidak dievaluasi logika siang.
+  // Watchdog Section F di loop() yang bertanggung jawab penuh mematikan fan saat 45s selesai atau transisi jam 06:00 WIB.
+  if (isFanActive && isNightFan) {
+    return;
+  }
+
   if (isNight) {
-    // Jika fan malam sedang aktif (durasi 45s)
-    if (isFanActive && isNightFan) {
-      unsigned long elapsed = now - fanStartTime;
-      if (elapsed >= NIGHT_FAN_DURATION_MS) {
-        stopFan("Night ventilation selesai 45s (RH: " + String(currentHum, 1) + "%)");
-      }
+    // Failsafe 2: Jika ada fan siang yang masih aktif saat transisi jam 17:00, matikan segera!
+    if (isFanActive && !isNightFan) {
+      Serial.println("[NIGHT] 🌙 Transisi ke Night Mode: Mematikan sisa fan siang...");
+      stopFan("Transisi ke Night Mode (17:00 WIB)");
       return;
     }
 
     if (!isFanActive && !isMistingActive) {
+      // Inisialisasi awal timer malam saat boot/transisi agar tidak langsung trigger mendadak
+      if (lastNightPeriodicFanTime == 0) lastNightPeriodicFanTime = now;
+      if (lastNightPurgeFanTime == 0) lastNightPurgeFanTime = now;
+
+      // Universal Guard: Kipas malam DILARANG nyala jika baru saja mati < 30 menit lalu (cegah over-ventilation malam)
+      if (lastNightFanStopTime > 0 && (now - lastNightFanStopTime < NIGHT_FAN_COOLDOWN_MS)) {
+        return;
+      }
+
       // Pemicu Malam 1: Over-Humidity Purge (RH >= 96.0%, Cooldown 30 menit)
       if (currentHum >= NIGHT_OVER_HUMIDITY_THRESHOLD) {
-        if (lastNightPurgeFanTime == 0 || (now - lastNightPurgeFanTime >= NIGHT_FAN_COOLDOWN_MS)) {
+        if (now - lastNightPurgeFanTime >= NIGHT_FAN_COOLDOWN_MS) {
           lastNightPurgeFanTime = now;
+          // Sinkronisasi Timer: Purge sudah membuang uap jenuh & akumulasi gas CO2 di lantai secara total.
+          // Tunda jadwal CO2 flush 60 menit ke depan agar fan tidak nyala tumpang tindih dalam 1 jam!
+          lastNightPeriodicFanTime = now;
           String reason = "Night Over-Humidity Purge (RH " + String(currentHum, 1) + "% >= " + String(NIGHT_OVER_HUMIDITY_THRESHOLD, 1) + "%)";
           startFan(reason, false, true);
           return;
         }
       }
 
-      // Pemicu Malam 2: Periodic CO2 Flush (Tiap 60 Menit)
-      if (lastNightPeriodicFanTime == 0) {
+      // Pemicu Malam 2: Periodic CO2 Flush (Tiap 60 Menit sebagai fallback jika RH < 96%)
+      if (now - lastNightPeriodicFanTime >= NIGHT_FAN_PERIODIC_MS) {
         lastNightPeriodicFanTime = now;
-      } else if (now - lastNightPeriodicFanTime >= NIGHT_FAN_PERIODIC_MS) {
-        lastNightPeriodicFanTime = now;
+        // Sinkronisasi Timer: CO2 flush sudah menyegarkan udara kumbung, beri cooldown purge 30 menit
+        lastNightPurgeFanTime = now;
         String reason = "Night Periodic CO2 Flush (Siklus 60 Menit)";
         startFan(reason, false, true);
         return;
@@ -571,30 +618,50 @@ void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum)
   }
 
   // B. Tier 1: Logika Normal (Buang Panas via Rata-rata Tertimbang)
+  // Cek jika Safety Override aktif dan suhu sudah kembali normal
+  if (isFanActive && !isHomogenizing && !isNightFan && isCriticalOverride) {
+    if (maxTemp <= (criticalThreshold - 1.0) && avgTemp <= tempMax) {
+      String stopReason = "Suhu kritis teratasi (Max " + String(maxTemp, 1) + "C <= " + String(criticalThreshold - 1.0, 1) + "C)";
+      stopFan(stopReason);
+      return;
+    }
+  }
+
+  float tempStopThreshold = tempMax - TEMP_HYSTERESIS; // Histeresis stop: misal 32.0 - 1.5 = 30.5°C
   if (avgTemp > tempMax) {
     if (!isFanActive && !isMistingActive) {
+      // Cooldown anti-chattering fan pendinginan siang (60s)
+      if (fanCoolingLastStopTime > 0 && (now - fanCoolingLastStopTime < FAN_COOLING_COOLDOWN_MS)) {
+        unsigned long rem = (FAN_COOLING_COOLDOWN_MS - (now - fanCoolingLastStopTime)) / 1000;
+        if (rem % 15 == 0) {
+          Serial.printf("   ⏳ [COOLDOWN FAN] Kipas istirahat... %lu detik tersisa (anti-chattering)\n", rem);
+        }
+        return;
+      }
       String reason = "Suhu Tinggi (Avg " + String(avgTemp, 1) + "C > " + String(tempMax, 1) + "C)";
       startFan(reason, false, false);
     }
-  } else if (avgTemp <= tempMin) {
+  } else if (avgTemp <= tempStopThreshold) {
     if (isFanActive && !isHomogenizing && !isNightFan) {
-      String stopReason = "Suhu normal (Avg " + String(avgTemp, 1) + "C <= " + String(tempMin, 1) + "C)";
+      String stopReason = "Suhu normal (Avg " + String(avgTemp, 1) + "C <= " + String(tempStopThreshold, 1) + "C)";
       stopFan(stopReason);
     }
   }
 }
 
-void startFan(String reason, bool homogenize, bool nightMode) {
-  fanTriggerReason = reason;
-  isHomogenizing   = homogenize;
-  isNightFan       = nightMode;
+void startFan(String reason, bool homogenize, bool nightMode, bool criticalOverride) {
+  fanTriggerReason   = reason;
+  isHomogenizing     = homogenize;
+  isNightFan         = nightMode;
+  isCriticalOverride = criticalOverride;
 
   digitalWrite(PIN_RELAY_FAN, RELAY_ON);
   isFanActive  = true;
   fanStartTime = millis();
 
   Serial.print("   🌀 [FAN ON] ");
-  if (nightMode) Serial.print("[NIGHT PURGE 45s] ");
+  if (criticalOverride) Serial.print("[SAFETY OVERRIDE] ");
+  else if (nightMode) Serial.print("[NIGHT PURGE 45s] ");
   else if (homogenize) Serial.print("[HOMOGENISASI 30s] ");
   Serial.println("Pemicu: " + reason);
 }
@@ -603,10 +670,17 @@ void stopFan(String stopReason) {
   digitalWrite(PIN_RELAY_FAN, RELAY_OFF);
 
   unsigned long duration = (millis() - fanStartTime) / 1000;
-  isFanActive     = false;
-  isHomogenizing  = false;
-  isNightFan      = false;
-  fanLastStopTime = millis();  // Mulai masa cooldown homogenisasi 120 detik
+  if (isHomogenizing) {
+    fanLastStopTime = millis();        // Masa cooldown homogenisasi 900 detik (15 menit)
+  } else if (!isNightFan) {
+    fanCoolingLastStopTime = millis(); // Masa cooldown anti-chattering fan pendinginan siang 60 detik
+  } else {
+    lastNightFanStopTime = millis();   // Timestamp terakhir night fan berhenti (independen)
+  }
+  isFanActive        = false;
+  isHomogenizing     = false;
+  isNightFan         = false;
+  isCriticalOverride = false;          // Centralized reset flag Safety Override
 
   Serial.printf("   🌀 [FAN OFF] Durasi: %lu detik — %s\n", duration, stopReason.c_str());
 
@@ -666,7 +740,9 @@ void fetchThresholds() {
       humMax  = doc["data"]["humidity_max"].as<float>();
 
       rhTriggerLow  = humMin;
-      rhTriggerHigh = min(humMax - 2.0f, humMin + 2.0f);  // Histeresis stop realistis (misal 85 + 2 = 87.0%)
+      // Histeresis stop realistis: deadband 5% (misal 85% ON -> 90% OFF) menghasilkan kurva melengkung landai.
+      // Mencegah short-cycling (osilasi cepat yang membuat grafik lancip) & menjaga kelembapan stabil di zona aman.
+      rhTriggerHigh = min(humMax - 4.0f, humMin + 5.0f);  // Misal 85 + 5 = 90.0%
 
       Serial.printf("[API] Threshold Sinkron! T:%.1f-%.1f°C | RH:%.1f-%.1f%%\n",
                     tempMin, tempMax, humMin, humMax);

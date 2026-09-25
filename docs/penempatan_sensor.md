@@ -68,30 +68,34 @@ Jarak 9.3m masih jauh di bawah batas, sehingga **tidak diperlukan modul signal b
 
 ---
 
-## 3. Logika Penggabungan Data (Averaging)
+## 3. Logika Penggabungan Data: Weighted Sensor Fusion
 
-ESP32 membaca ketiga sensor secara berurutan setiap 5 detik, lalu menghitung **rata-rata aritmatika**:
+ESP32 membaca ketiga sensor secara berurutan setiap 5 detik, lalu menghitung **rata-rata tertimbang (*Weighted Sensor Fusion*)**:
 
-```
-Suhu_Final = (Suhu_A + Suhu_B + Suhu_C) / 3
-RH_Final   = (RH_A   + RH_B   + RH_C)   / 3
-```
+$$T_{\text{final}} = 0.35 \cdot T_A + 0.40 \cdot T_B + 0.25 \cdot T_C$$
+$$RH_{\text{final}} = 0.35 \cdot RH_A + 0.40 \cdot RH_B + 0.25 \cdot RH_C$$
 
-Nilai rata-rata inilah yang:
+**Justifikasi Bobot:**
+- **Sensor A (Bobot 35%):** Area atas dekat pintu, paling fluktuatif dan sensitif terhadap *stack effect* (udara panas naik).
+- **Sensor B (Bobot 40%):** Area pusat kumbung, ketinggian rak paling produktif dan representasi utama biomasa jamur.
+- **Sensor C (Bobot 25%):** Area bawah pojok, paling lembab dan dingin, tempat akumulasi gas CO2.
+
+Nilai rata-rata tertimbang inilah yang:
 1. **Dikirim ke API** (`POST /api/sensor-data`) untuk ditampilkan di Dashboard.
-2. **Dipakai oleh logika aktuator** (Misting & Fan) untuk mengambil keputusan.
+2. **Dipakai oleh decision engine aktuator** (Misting & Fan) untuk mengevaluasi histeresis kendali iklim.
 
-### Penanganan Sensor Rusak / Error
+### Penanganan Sensor Rusak / Error (Graceful Degradation)
 
-Jika salah satu sensor mengembalikan nilai `NaN` (kabel lepas, sensor rusak), firmware akan:
-1. **Mengabaikan sensor yang error** dan hanya menghitung rata-rata dari sensor yang valid.
-2. **Tetap beroperasi normal** selama minimal 1 sensor masih berfungsi.
-3. **Menampilkan peringatan** di LCD dan Serial Monitor bahwa ada sensor yang bermasalah.
+Jika salah satu sensor mengembalikan nilai `NaN` (kabel lepas, sensor rusak), firmware v3.5 tidak menggunakan angka dummy melainkan **menormalisasi ulang bobot (*re-weighting*)** dari sensor yang masih valid:
 
-Contoh: Jika Sensor A rusak, maka:
-```
-Suhu_Final = (Suhu_B + Suhu_C) / 2
-```
+Contoh: Jika Sensor A rusak ($T_A = \text{NaN}$), maka total bobot yang tersisa adalah $0.40 + 0.25 = 0.65$:
+$$W_B' = \frac{0.40}{0.65} \approx 61.5\%, \quad W_C' = \frac{0.25}{0.65} \approx 38.5\%$$
+$$T_{\text{final}} = 0.615 \cdot T_B + 0.385 \cdot T_C$$
+
+Dengan pendekatan ini:
+1. Sistem **tetap beroperasi normal** selama minimal 1 sensor masih berfungsi.
+2. Keputusan aktuator tidak terganggu oleh nilai anomali/palsu.
+3. LCD dan Serial Monitor menampilkan alert bahwa Sensor A bermasalah untuk segera diperbaiki teknisi.
 
 ---
 

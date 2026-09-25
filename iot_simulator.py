@@ -1,5 +1,5 @@
 """
-Smart Shroom IoT Simulator v3.0 — Multi-Sensor (3x DHT22)
+Smart Shroom IoT Simulator v3.5 — Multi-Sensor (3x DHT22)
 =========================================================
 Script ini mensimulasikan perilaku 3 sensor DHT22 + aktuator (Misting & Fan)
 di kumbung jamur kuping (Auricularia auricula-judae) berukuran 5m x 7m x 3.5m.
@@ -13,7 +13,7 @@ Prinsip simulasi:
 1. Tiap sensor punya offset suhu/kelembaban sesuai zona fisiknya
 2. ESP32 menghitung rata-rata dari 3 sensor sebelum mengambil keputusan
 3. Nilai rata-rata yang dikirim ke API (sama seperti firmware asli)
-4. Logika kontrol hysteresis IDENTIK dengan esp32_firmware.ino v3.0
+4. Logika kontrol hysteresis IDENTIK dengan esp32_firmware.ino v3.5
 
 @author Smart Shroom SCM — Tugas Akhir
 @see docs/penempatan_sensor.md
@@ -56,6 +56,9 @@ POST_MISTING_FAN_DELAY = 60     # Jeda wajib setelah misting OFF sebelum fan bol
 FAN_HOMOGENIZE_COOLDOWN = 900   # Jeda wajib setelah fan homogenisasi OFF (detik) — 15 menit relaksasi udara & sirkulasi
 HUM_DISPARITY_THRESHOLD = 12.0  # Batas selisih RH atas-bawah pemicu fan homogenisasi (%) — baseline fisik kumbung ~9%
 CRITICAL_TEMP_OFFSET = 2.0      # Safety Override: jika SATU sensor > tempMax + offset ini, paksa Fan ON
+MAX_FAN_COOLING_DURATION = 180  # 180 detik (3 menit) timeout maksimal fan pendinginan siang (cegah dehidrasi)
+FAN_COOLING_COOLDOWN = 60       # 60 detik (1 menit) cooldown anti-chattering jeda fan pendinginan siang
+TEMP_HYSTERESIS = 1.5           # Histeresis stop fan pendinginan (temp_max - 1.5°C)
 
 # Konstanta Night Mode (Malam Hari: 17:00 - 06:00 WIB)
 NIGHT_START_HOUR = 17           # 17:00 WIB: Mulai mode malam (Misting lockout)
@@ -394,17 +397,22 @@ class KumbungState:
 
         # State aktuator (mirror dari esp32_firmware.ino)
         self.is_misting_active = False
+        self.is_pulse_misting = False            # Flag pulse misting (Tier 2 Safety Override sensor kering)
         self.is_fan_active = False
+        self.is_homogenizing = False              # Flag fan homogenisasi sirkulasi (30s)
         self.misting_start_time = None
         self.misting_duration_total = 0
         self.misting_trigger_reason = ""
         self.misting_last_stop_time = 0.0  # Timestamp terakhir misting dimatikan (untuk cooldown)
         self.fan_start_time = None
         self.fan_trigger_reason = ""
-        self.fan_last_stop_time = 0.0  # Timestamp terakhir fan homogenisasi dimatikan (untuk cooldown)
+        self.fan_last_stop_time = 0.0  # Timestamp terakhir fan homogenisasi dimatikan (untuk cooldown 900s)
+        self.fan_cooling_last_stop_time = 0.0  # Timestamp terakhir fan pendinginan siang dimatikan (untuk cooldown 60s)
         self.last_night_periodic_fan_time = 0.0  # Timestamp terakhir periodic CO2 flush malam
         self.last_night_purge_fan_time = 0.0     # Timestamp terakhir over-humidity purge malam
+        self.last_night_fan_stop_time = 0.0      # Timestamp terakhir fan malam dimatikan (independen dari cooldown homogenisasi)
         self.is_night_fan = False                # Flag apakah fan sedang running di mode malam
+        self.is_critical_override = False        # Flag apakah fan sedang running mode Safety Override suhu kritis
 
         # Buffer kebasahan permukaan baglog & lantai kumbung (0.0% - 100.0%)
         # Air semprotan yang jatuh ke lantai, rak & kantung baglog tidak langsung hilang,
@@ -417,7 +425,7 @@ class KumbungState:
         self.hum_min = 80.0
         self.hum_max = 95.0
         self.rh_trigger_low = 80.0       # = hum_min
-        self.rh_trigger_high = 87.0      # Histeresis stop realistis (87.0% di siang hari cegah waterlogging baglog)
+        self.rh_trigger_high = 90.0      # Histeresis stop realistis (90.0% di siang hari menghasilkan kurva landai & mencegah short-cycling)
 
     @staticmethod
     def _get_ambient_temp(now: datetime.datetime) -> float:
@@ -475,9 +483,9 @@ class KumbungState:
         self.hum_max = thresholds['humidity_max']
         self.phase_mode = thresholds.get('phase_mode', 'fruiting')
         self.rh_trigger_low = self.hum_min
-        # Histeresis stop realistis: di siang hari terik, 85-88% optimal untuk jamur kuping.
-        # Menghindari pompa memaksa semprot sampai 90%+ yang bikin baglog becek/menggenang.
-        self.rh_trigger_high = min(self.hum_max - 2.0, self.hum_min + 2.0)  # Misal 85 + 2 = 87.0%
+        # Histeresis stop realistis: deadband 5% (misal 85% ON -> 90% OFF) menghasilkan kurva melengkung landai (smooth wave).
+        # Mencegah short-cycling (osilasi cepat 2-3 menit yang membuat grafik lancip) sekaligus menjaga baglog tetap di zona aman.
+        self.rh_trigger_high = min(self.hum_max - 4.0, self.hum_min + 5.0)  # Misal 85 + 5 = 90.0%
 
     def simulate_tick(self, dt_seconds: float):
         """
@@ -684,16 +692,17 @@ def control_misting(state: KumbungState):
         elapsed = time.time() - state.misting_start_time
         is_pulse = getattr(state, 'is_pulse_misting', False)
 
-        # Pulse Misting timeout (maksimal 30 detik agar rak bawah tidak becek)
-        if is_pulse and elapsed >= 30:
-            state.is_misting_active = False
-            state.is_pulse_misting = False
-            state.misting_last_stop_time = time.time()
-            state.misting_duration_total = int(elapsed)
-            stop_reason = f"Pulse misting selesai (30s, Min RH: {min_hum}%)"
-            print(f"   🛑 [MISTING OFF] {stop_reason}")
-            send_actuator_log(state.misting_duration_total, state.misting_trigger_reason, stop_reason, "misting")
-            return
+        # Pulse Misting (Tier 2): Berjalan tepat 30 detik (LOCKOUT target_reached normal)
+        if is_pulse:
+            if elapsed >= 30:
+                state.is_misting_active = False
+                state.is_pulse_misting = False
+                state.misting_last_stop_time = time.time()
+                state.misting_duration_total = int(elapsed)
+                stop_reason = f"Pulse misting selesai (30s, Min RH: {min_hum}%)"
+                print(f"   🛑 [MISTING OFF] {stop_reason}")
+                send_actuator_log(state.misting_duration_total, state.misting_trigger_reason, stop_reason, "misting")
+            return  # Kunci agar TIDAK bocor ke evaluasi target_reached di bawah!
 
         # Kondisi normal: trigger mati
         target_reached = (hum >= state.rh_trigger_high and temp <= state.temp_max)
@@ -721,7 +730,7 @@ def control_fan(state: KumbungState):
     Logika Exhaust Fan dengan Homogenisasi Udara (Opsi 3 Hibrida).
     - Tier 1: NYALA jika suhu rata-rata tertimbang > tempMax (buang panas)
     - Tier 2: NYALA PAKSA jika SATU sensor > tempMax + CRITICAL_TEMP_OFFSET (Safety Override)
-    - Tier 3: NYALA KILAT (30s) jika disparitas RH |A - C| > 8.0% (Homogenisasi / aduk udara)
+    - Tier 3: NYALA KILAT (30s) jika disparitas RH |A - C| > 12.0% (Homogenisasi / aduk udara)
     """
     temp, hum = state.get_readings()
     max_temp = state.get_max_temp()
@@ -735,14 +744,23 @@ def control_fan(state: KumbungState):
     # 1. Tier 2: Safety Override Suhu Kritis Atas (BYPASS SEMUA DELAY & COOLDOWN!)
     if max_temp > critical_threshold:
         # Jika misting sedang aktif, potong/matikan misting agar tidak bentrok dengan kipas darurat
+        # (BUG FIX #2: Cleanup lengkap + kirim API log, sama seperti firmware stopMisting())
         if state.is_misting_active:
+            elapsed = int(time.time() - state.misting_start_time) if state.misting_start_time else 0
+            stop_reason = "Dipotong Safety Override Kipas (Suhu Kritis)"
             state.is_misting_active = False
+            state.is_pulse_misting = False
             state.misting_last_stop_time = time.time()
-            print("   ⚠️  [INTERLOCK] Misting DIPOTONG oleh Safety Override Kipas!")
-        if not state.is_fan_active:
+            state.misting_duration_total = elapsed
+            print(f"   ⚠️  [INTERLOCK] Misting DIPOTONG oleh Safety Override Kipas! Durasi: {elapsed}s")
+            send_actuator_log(elapsed, state.misting_trigger_reason, stop_reason, "misting")
+        # (BUG FIX #1: Restart fan ke Safety Override walau sedang homogenisasi/night mode)
+        # Mirror firmware: if (!isFanActive || isHomogenizing || isNightFan)
+        if not state.is_fan_active or state.is_homogenizing or state.is_night_fan:
             state.is_fan_active = True
             state.is_homogenizing = False
             state.is_night_fan = False
+            state.is_critical_override = True
             state.fan_start_time = time.time()
             state.fan_trigger_reason = f"Safety Override (Sensor Max {max_temp}°C > {critical_threshold}°C)"
             print(f"   🚨 [SAFETY OVERRIDE] Fan PAKSA ON! Sensor tertinggi {max_temp}°C > batas kritis {critical_threshold}°C")
@@ -755,23 +773,48 @@ def control_fan(state: KumbungState):
         if elapsed_misting_stop < POST_MISTING_FAN_DELAY:
             return
 
-    # 3. NIGHT MODE FAN (17:00 - 06:00 WIB)
-    if is_night:
-        # Jika sedang aktif siklus fan malam (durasi pasti 45s)
-        if getattr(state, 'is_night_fan', False):
-            elapsed = time.time() - (state.fan_start_time or time.time())
-            if elapsed >= NIGHT_FAN_DURATION:
-                state.is_fan_active = False
-                state.is_night_fan = False
-                state.fan_last_stop_time = time.time()
+    # 3. MORNING TRANSITION & NIGHT MODE FAN (17:00 - 06:00 WIB)
+    # Failsafe 1: Jika is_night_fan aktif menyeberang ke pagi hari (jam 06:00 WIB) atau selesai 45s
+    if state.is_fan_active and getattr(state, 'is_night_fan', False):
+        elapsed = time.time() - (state.fan_start_time or time.time())
+        if elapsed >= NIGHT_FAN_DURATION or not is_night:
+            state.is_fan_active = False
+            state.is_night_fan = False
+            state.is_critical_override = False
+            state.last_night_fan_stop_time = time.time()
+            if not is_night and elapsed < NIGHT_FAN_DURATION:
+                stop_reason = f"Transisi ke Pagi Hari (06:00 WIB) | Durasi: {int(elapsed)}s"
+            else:
                 stop_reason = f"Night ventilation selesai {NIGHT_FAN_DURATION}s (RH: {hum}%)"
-                print(f"   🌙 [NIGHT FAN OFF] {stop_reason}")
-                send_actuator_log(int(elapsed), state.fan_trigger_reason, stop_reason, "fan")
-                return
+            print(f"   🌙 [NIGHT FAN OFF] {stop_reason}")
+            send_actuator_log(max(1, int(elapsed)), state.fan_trigger_reason, stop_reason, "fan")
+            return
+        return  # Masih berjalan di malam hari (< 45s), tahan agar tidak dievaluasi logika siang
+
+    if is_night:
+        # Failsafe 2: Jika ada fan siang yang masih aktif saat transisi jam 17:00, matikan segera!
+        if state.is_fan_active and not getattr(state, 'is_night_fan', False):
+            duration = int(time.time() - (state.fan_start_time or time.time()))
+            stop_reason = "Transisi ke Night Mode (17:00 WIB)"
+            state.is_fan_active = False
+            state.is_critical_override = False
+            state.fan_cooling_last_stop_time = time.time()
+            print(f"   🌙 [NIGHT FAN OFF] {stop_reason}")
+            send_actuator_log(max(1, duration), state.fan_trigger_reason, stop_reason, "fan")
             return
 
         if not state.is_fan_active and not state.is_misting_active:
             now_ts = time.time()
+
+            # Inisialisasi awal timer malam saat boot/transisi agar tidak langsung trigger mendadak
+            if state.last_night_periodic_fan_time == 0.0:
+                state.last_night_periodic_fan_time = now_ts
+            if state.last_night_purge_fan_time == 0.0:
+                state.last_night_purge_fan_time = now_ts
+
+            # Universal Guard: Kipas malam DILARANG nyala jika baru saja mati < 30 menit lalu (cegah over-ventilation malam)
+            if state.last_night_fan_stop_time > 0 and (now_ts - state.last_night_fan_stop_time) < NIGHT_FAN_COOLDOWN:
+                return
 
             # Pemicu Malam 1: Over-Humidity Purge (RH >= 96.0%, Cooldown 30 menit)
             if hum >= NIGHT_OVER_HUMIDITY_THRESHOLD:
@@ -781,19 +824,22 @@ def control_fan(state: KumbungState):
                     state.is_homogenizing = False
                     state.fan_start_time = now_ts
                     state.last_night_purge_fan_time = now_ts
+                    # Sinkronisasi Timer: Purge sudah membuang uap jenuh & akumulasi gas CO2 di lantai.
+                    # Tunda jadwal CO2 flush 60 menit ke depan agar fan tidak nyala bertubi-tubi dalam 1 jam!
+                    state.last_night_periodic_fan_time = now_ts
                     state.fan_trigger_reason = f"Night Over-Humidity Purge (RH {hum}% >= {NIGHT_OVER_HUMIDITY_THRESHOLD}%)"
                     print(f"   🌙 [NIGHT FAN ON] Over-Humidity Purge (45s) | Pemicu: RH {hum}% >= {NIGHT_OVER_HUMIDITY_THRESHOLD}%")
                     return
 
-            # Pemicu Malam 2: Periodic CO2 Flush (Tiap 60 Menit sekali)
-            if state.last_night_periodic_fan_time == 0.0:
-                state.last_night_periodic_fan_time = now_ts
-            elif (now_ts - state.last_night_periodic_fan_time) >= NIGHT_FAN_PERIODIC_INTERVAL:
+            # Pemicu Malam 2: Periodic CO2 Flush (Tiap 60 Menit sekali sebagai fallback)
+            if (now_ts - state.last_night_periodic_fan_time) >= NIGHT_FAN_PERIODIC_INTERVAL:
                 state.is_fan_active = True
                 state.is_night_fan = True
                 state.is_homogenizing = False
                 state.fan_start_time = now_ts
                 state.last_night_periodic_fan_time = now_ts
+                # Sinkronisasi Timer: CO2 flush sudah menyegarkan udara kumbung, beri jeda purge minimal 30 menit
+                state.last_night_purge_fan_time = now_ts
                 state.fan_trigger_reason = "Night Periodic CO2 Flush (Siklus 60 Menit)"
                 print(f"   🌙 [NIGHT FAN ON] Periodic CO2 Flush (45s) | Siklus 60 Menit")
                 return
@@ -835,20 +881,56 @@ def control_fan(state: KumbungState):
         return
 
     # B. Tier 1: Logika normal siang hari (pakai rata-rata tertimbang)
+    # Cek penyelesaian Safety Override suhu kritis
+    if state.is_fan_active and not is_homo and getattr(state, 'is_critical_override', False):
+        if max_temp <= (critical_threshold - 1.0) and temp <= state.temp_max:
+            state.is_fan_active = False
+            state.is_critical_override = False
+            state.fan_cooling_last_stop_time = time.time()
+            duration = int(time.time() - (state.fan_start_time or time.time()))
+            stop_reason = f"Suhu kritis teratasi (Max {max_temp}°C <= {critical_threshold - 1.0}°C)"
+            print(f"   🌀 [FAN OFF] {stop_reason} | Durasi: {duration}s")
+            send_actuator_log(max(1, duration), state.fan_trigger_reason, stop_reason, "fan")
+            return
+
+    # Safety Watchdog Fan Siang (Timeout 180s cegah dehidrasi kumbung)
+    if state.is_fan_active and not is_homo and not getattr(state, 'is_night_fan', False):
+        elapsed = time.time() - (state.fan_start_time or time.time())
+        if elapsed >= MAX_FAN_COOLING_DURATION:
+            state.is_fan_active = False
+            state.is_critical_override = False
+            state.fan_cooling_last_stop_time = time.time()
+            stop_reason = f"Safety timeout fan ({MAX_FAN_COOLING_DURATION}s, cegah dehidrasi baglog)"
+            print(f"   🛑 [FAN TIMEOUT] {stop_reason} | Durasi: {int(elapsed)}s")
+            send_actuator_log(int(elapsed), state.fan_trigger_reason or "Suhu Tinggi", stop_reason, "fan")
+            return
+
+    temp_stop_threshold = state.temp_max - TEMP_HYSTERESIS
     if temp > state.temp_max:
         if not state.is_fan_active and not state.is_misting_active:
-            state.is_fan_active = True
-            state.is_homogenizing = False
-            state.fan_start_time = time.time()
-            state.fan_trigger_reason = f"Suhu Tinggi (Avg {temp}°C > {state.temp_max}°C)"
-            print(f"   🌀 [FAN ON] Exhaust Fan AKTIF (Suhu avg {temp}°C > {state.temp_max}°C)")
-    elif temp <= state.temp_min:
-        if state.is_fan_active and not is_homo:
+            can_cool = True
+            if state.fan_cooling_last_stop_time > 0:
+                elapsed_cooling = time.time() - state.fan_cooling_last_stop_time
+                if elapsed_cooling < FAN_COOLING_COOLDOWN:
+                    can_cool = False
+                    rem = int(FAN_COOLING_COOLDOWN - elapsed_cooling)
+                    if rem % 15 == 0:
+                        print(f"   ⏳ [COOLDOWN FAN] Kipas pendinginan istirahat... {rem}s tersisa (anti-chattering)")
+            if can_cool:
+                state.is_fan_active = True
+                state.is_homogenizing = False
+                state.is_night_fan = False
+                state.fan_start_time = time.time()
+                state.fan_trigger_reason = f"Suhu Tinggi (Avg {temp}°C > {state.temp_max}°C)"
+                print(f"   🌀 [FAN ON] Exhaust Fan AKTIF (Suhu avg {temp}°C > {state.temp_max}°C)")
+    elif temp <= temp_stop_threshold:
+        if state.is_fan_active and not is_homo and not getattr(state, 'is_night_fan', False):
             state.is_fan_active = False
-            state.fan_last_stop_time = time.time()
+            state.is_critical_override = False
+            state.fan_cooling_last_stop_time = time.time()
             duration = int(time.time() - (state.fan_start_time or time.time()))
-            stop_reason = f"Suhu normal (Avg {temp}°C <= {state.temp_min}°C)"
-            print(f"   🌀 [FAN OFF] Exhaust Fan MATI (Suhu avg {temp}°C <= {state.temp_min}°C)")
+            stop_reason = f"Suhu normal (Avg {temp}°C <= {temp_stop_threshold}°C)"
+            print(f"   🌀 [FAN OFF] Exhaust Fan MATI ({stop_reason}) | Durasi: {duration}s")
             send_actuator_log(max(1, duration), state.fan_trigger_reason or "Suhu Tinggi", stop_reason, "fan")
 
 
