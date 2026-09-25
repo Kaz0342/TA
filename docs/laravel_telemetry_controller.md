@@ -1,57 +1,53 @@
-# Panduan Controller & Form Request (API Telemetry)
+# Panduan Controller & Form Request (API Sensor Data IoT)
 
-Dokumen ini berisi logika **Controller** dan **Form Request Validation** di Laravel untuk menerima data dari ESP32 (lewat endpoint `POST /api/telemetry`). 
-
-Di sini juga disisipkan algoritma untuk otomatis mengecek data sensor yang masuk terhadap *Threshold Setting* (batas suhu/kelembaban) yang aktif. Kalau suhunya kepanasan atau kelembaban drop, server bakal ngasih balikan status `alert` ke ESP32.
+Dokumen ini menjelaskan implementasi endpoint penerimaan data telemetri dari mikrokontroler ESP32 (`POST /api/sensor-data`). Endpoint ini dirancang dengan prinsip *Boundary Validation* via **FormRequest**, proteksi anti-spam via **Rate Limiting**, dan pengecekan pelanggaran ambang batas (*Early Warning System*) otomatis.
 
 ---
 
-## 1. Form Request Validation (`app/Http/Requests/StoreTelemetryRequest.php`)
+## 1. Form Request Validation (`app/Http/Requests/StoreSensorDataRequest.php`)
 
-File ini bertugas nge-filter data JSON yang dikirim ESP32. Kalau ESP32 ngirim data sampah (misal: suhu 500°C yang nggak masuk akal), request-nya bakal langsung ditolak sebelum nyentuh database.
+Validasi dilakukan secara ketat di batas aplikasi (*framework boundary*) sebelum request mencapai Controller atau Database.
 
 ```php
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreTelemetryRequest extends FormRequest
+class StoreSensorDataRequest extends FormRequest
 {
     /**
-     * Tentukan siapa yang boleh ngakses endpoint ini.
-     * Return true karena ESP32 kita nggak pake bearer token (sementara).
+     * Endpoint IoT tidak menggunakan bearer token user agar tidak membebani ESP32.
+     * Keamanan dijaga melalui rate limiter (20 req/menit per device IP).
      */
-    public function authorize()
+    public function authorize(): bool
     {
-        return true; 
+        return true;
     }
 
     /**
-     * Rules validasi payload JSON.
+     * Rules validasi payload JSON telemetri.
      */
-    public function rules()
+    public function rules(): array
     {
         return [
-            'device_id'   => 'required|string|max:50',
-            
-            // Suhu realistis bumi (10°C sampai 50°C)
-            'temperature' => 'required|numeric|min:10|max:50',
-            
-            // Kelembaban (RH) pasti persentase (0% sampai 100%)
-            'humidity'    => 'required|numeric|min:0|max:100',
-            
-            'co2_level'   => 'nullable|numeric|min:0'
+            'device_id'       => ['required', 'string', 'max:50'],
+            'temperature'     => ['required', 'numeric', 'between:-50,100'],
+            'humidity'        => ['required', 'numeric', 'between:0,100'],
+            'co2_level'       => ['nullable', 'numeric', 'min:0', 'max:5000'],
+            'light_intensity' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            'recorded_at'     => ['nullable', 'date'],
         ];
     }
 
     /**
-     * Custom pesan error (opsional buat log ESP32).
+     * Pesan validasi error dalam Bahasa Indonesia yang informatif.
      */
-    public function messages()
+    public function messages(): array
     {
         return [
-            'temperature.max' => 'Suhu tidak wajar! Maksimal 50°C.',
-            'humidity.max' => 'Kelembaban tidak mungkin melebihi 100%.',
+            'temperature.between' => 'Nilai suhu di luar batas realistis (-50°C s.d. 100°C).',
+            'humidity.between'    => 'Kelembaban harus berupa persentase (0% s.d. 100%).',
+            'device_id.required'  => 'Identifier mikrokontroler (device_id) wajib disertakan.',
         ];
     }
 }
@@ -59,77 +55,108 @@ class StoreTelemetryRequest extends FormRequest
 
 ---
 
-## 2. Controller (`app/Http/Controllers/Api/TelemetryController.php`)
+## 2. Controller Telemetri (`app/Http/Controllers/Api/SensorDataController.php`)
 
-Controller ini nangkep data yang udah lulus validasi, nyimpen ke database (`sensor_data`), terus ngecek apakah mikroklimat kumbung lagi dalam keadaan bahaya atau aman.
+Controller bersifat *Thin Controller*, mendelegasikan penyimpanan data immutable dan evaluasi ambang batas ke `SensorDataService`.
 
 ```php
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\StoreTelemetryRequest;
-use App\Models\SensorData;
-use App\Models\ThresholdSetting;
+use App\Http\Requests\StoreSensorDataRequest;
+use App\Services\SensorDataService;
+use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 
-class TelemetryController extends Controller
+class SensorDataController extends Controller
 {
+    use ApiResponse;
+
+    public function __construct(
+        private readonly SensorDataService $service
+    ) {}
+
     /**
-     * Menerima payload dari ESP32: POST /api/telemetry
+     * POST /api/sensor-data
+     * Menerima payload dari ESP32, menyimpan ke database immutable,
+     * dan mengembalikan status alert jika ada parameter iklim yang kritis.
      */
-    public function store(StoreTelemetryRequest $request): JsonResponse
+    public function store(StoreSensorDataRequest $request): JsonResponse
     {
-        // 1. Simpan data sensor ke tabel sensor_data
-        $sensorData = SensorData::create($request->validated());
+        $result = $this->service->store($request->validated());
 
-        // 2. Ambil Threshold (Batas Optimal) yang sedang aktif di database
-        $threshold = ThresholdSetting::where('is_active', true)->first();
-        
-        $alerts = [];
-        $status = 'normal';
+        $responseData = [
+            'sensor_data' => $result['sensor_data'],
+        ];
 
-        // 3. Algoritma Pengecekan Anomali Cuaca
-        if ($threshold) {
-            // Cek Suhu
-            if ($sensorData->temperature > $threshold->temp_max) {
-                $alerts[] = 'Suhu OVERHEAT! (Lebih dari ' . $threshold->temp_max . '°C)';
-            } elseif ($sensorData->temperature < $threshold->temp_min) {
-                $alerts[] = 'Suhu TERLALU DINGIN! (Kurang dari ' . $threshold->temp_min . '°C)';
-            }
-
-            // Cek Kelembaban (RH)
-            if ($sensorData->humidity > $threshold->humidity_max) {
-                $alerts[] = 'Kelembaban TERLALU BASAH! (Lebih dari ' . $threshold->humidity_max . '%)';
-            } elseif ($sensorData->humidity < $threshold->humidity_min) {
-                $alerts[] = 'Kelembaban TERLALU KERING! (Kurang dari ' . $threshold->humidity_min . '%)';
-            }
+        // Sertakan array alerts jika melanggar ambang batas optimal
+        if (!empty($result['alerts'])) {
+            $responseData['alerts'] = $result['alerts'];
         }
 
-        // Kalau array alerts ada isinya, berarti kondisi ga normal
-        if (count($alerts) > 0) {
-            $status = 'alert';
-        }
-
-        // 4. Return response JSON (bisa dibaca ESP32 buat ambil tindakan/nyalain alarm merah)
-        return response()->json([
-            'message' => 'Data telemetry berhasil disimpan.',
-            'status'  => $status,
-            'alerts'  => $alerts, // Ngirim pesan error spesifik
-            'data'    => $sensorData
-        ], 201);
+        return $this->created(
+            $responseData,
+            empty($result['alerts'])
+                ? 'Data sensor berhasil dicatat.'
+                : 'Data sensor dicatat dengan peringatan ambang batas!'
+        );
     }
 }
 ```
 
 ---
 
-## 3. Konfigurasi Routes (`routes/api.php`)
-
-Jangan lupa daftarin endpoint ini di file routes API Laravel lo.
+## 3. Konfigurasi Endpoint & Rate Limiting (`routes/api.php`)
 
 ```php
-use App\Http\Controllers\Api\TelemetryController;
+use App\Http\Controllers\Api\SensorDataController;
 
-// Endpoint khusus hardware (ESP32)
-Route::post('/telemetry', [TelemetryController::class, 'store']);
+// Proteksi Rate Limiting: Maksimal 20 request per 1 menit per device
+Route::middleware('throttle:20,1')->group(function () {
+    Route::post('/sensor-data', [SensorDataController::class, 'store']);
+});
+```
+
+---
+
+## 4. Contoh Response Payload
+
+### Skenario Normal (Status HTTP 201 Created):
+```json
+{
+  "success": true,
+  "data": {
+    "sensor_data": {
+      "id": 1045,
+      "device_id": "ESP32-KUMBUNG-01",
+      "temperature": 27.50,
+      "humidity": 88.00,
+      "co2_level": 450.00,
+      "light_intensity": 120.00,
+      "recorded_at": "2026-09-25T12:00:00.000000Z"
+    }
+  },
+  "message": "Data sensor berhasil dicatat."
+}
+```
+
+### Skenario Pelanggaran Threshold (Ada Alert Balikan ke ESP32):
+```json
+{
+  "success": true,
+  "data": {
+    "sensor_data": {
+      "id": 1046,
+      "device_id": "ESP32-KUMBUNG-01",
+      "temperature": 33.50,
+      "humidity": 72.00,
+      "recorded_at": "2026-09-25T13:00:00.000000Z"
+    },
+    "alerts": [
+      "Suhu tinggi (33.5°C > 32°C)!",
+      "Kelembaban rendah (72.0% < 80%)!"
+    ]
+  },
+  "message": "Data sensor dicatat dengan peringatan ambang batas!"
+}
 ```

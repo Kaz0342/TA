@@ -42,12 +42,13 @@ Sistem ini menjawab rumusan masalah utama dalam TA, yaitu:
 | Layer | Teknologi | Alasan Pemilihan |
 |---|---|---|
 | **Frontend** | React 18 + TypeScript + Vite | SPA cepat, type-safe, hot-reload untuk pengembangan |
-| **UI Framework** | TailwindCSS (Neubrutalism Theme) | Desain modern, konsisten, responsif |
-| **State Management** | Zustand (Auth & Toast) + TanStack Query (Server State) | Lightweight, tidak perlu Redux |
+| **UI Framework** | TailwindCSS (Harmonious Modern Sage Green & Dark Mode) | Desain modern ergonomis, palet hijau sage `#244b37`, border halus `#d6e9df`, support Dark Mode lengkap |
+| **Micro-Animations** | RAF & GPU-Accelerated CSS Transitions | Count-up 60 FPS (`AnimatedNumber`), jarum rotasi gauge GPU (`SemiCircleGauge`), progress bar dinamis (`AnimatedProgressBar`) |
+| **State Management** | Zustand (Auth & Toast) + TanStack Query (Server State) | Lightweight, performa tinggi, tidak perlu Redux |
 | **Backend** | Laravel 12 (PHP) | Framework MVC terlengkap, Eloquent ORM, Sanctum Auth |
-| **Database** | SQLite (Dev) → MySQL/PostgreSQL (Production) | Ringan saat development, scalable saat deploy |
-| **IoT Hardware** | ESP32 + DHT22 + MQ-135 + BH1750 | Wi-Fi built-in, multi-sensor, murah |
-| **Komunikasi IoT** | HTTP REST API (bukan MQTT) | Tidak butuh message broker tambahan |
+| **Database** | SQLite (Dev) → PostgreSQL / Supabase (Production) | Ringan saat development, scalable & reliable saat deploy |
+| **IoT Hardware** | ESP32 DevKit V1 + 3x DHT22 + BH1750 + MQ-135 | Formasi Segitiga Diagonal, Weighted Sensor Fusion, Wi-Fi built-in |
+| **Komunikasi IoT** | HTTP REST API (Stateless) | Efisien, mudah didebug, tidak butuh message broker tambahan |
 
 ### 2.2 Pola Arsitektur Backend
 
@@ -78,8 +79,8 @@ Sistem ini dikembangkan menggunakan metodologi **Agile Software Development** (k
 
 Karakteristik SDLC Agile yang diterapkan pada project TA ini:
 1. **Iterative Development:** Fitur dikembangkan secara bertahap (sprint/iterasi). Misalnya: Modul IoT diselesaikan terlebih dahulu, kemudian modul Baglog, dilanjutkan dengan visualisasi Chart di Dashboard.
-2. **Test-Driven / Automated Testing:** Mengadopsi prinsip *Extreme Programming (XP)* di mana setiap logika bisnis (seperti pengecekan threshold atau kalkulasi revenue) divalidasi menggunakan *Automated Testing* (terdapat 82 skenario *PHPUnit test* yang 100% *pass*).
-3. **Adaptive to Change:** Saat ada perubahan *requirement* (contoh: pemisahan grafik suhu dan kelembapan agar UX lebih baik), perubahan dapat langsung diimplementasikan tanpa merusak modul lain berkat arsitektur yang *decoupled* (terpisah).
+2. **Test-Driven / Automated Testing:** Mengadopsi prinsip *Extreme Programming (XP)* di mana setiap logika bisnis (seperti pengecekan threshold atau kalkulasi revenue) divalidasi menggunakan *Automated Testing* (terdapat 115 skenario *PHPUnit test* dengan 299 assertions yang 100% *pass*).
+3. **Adaptive to Change:** Saat ada perubahan *requirement* (contoh: transisi visual ke Harmonious Sage Green, adaptasi downsampling 6 jam per 5 menit, penambahan paginasi per 10 baris), perubahan dapat langsung diimplementasikan tanpa merusak modul lain berkat arsitektur yang *decoupled* (terpisah).
 
 ---
 
@@ -109,46 +110,41 @@ Membuktikan implementasi **keamanan sistem informasi** melalui autentikasi dan o
 
 Halaman utama sistem yang merangkum seluruh kondisi kumbung dan performa bisnis dalam satu tampilan.
 
-### 5.1 Komponen: Indikator Real-time (4 Card)
+### 5.1 Komponen: Indikator Real-time (4 Card KPI dengan Micro-Animations)
 
-| Card | Warna | Sumber Data | Interval Refresh | Deskripsi |
+| Card | Indikator Visual | Sumber Data | Interval Refresh | Deskripsi |
 |---|---|---|---|---|
-| 🌡️ **Suhu Saat Ini** | Kuning | `GET /sensor-data/latest` | 30 detik | Suhu terakhir yang dibaca sensor (°C) |
-| 💧 **Kelembaban** | Biru | `GET /sensor-data/latest` | 30 detik | Kelembapan relatif terakhir (%) |
-| 📦 **Baglog Aktif** | Hijau | `GET /dashboard/stats` | 1 menit | Total unit baglog berstatus "active" |
-| 💰 **Revenue Bulan Ini** | Ungu | `GET /dashboard/stats` | 1 menit | Total pendapatan penjualan bulan berjalan (Rp) |
+| 🌡️ **Suhu Saat Ini** | `SemiCircleGauge` (Needle Sweep) + `AnimatedNumber` | `GET /api/sensor-data/latest` | 30 detik | Suhu rata-rata tertimbang (3x DHT22) dalam °C, min 15 max 35 dengan jarum rotasi GPU |
+| 💧 **Kelembapan** | `SemiCircleGauge` (Needle Sweep) + `AnimatedNumber` | `GET /api/sensor-data/latest` | 30 detik | Kelembapan relatif rata-rata (%), min 40 max 100 dengan indikator zona optimal |
+| 📦 **Baglog Aktif** | `AnimatedProgressBar` + `AnimatedNumber` | `GET /api/dashboard/stats` | 1 menit | Total unit baglog produktif berstatus "active" terhadap kapasitas kumbung (3.000 unit) |
+| 🍄 **Panen Hari Ini** | `AnimatedProgressBar` + `AnimatedNumber` | `GET /api/dashboard/stats` | 1 menit | Realisasi panen hari ini (KG) terhadap target harian operasional 15 KG |
 
-**Hubungan dengan TA:** Ke-4 card ini memenuhi **FR-1.1** (Real-time Climate Cards) dan **FR-1.3** (Quick Stats). Menunjukkan bahwa sistem mampu menampilkan data iklim mikro dan ringkasan bisnis secara *real-time*.
+**Hubungan dengan TA:** Ke-4 card ini memenuhi **FR-1.1** (Real-time Climate Cards) dan **FR-1.3** (Quick Stats). Dilengkapi animasi count-up 60 FPS menggunakan `requestAnimationFrame` dan `easeOutCubic`, serta rotasi jarum gauge CSS hardware-accelerated yang halus tanpa lag.
 
 ### 5.2 Komponen: Banner Peringatan (Alert System)
 
-*   **Tujuan:** Jika suhu/kelembapan melampaui batas threshold, banner merah muncul di atas Dashboard.
-*   **Logika:** Backend memanggil `ThresholdSetting::checkViolations()` yang membandingkan data sensor terbaru dengan parameter yang dikonfigurasi Admin.
+*   **Tujuan:** Jika suhu/kelembapan melampaui batas threshold, banner peringatan muncul secara otomatis di atas Dashboard.
+*   **Logika:** Backend mengevaluasi `ThresholdSetting::checkViolations()` yang membandingkan data sensor terbaru dengan parameter aktif yang dikonfigurasi Admin.
 *   **Skenario:**
-    *   Suhu > 30°C → `Suhu Kritis! XX°C melebihi batas 30°C`
-    *   Kelembaban < 70% → `Kelembaban Rendah! XX% di bawah batas 70%`
-*   **Endpoint:** Data alert disisipkan dalam response `GET /dashboard/stats`.
+    *   Suhu > `temp_max` → `Suhu Kritis! XX°C melebihi batas YY°C`
+    *   Kelembapan < `humidity_min` → `Kelembaban Rendah! XX% di bawah batas YY%`
+*   **Endpoint:** Data alert disisipkan dalam response `GET /api/dashboard/stats` dan `POST /api/sensor-data`.
 
 **Hubungan dengan TA:** Implementasi **Early Warning System (EWS)** — menjawab: *"Sistem dapat memberikan notifikasi dini saat parameter lingkungan menyimpang dari standar budidaya."*
 
-### 5.3 Komponen: Grafik Suhu (24 Jam)
+### 5.3 Komponen: Grafik Riwayat Mikroklimat (Recharts Area Chart dengan Adaptive Downsampling)
 
-*   **Tipe:** Line Chart (warna kuning).
-*   **Sumber:** `GET /sensor-data/chart?hours=24` — data sensor 24 jam terakhir.
-*   **Interval Refresh:** 5 menit.
-*   **Sumbu Y:** Suhu dalam °C, domain otomatis.
-*   **Keterangan Bawah:** *"Batas optimal: 20°C — 30°C"*
+*   **Tipe:** Area Chart dengan kurva halus `monotone`, gradient warna hijau tua `#244b37` dan aksen status iklim.
+*   **Selector Rentang Waktu:** 
+    *   **6 Jam:** Agregasi per 5 menit (~72 data point) — resolusi tinggi untuk memantau siklus misting & fan terbaru.
+    *   **12 Jam:** Agregasi per 10 menit (~72 data point).
+    *   **24 Jam:** Agregasi per 15 menit (~96 data point) — tren diurnal siang/malam.
+    *   **7 Hari:** Agregasi per 60 menit (~168 data point) — analisis tren mingguan makro.
+*   **Sumber Data:** `GET /api/sensor-data/chart?hours=6|12|24|168`.
+*   **Optimasi Backend (SQL Downsampling):** Menggunakan agregasi bucket waktu SQL pada `SensorDataRepository.php` sehingga payload berkurang >95% dan latensi query terpangkas dari ~400ms menjadi ~14ms.
+*   **Batas Optimal:** Reference band horizontal hijau muda pada rentang ideal jamur kuping (24°C–32°C dan 80%–95%).
 
-**Hubungan dengan TA:** Memenuhi **FR-1.2** (Climate Chart 24 Jam). Membantu petani melihat pola fluktuasi suhu harian untuk menentukan waktu ventilasi yang tepat.
-
-### 5.4 Komponen: Grafik Kelembaban (24 Jam)
-
-*   **Tipe:** Line Chart (warna biru).
-*   **Sumber:** `GET /sensor-data/chart?hours=24` — data yang sama, field berbeda.
-*   **Sumbu Y:** Kelembapan dalam %, domain 50-100.
-*   **Keterangan Bawah:** *"Batas optimal: 70% — 90%"*
-
-**Hubungan dengan TA:** Memenuhi **FR-1.2**. Dipisah dari grafik suhu agar pembacaan lebih jelas — sesuai prinsip *Presentational Split* pada panduan ECC.
+**Hubungan dengan TA:** Memenuhi **FR-1.2** (Adaptive Climate History Analytics). Petani dapat menganalisis respons mikroklimat terhadap cuaca luar dan jadwal penyiraman tanpa membebani browser atau server.
 
 ### 5.5 Komponen: Panen Hari Ini (Big Number Card)
 
@@ -195,9 +191,11 @@ Mengelola siklus hidup baglog (media tanam) mulai dari kedatangan hingga pembuan
 
 | Fitur | Deskripsi | Role |
 |---|---|---|
-| **Lihat Semua Batch** | Tabel baglog dengan filter status (Active/Contaminated/Disposed) | Admin, Worker |
-| **Tambah Batch Baru** | Form input: tanggal masuk, jumlah, supplier, catatan | Admin only |
-| **Ubah Status** | Tombol aksi: "Tandai Kontaminasi" atau "Tandai Dibuang" | Admin only |
+| **Tabel Batch & Paginasi** | Menampilkan seluruh data batch baglog dengan **Paginasi 10 baris per halaman**, tab filter status (Semua, Aktif, Kontaminasi, Dibuang), dan search bar real-time | Admin, Worker |
+| **Kartu Ringkasan Siklus** | 4 card metrik: Total Batch Terdaftar, Baglog Aktif, Afkir & Kontaminasi, Rata-rata Umur Baglog (dengan `AnimatedNumber`) | Admin, Worker |
+| **Indikator Visual Umur** | Progress bar umur miselium (Hijau: muda <30 hari, Kuning: produktif 30–90 hari, Merah: afkir >90 hari) | Admin, Worker |
+| **Tambah Batch Baru** | Modal input: tanggal masuk, jumlah baglog, supplier bibit, lokasi rak, catatan fisik | Admin only |
+| **Ubah Status Siklus** | Tombol aksi cepat: "Tandai Kontaminasi" atau "Tandai Dibuang / Afkir" | Admin only |
 | **Kode Batch Otomatis** | Format: `BL-YYYYMMDD-XXX` (auto-generated di backend) | System |
 
 ### 6.3 Lifecycle Status
@@ -218,43 +216,47 @@ Memenuhi **FR-2.x** (Baglog Lifecycle Management). Menjawab: *"Bagaimana mendigi
 ## 7. Halaman Harvests (Rekap Panen)
 
 ### 7.1 Tujuan
-Mencatat hasil panen harian dari setiap batch baglog yang aktif.
+Mencatat hasil panen harian dari setiap batch baglog yang aktif dan menganalisis produktivitas petik.
 
 ### 7.2 Fitur
 
 | Fitur | Deskripsi | Role |
 |---|---|---|
-| **Lihat Riwayat Panen** | Tabel panen: tanggal, kode batch, berat (Kg), pencatat | Admin, Worker |
-| **Input Panen** | Form: tanggal panen, pilih batch (dropdown), berat (Kg), catatan | Admin, Worker |
-| **Auto-Invalidate** | Setelah input, otomatis refresh data Dashboard (panen hari ini + chart) | System |
+| **Tabel Riwayat & Paginasi** | Tabel riwayat panen dengan **Paginasi 10 baris per halaman**, filter rentang waktu (Hari Ini, Minggu Ini, Bulan Ini, Semua), dan pencarian kode batch | Admin, Worker |
+| **4 Kartu Metrik Panen** | Panen Hari Ini (terhadap target 15 KG), Total Panen Bulan Ini, Estimasi Nilai Panen (Rp 25.000/KG), Rata-rata per Sesi Petik (dengan `AnimatedNumber` & `AnimatedProgressBar`) | Admin, Worker |
+| **Grafik Tren Panen 14 Hari** | Recharts Area Chart interaktif menampilkan akumulasi bobot panen harian selama 2 minggu terakhir | Admin, Worker |
+| **Input Panen Harian** | Modal formulir: tanggal panen, pilih batch baglog aktif (dropdown), berat bersih (KG), dan catatan grade | Admin, Worker |
+| **Auto-Invalidate** | Setelah input panen berhasil, query cache TanStack Query otomatis merefresh data Dashboard dan grafik panen | System |
 
 ### 7.3 Hubungan dengan TA
-Memenuhi **FR-3.x** (Harvest Data Collection). Menjawab: *"Bagaimana mencatat data panen secara akurat dan mengintegrasikannya dengan modul lain?"*
+Memenuhi **FR-3.x** (Harvest Data Collection & Analytics). Menjawab: *"Bagaimana mencatat data panen secara akurat dan mengintegrasikannya dengan modul lain?"*
 
 ---
 
 ## 8. Halaman Sales (Penjualan)
 
 ### 8.1 Tujuan
-Mencatat transaksi penjualan jamur kuping ke pembeli, termasuk ringkasan keuangan mingguan.
+Mencatat transaksi penjualan jamur kuping ke berbagai mitra pembeli, termasuk rekapitulasi keuangan dan volume terserap pasar.
 
 ### 8.2 Fitur
 
 | Fitur | Deskripsi | Role |
 |---|---|---|
-| **Ringkasan Minggu Ini** | Card: Panen Masuk (Kg), Terjual (Kg), Sisa Stok (Kg) | Admin |
-| **Lihat Riwayat Penjualan** | Tabel: tanggal, nama pembeli, kuantitas, harga/Kg, total pendapatan | Admin |
-| **Input Penjualan** | Form: tanggal, kuantitas, harga per Kg, nama pembeli | Admin only |
+| **Tabel Penjualan & Paginasi** | Tabel riwayat penjualan dengan **Paginasi 10 baris per halaman**, status lunas, dan sorting tanggal | Admin |
+| **4 Kartu Metrik Keuangan** | Omzet Bulan Ini (Rp IDR), Volume Terjual (KG), Jumlah Transaksi, Rata-rata Harga/KG (dengan `AnimatedNumber`) | Admin |
+| **Chip Rekomendasi Cepat** | Rekomendasi mitra pembeli rutin 1-klik (Pak Joko - Pasar Induk, Ibu Dewi - Toko Sayur, Bu Sari - Resto) | Admin |
+| **Grafik Dual-Axis Penjualan** | Recharts Area/Bar Chart menampilkan korelasi volume penjualan (KG) terhadap total pendapatan (Rp) harian | Admin |
+| **Input Transaksi Penjualan** | Modal input: tanggal transaksi, nama mitra pembeli, kuantitas (KG), harga per KG, kalkulasi total otomatis | Admin only |
 
 ### 8.3 Perhitungan Revenue
 ```
 total_revenue = quantity_kg × price_per_kg
 ```
-*   Menggunakan fungsi `bcmul()` (arbitrary-precision arithmetic) agar tidak ada *floating-point error*.
+*   Menggunakan fungsi `bcmul()` (arbitrary-precision arithmetic) di backend agar tidak ada *floating-point error*.
 *   Tipe data di database: `DECIMAL(12,2)`.
 
 ### 8.4 Hubungan dengan TA
-Memenuhi **FR-3.x** (Sales Management). Menjawab: *"Bagaimana sistem menyediakan informasi keuangan (revenue) secara akurat untuk pengambilan keputusan bisnis?"*
+Memenuhi **FR-3.x** (Sales & Revenue SCM). Menjawab: *"Bagaimana sistem menyediakan informasi keuangan (revenue) secara akurat untuk pengambilan keputusan bisnis?"*
 
 ---
 
@@ -339,22 +341,25 @@ Sistem ini membuktikan bahwa integrasi **IoT + Sistem Informasi + Manajemen Rant
 
 | Kode FR | Kebutuhan Fungsional | Modul/Halaman | Status |
 |---|---|---|---|
-| FR-1.1 | Menampilkan data iklim terbaru (real-time) | Dashboard — 4 Card | ✅ Selesai |
-| FR-1.2 | Menampilkan grafik iklim 24 jam | Dashboard — Grafik Suhu & Kelembaban | ✅ Selesai |
-| FR-1.3 | Menampilkan ringkasan statistik bisnis | Dashboard — Baglog Aktif & Revenue | ✅ Selesai |
-| FR-1.4 | Konfigurasi ambang batas iklim | Settings | ✅ Selesai |
-| FR-2.1 | CRUD data batch baglog | Baglog Management | ✅ Selesai |
-| FR-2.2 | Pelacakan status lifecycle baglog | Baglog Management | ✅ Selesai |
-| FR-3.1 | Pencatatan dan analisis data panen | Harvests + Dashboard Chart | ✅ Selesai |
-| FR-3.2 | Pencatatan transaksi penjualan | Sales | ✅ Selesai |
-| FR-3.3 | Perhitungan revenue otomatis | Sales + Dashboard | ✅ Selesai |
-| FR-4.1 | Endpoint penerimaan data IoT | API `/sensor-data` | ✅ Selesai |
-| FR-4.2 | Logging aktivitas sprinkler | Dashboard — Tabel Log | ✅ Selesai |
-| NFR-1 | Autentikasi & otorisasi berbasis role | Login + Sanctum | ✅ Selesai |
-| NFR-2 | Rate limiting endpoint publik | Throttle middleware | ✅ Selesai |
-| NFR-3 | Validasi ketat terhadap input data | FormRequest | ✅ Selesai |
-| NFR-4 | Presisi data keuangan (DECIMAL) | Model + Migration | ✅ Selesai |
-| NFR-5 | Automated Testing (82 test cases) | PHPUnit (Feature + Unit) | ✅ Selesai |
+| FR-1.1 | Menampilkan data iklim terbaru dengan `SemiCircleGauge` & count-up | Dashboard — 4 Card KPI | ✅ Selesai |
+| FR-1.2 | Riwayat iklim multirentang (6h/12h/24h/7d) dengan SQL downsampling | Dashboard — Recharts Area Chart | ✅ Selesai |
+| FR-1.3 | Ringkasan produktivitas harian (Baglog Aktif & Panen Hari Ini) | Dashboard — Metrik & Progress | ✅ Selesai |
+| FR-1.4 | Konfigurasi ambang batas iklim & preset fase pertumbuhan | Settings — Threshold Configuration | ✅ Selesai |
+| FR-2.1 | CRUD data batch baglog (Kode unik auto-generated) | Baglog Management | ✅ Selesai |
+| FR-2.2 | Pelacakan status lifecycle baglog & indikator visual umur | Baglog Management | ✅ Selesai |
+| FR-2.3 | Manajemen tabel baglog dengan paginasi per 10 baris | Baglog Management — Table & Filters | ✅ Selesai |
+| FR-3.1 | Pencatatan hasil panen & visualisasi grafik tren 14 hari | Harvests + Dashboard | ✅ Selesai |
+| FR-3.2 | Tabel panen dengan paginasi per 10 baris & kartu ringkasan | Harvests — Table & Metrics | ✅ Selesai |
+| FR-3.3 | Pencatatan transaksi penjualan & chip mitra rekomendasi | Sales Management | ✅ Selesai |
+| FR-3.4 | Tabel penjualan dengan paginasi per 10 & grafik dual-axis | Sales Management — Table & Chart | ✅ Selesai |
+| FR-4.1 | Endpoint penerimaan data IoT (Rate limit 20 req/menit) | API `POST /api/sensor-data` | ✅ Selesai |
+| FR-4.2 | Logging aktivitas aktuator misting dan fan | API `POST /api/sprinkler-logs` + Dashboard | ✅ Selesai |
+| FR-4.3 | Otomasi kendali cerdas Firmware v3.5 (Sensor Fusion & Histeresis) | ESP32 Firmware + Simulator | ✅ Selesai |
+| NFR-1 | Autentikasi & otorisasi berbasis role (Admin vs Worker) | Login + Sanctum Token | ✅ Selesai |
+| NFR-2 | Rate limiting endpoint publik (Anti-DDoS) | Throttle Middleware | ✅ Selesai |
+| NFR-3 | Validasi ketat terhadap input data (Anti-Injeksi) | FormRequest Classes | ✅ Selesai |
+| NFR-4 | Presisi data keuangan & pengukuran (`DECIMAL`) | Model + Database Migration | ✅ Selesai |
+| NFR-5 | Automated Testing (115 test cases, 299 assertions) | PHPUnit (Feature + Unit 100% Pass) | ✅ Selesai |
 
 ---
 

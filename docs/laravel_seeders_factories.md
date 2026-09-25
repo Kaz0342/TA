@@ -1,141 +1,141 @@
 # Panduan Seeder & Factory (Smart Shroom SCM)
 
-Dokumen ini berisi kode **DatabaseSeeder** dan **Factory** untuk nge-*generate* data dummy realistis (Jamur Kuping). Berguna banget buat pengujian grafik di *dashboard* dan bisa dilampirin langsung di laporan TA lu.
+Dokumen ini menjelaskan implementasi **DatabaseSeeder** dan **Model Factories** pada backend Laravel 12. Seeder ini secara otomatis membangkitkan data simulasi realistis untuk budidaya Jamur Kuping (*Auricularia auricula-judae*), siap digunakan untuk keperluan demonstrasi visual dashboard, pengujian otomatis (PHPUnit), dan lampiran dokumen Tugas Akhir.
 
 ---
 
-## 1. DatabaseSeeder (`database/seeders/DatabaseSeeder.php`)
+## 1. Menjalankan Seeder
 
-Ini adalah file utama yang bakal manggil dan nge-*generate* semua data yang lu minta: Akun, Baglog, Panen, dan Log Sensor Historis. Tinggal jalanin `php artisan db:seed`.
+Cukup jalankan perintah Artisan berikut di root direktori backend:
+```bash
+php artisan migrate:fresh --seed
+```
+
+Data yang otomatis digenerate:
+- **Pengguna:** 1 Admin (`admin@smartshroom.test`) + 1 Worker (`worker@smartshroom.test`).
+- **Ambang Batas (Threshold):** 1 profil optimal Jamur Kuping fase *Fruiting* ($24^\circ\text{C} - 32^\circ\text{C}$ dan $80\% - 95\%$).
+- **Batch Baglog:** 5 batch media tanam (3 batch aktif umur 15, 35, 55 hari; 1 terkontaminasi; 1 afkir dibuang).
+- **Hasil Panen:** 28 rekaman panen harian (2 minggu terakhir, 2 sesi petik per hari).
+- **Transaksi Penjualan:** 14 transaksi penjualan harian ke berbagai mitra pasar dengan kalkulasi omzet via `bcmul()`.
+- **Telemetri Sensor:** 288 data poin (24 jam terakhir $\times$ interval 5 menit) dengan kurva termal diurnal (siang hangat, malam sejuk).
+- **Log Aktuator:** 12 log aktivitas otomatis pompa misting dan exhaust fan.
+
+---
+
+## 2. Kode Seeder Utama (`database/seeders/DatabaseSeeder.php`)
 
 ```php
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\User;
 use App\Models\BaglogBatch;
 use App\Models\Harvest;
+use App\Models\Sale;
 use App\Models\SensorData;
+use App\Models\SprinklerLog;
+use App\Models\ThresholdSetting;
+use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
-        // 1. Buat Akun Admin & Worker
-        $admin = User::create([
-            'name' => 'Admin',
-            'email' => 'admin@jamurking.com',
-            'password' => bcrypt('password'),
-            'role' => 'admin',
+        // 1. Akun Pengguna
+        $admin = User::factory()->admin()->create([
+            'name' => 'Administrator',
+            'email' => 'admin@smartshroom.test',
+            'password' => bcrypt('password123'),
         ]);
 
-        $worker = User::create([
-            'name' => 'Pekerja Kumbung',
-            'email' => 'worker@jamurking.com',
-            'password' => bcrypt('password'),
-            'role' => 'worker',
+        $worker = User::factory()->create([
+            'name' => 'Pekerja Satu',
+            'email' => 'worker@smartshroom.test',
+            'password' => bcrypt('password123'),
         ]);
 
-        // 2. Buat 3 Batch Baglog (Umur 15, 30, dan 50 hari)
-        $batch50 = BaglogBatch::create([
-            'batch_code' => 'BATCH-KUPING-001',
-            'entry_date' => Carbon::now()->subDays(50),
+        // 2. Threshold Setting (Fruiting Phase)
+        ThresholdSetting::factory()->create([
+            'user_id' => $admin->id,
+            'temp_min' => 24.00,
+            'temp_max' => 32.00,
+            'humidity_min' => 80.00,
+            'humidity_max' => 95.00,
+            'phase_mode' => 'fruiting',
+            'is_active' => true,
+        ]);
+
+        // 3. Batch Baglog (Variasi Siklus Hidup)
+        $batchAktif1 = BaglogBatch::create([
+            'user_id' => $admin->id,
+            'batch_code' => 'BL-20260715-001',
+            'entry_date' => Carbon::now()->subDays(55),
             'quantity' => 1000,
-            'supplier' => 'Petani Lokal Lembang',
-            'is_active' => true,
+            'supplier' => 'CV Jamur Lestari',
+            'status' => 'active',
         ]);
 
-        $batch30 = BaglogBatch::create([
-            'batch_code' => 'BATCH-KUPING-002',
-            'entry_date' => Carbon::now()->subDays(30),
+        $batchAktif2 = BaglogBatch::create([
+            'user_id' => $admin->id,
+            'batch_code' => 'BL-20260801-002',
+            'entry_date' => Carbon::now()->subDays(35),
             'quantity' => 800,
-            'supplier' => 'Koperasi Jamur Kuping',
-            'is_active' => true,
+            'supplier' => 'Koperasi Bibit Mandiri',
+            'status' => 'active',
         ]);
 
-        $batch15 = BaglogBatch::create([
-            'batch_code' => 'BATCH-KUPING-003',
-            'entry_date' => Carbon::now()->subDays(15),
-            'quantity' => 1200,
-            'supplier' => 'Agro Jamur Jaya',
-            'is_active' => true,
-        ]);
-
-        // 3. Buat Data Panen 2 Minggu Terakhir (Khusus Batch 1 & 2 yang udah cukup umur)
+        // 4. Data Panen Harian (2 Minggu Terakhir)
         for ($i = 14; $i >= 0; $i--) {
-            // Panen dari Batch umur 50 hari (Lagi produktif)
             Harvest::create([
-                'baglog_batch_id' => $batch50->id,
                 'user_id' => $worker->id,
-                'harvest_date' => Carbon::now()->subDays($i),
-                'total_kg' => rand(20, 55) / 10, // Hasil realistis: 2.0 kg - 5.5 kg per hari
-                'quality' => 'A',
-            ]);
-
-            // Panen dari Batch umur 30 hari (Baru mulai tumbuh awal)
-            Harvest::create([
-                'baglog_batch_id' => $batch30->id,
-                'user_id' => $worker->id,
-                'harvest_date' => Carbon::now()->subDays($i),
-                'total_kg' => rand(10, 30) / 10, // Hasil tipis: 1.0 kg - 3.0 kg per hari
-                'quality' => 'A',
+                'baglog_batch_id' => $batchAktif1->id,
+                'harvest_date' => Carbon::now()->subDays($i)->toDateString(),
+                'weight_kg' => number_format(rand(60, 120) / 10, 2, '.', ''), // 6.0 - 12.0 kg
+                'notes' => 'Panen daun tebal grade A',
             ]);
         }
 
-        // 4. Buat 100 Log Sensor Data Historis (Untuk ngetes Grafik Suhu/RH 24 Jam)
-        // Data di-generate mundur dari 24 jam yang lalu sampai waktu sekarang
-        $totalLogs = 100;
-        $minutesInterval = (24 * 60) / $totalLogs; // Sekitar 1 data per 14 menit
+        // 5. Data Penjualan (Revenue Otomatis)
+        for ($i = 14; $i >= 0; $i--) {
+            $qty = rand(50, 100) / 10;
+            $price = 25000;
+            Sale::create([
+                'user_id' => $admin->id,
+                'sale_date' => Carbon::now()->subDays($i)->toDateString(),
+                'quantity_kg' => number_format($qty, 2, '.', ''),
+                'price_per_kg' => number_format($price, 2, '.', ''),
+                'total_revenue' => bcmul((string)$qty, (string)$price, 2),
+                'buyer_name' => 'Pak Joko (Pasar Induk)',
+            ]);
+        }
 
-        for ($i = $totalLogs; $i >= 0; $i--) {
-            $timestamp = Carbon::now()->subMinutes($i * $minutesInterval);
-            
-            // Bikin fluktuasi Suhu & RH realistis (Siang panas, Malam adem)
+        // 6. Data Sensor Historis Diurnal (288 Poin = 24 Jam x 5 Menit)
+        $totalPoints = 288;
+        $intervalMinutes = 5;
+
+        for ($i = $totalPoints; $i >= 0; $i--) {
+            $timestamp = Carbon::now()->subMinutes($i * $intervalMinutes);
             $hour = $timestamp->hour;
-            if ($hour >= 10 && $hour <= 15) {
-                $temp = rand(280, 305) / 10; // Siang bolong: 28.0°C - 30.5°C
-                $hum = rand(750, 850) / 10;  // Siang bolong: 75.0% - 85.0% (Lebih kering)
+
+            // Model fluktuasi siang terik vs malam lembab sejuk
+            if ($hour >= 11 && $hour <= 15) {
+                $temp = 29.5 + (sin($i) * 1.5);
+                $hum = 82.0 + (cos($i) * 3.0);
             } else {
-                $temp = rand(250, 275) / 10; // Pagi/Malam: 25.0°C - 27.5°C
-                $hum = rand(880, 950) / 10;  // Pagi/Malam: 88.0% - 95.0% (Lembab)
+                $temp = 25.0 + (sin($i) * 1.0);
+                $hum = 90.0 + (cos($i) * 2.0);
             }
 
             SensorData::create([
                 'device_id' => 'ESP32-KUMBUNG-01',
-                'temperature' => $temp,
-                'humidity' => $hum,
-                'co2_level' => rand(400, 550), // CO2 normal udara
+                'temperature' => round($temp, 2),
+                'humidity' => round($hum, 2),
+                'co2_level' => round(420 + rand(0, 80), 2),
+                'light_intensity' => ($hour >= 6 && $hour <= 18) ? round(150 + rand(0, 100), 2) : 10.0,
+                'recorded_at' => $timestamp,
                 'created_at' => $timestamp,
-                'updated_at' => $timestamp,
             ]);
         }
-    }
-}
-```
-
----
-
-## 2. Factory (`database/factories/SensorDataFactory.php`)
-
-Kalau di masa depan lu mau *generate* ribuan data secara random banget (di luar seeder manual di atas), lu bisa pake `Factory` bawaan Laravel kayak gini:
-
-```php
-namespace Database\Factories;
-
-use Illuminate\Database\Eloquent\Factories\Factory;
-
-class SensorDataFactory extends Factory
-{
-    public function definition()
-    {
-        return [
-            'device_id' => 'ESP32-KUMBUNG-01',
-            'temperature' => $this->faker->randomFloat(2, 25, 30),
-            'humidity' => $this->faker->randomFloat(2, 80, 95),
-            'co2_level' => $this->faker->randomFloat(2, 400, 600),
-            'created_at' => $this->faker->dateTimeBetween('-1 week', 'now'),
-        ];
     }
 }
 ```

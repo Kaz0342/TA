@@ -96,13 +96,14 @@ graph LR
 | Layer | Teknologi | Justifikasi |
 |-------|-----------|-------------|
 | **Frontend** | React 18 + TypeScript + Vite | SPA cepat, type-safe, hot-reload |
-| **UI Framework** | TailwindCSS (Neubrutalism Theme) | Desain modern, konsisten, dan responsif |
-| **State Management** | Zustand (Auth & Toast) + TanStack Query (Server State) | Lightweight, tidak memerlukan Redux |
+| **UI Framework** | TailwindCSS (Harmonious Modern Sage Green & Dark Mode) | Desain ergonomis modern, palet hijau pastel `#244b37`, border halus `#d6e9df`, support Dark Mode lengkap |
+| **Micro-Animations** | RAF & Hardware-Accelerated CSS Transitions | Count-up 60 FPS (`AnimatedNumber`), GPU needle sweep (`SemiCircleGauge`), dynamic progress (`AnimatedProgressBar`) |
+| **State Management** | Zustand (Auth & Toast) + TanStack Query (Server State) | Lightweight, performa tinggi, tidak memerlukan Redux |
 | **Backend** | Laravel 12 (PHP 8.x) | Framework MVC terlengkap, Eloquent ORM, Sanctum Auth |
-| **Database** | SQLite (Dev) / MySQL/PostgreSQL (Prod) | Ringan saat development, scalable saat deploy |
+| **Database** | SQLite (Dev) / PostgreSQL / Supabase (Prod) | Ringan & zero-config saat development, terbukti ACID-compliant & scalable |
 | **Autentikasi** | Laravel Sanctum (Token-based SPA Auth) | Token disimpan di `localStorage` via Zustand, dikirim via header `Authorization: Bearer` |
-| **IoT Hardware** | ESP32 + DHT22 + MQ-135 + BH1750 | Wi-Fi built-in, multi-sensor, murah |
-| **IoT Communication** | HTTP REST API (bukan MQTT) | Tidak memerlukan message broker tambahan |
+| **IoT Hardware** | ESP32 DevKit V1 + 3x DHT22 + BH1750 + MQ-135 | Formasi Segitiga Diagonal, Weighted Sensor Fusion, Wi-Fi built-in |
+| **IoT Communication** | HTTP REST API (Stateless) | Efisien, mudah didebug, tidak memerlukan message broker tambahan |
 
 ### 5.3 Pola Arsitektur Backend
 
@@ -229,38 +230,39 @@ erDiagram
 
 | Kode | Kebutuhan | Deskripsi | Sumber Data |
 |------|-----------|-----------|-------------|
-| **FR-1.1** | Real-time Climate Cards | Menampilkan 4 card indikator: Suhu (°C), Kelembapan (%), Baglog Aktif, Revenue Bulan Ini. Card suhu & kelembapan refresh setiap 30 detik. | `GET /sensor-data/latest`, `GET /dashboard/stats` |
-| **FR-1.2** | Climate Chart 24 Jam | Menampilkan 2 grafik terpisah (Line Chart): suhu (kuning) dan kelembapan (biru) selama 24 jam terakhir. Refresh 5 menit. | `GET /sensor-data/chart?hours=24` |
-| **FR-1.3** | Quick Stats & Alert | Menampilkan ringkasan bisnis (panen hari ini, revenue bulanan) dan banner peringatan merah jika parameter iklim melampaui threshold. | `GET /dashboard/stats` → `checkViolations()` |
-| **FR-1.4** | Panen Hari Ini (Big Number) | Card angka besar menampilkan total berat panen hari ini dalam Kg. | `SUM(weight_kg) WHERE harvest_date = today` |
-| **FR-1.5** | Grafik Panen 14 Hari | Bar Chart hijau menampilkan tren panen harian selama 14 hari terakhir. Hari tanpa panen ditampilkan dengan nilai 0. | `GET /harvests/chart?days=14` |
-| **FR-1.6** | Tabel Batch Aktif | Menampilkan 3 batch baglog aktif terbaru (kode batch, tanggal tanam, umur hari, jumlah, supplier). Indikator warna berdasarkan umur. | `BaglogBatch::active()->latest(3)` |
-| **FR-1.7** | Log Sprinkler | Menampilkan 5 log aktivitas penyiraman terakhir (waktu, durasi, pemicu). | `SprinklerLog::latest(5)` |
+| **FR-1.1** | Real-time Climate Cards | Menampilkan 4 card indikator: Suhu (°C, dengan `SemiCircleGauge` needle sweep), Kelembapan (%, dengan `SemiCircleGauge`), Baglog Aktif (Unit, dengan `AnimatedProgressBar`), dan Panen Hari Ini (KG, dengan `AnimatedProgressBar`). Seluruh angka metrik bergerak dinamis via `AnimatedNumber` (60 FPS count-up). Auto-refresh 30 detik. | `GET /api/sensor-data/latest`, `GET /api/dashboard/stats` |
+| **FR-1.2** | Riwayat Iklim Multirentang | Area Chart mikroklimat interaktif dengan tombol rentang waktu (6h / 12h / 24h / 7d). Rentang 6 jam menggunakan interval time-bucketing 5 menit (~72 data point), 12h per 10 menit, 24h per 15 menit, dan 7d per 60 menit via `SensorDataRepository` SQL aggregation. | `GET /api/sensor-data/chart?hours=6\|12\|24\|168` |
+| **FR-1.3** | Quick Stats & Alert | Menampilkan widget status fase pertumbuhan, live WIB clock, dan banner peringatan merah jika parameter iklim melampaui threshold. | `GET /api/dashboard/stats` → `checkViolations()` |
+| **FR-1.4** | Panen Hari Ini (Metrik KPI) | Card metrik menampilkan realisasi panen hari ini (KG) terhadap target harian 15 KG dengan progress bar teranimasi. | `SUM(weight_kg) WHERE harvest_date = today` |
+| **FR-1.5** | Grafik Tren Panen 14 Hari | Area Chart hijau menampilkan tren panen harian selama 14 hari terakhir untuk memantau ritme produktivitas petik jamur. | `GET /api/harvests/chart?days=14` |
+| **FR-1.6** | Tabel Batch Aktif | Menampilkan batch baglog aktif terbaru (kode batch, tanggal tanam, progress umur hari, jumlah, supplier) dengan visualisasi status warna. | `BaglogBatch::active()->latest(5)` |
+| **FR-1.7** | Log Aktuator (Sprinkler & Fan) | Menampilkan riwayat aktivitas pompa misting dan kipas ventilasi (waktu, durasi detik, pemicu otomatis/manual, stop reason). | `SprinklerLog::latest(5)` |
 
 ### Modul 2: Baglog Lifecycle Management
 
 | Kode | Kebutuhan | Deskripsi | Akses |
 |------|-----------|-----------|-------|
-| **FR-2.1** | Input Batch Baglog | Admin dapat menambahkan batch baru: tanggal masuk, jumlah, supplier, catatan. Kode batch auto-generated. | Admin |
-| **FR-2.2** | Status Lifecycle | Admin dapat mengubah status batch: `active` → `contaminated` → `disposed`. | Admin |
-| **FR-2.3** | Lihat Semua Batch | Menampilkan tabel semua batch dengan filter status (Active / Contaminated / Disposed). Umur dihitung otomatis dari `entry_date`. | Admin, Worker |
+| **FR-2.1** | Input Batch Baglog | Admin dapat menambahkan batch baru: tanggal masuk, jumlah baglog, supplier bibit, lokasi rak, catatan. Kode batch auto-generated (`BL-YYYYMMDD-XXX`). | Admin |
+| **FR-2.2** | Status Lifecycle | Admin dapat mengubah status siklus: `active` → `contaminated` → `disposed`. | Admin |
+| **FR-2.3** | Manajemen Data & Pagination | Tabel batch baglog interaktif dilengkapi **Pagination per 10 baris**, filter status tab (Semua, Aktif, Kontaminasi, Dibuang), dan pencarian real-time berdasarkan kode batch/supplier. Umur baglog dihitung dinamis dari `entry_date`. | Admin, Worker |
 
 ### Modul 3: Harvest & Sales
 
 | Kode | Kebutuhan | Deskripsi | Akses |
 |------|-----------|-----------|-------|
-| **FR-3.1** | Input Panen | Admin/Worker dapat menginput panen harian: tanggal, pilih batch (dropdown), berat (Kg), catatan. | Admin, Worker |
-| **FR-3.2** | Input Penjualan | Admin dapat menginput transaksi: tanggal, kuantitas (Kg), harga per Kg, nama pembeli. Revenue dihitung otomatis di backend via `bcmul()`. | Admin |
-| **FR-3.3** | Laporan Mingguan | Card ringkasan menampilkan total Panen Masuk (Kg), Terjual (Kg), dan Sisa Stok (Kg) per minggu. Mendukung pemilihan minggu sebelumnya via dropdown (offset 0–4). | Admin |
+| **FR-3.1** | Input Panen | Admin/Worker dapat mencatat panen: tanggal petik, pemilihan batch baglog aktif (dropdown), berat bersih (KG), dan catatan grade jamur. | Admin, Worker |
+| **FR-3.2** | Rekap Panen & Pagination | Tabel riwayat panen dilengkapi **Pagination per 10 baris**, filter tanggal/batch, dan kartu metrik (Panen Hari Ini, Total Panen Bulan Ini, Estimasi Nilai Panen, Rata-rata per Sesi). | Admin, Worker |
+| **FR-3.3** | Input Transaksi Penjualan | Admin dapat mencatat penjualan: tanggal transaksi, nama mitra pembeli (dengan chip rekomendasi cepat), volume (KG), dan harga per KG. Total revenue dihitung otomatis di backend via `bcmul()`. | Admin |
+| **FR-3.4** | Rekap Penjualan & Pagination | Tabel transaksi penjualan dengan **Pagination per 10 baris**, kartu KPI omzet & volume bulanan, serta grafik tren penjualan dual-axis. | Admin |
 
 ### Modul 4: IoT & Aktuator
 
 | Kode | Kebutuhan | Deskripsi |
 |------|-----------|-----------|
-| **FR-4.1** | Endpoint Penerimaan Data IoT | Endpoint publik `POST /api/sensor-data` menerima payload JSON dari ESP32. Validasi ketat via `StoreSensorDataRequest`. |
-| **FR-4.2** | Logging Sprinkler | Endpoint publik `POST /api/sprinkler-logs` mencatat aktivitas aktuator penyiraman (durasi, alasan trigger). |
-| **FR-4.3** | Konfigurasi Threshold | Admin dapat mengatur batas suhu/kelembapan via halaman Settings. Threshold aktif dibaca oleh ESP32 via `GET /api/thresholds/active`. |
-| **FR-4.4** | Kontrol Sprinkler Otomatis | ESP32 menjalankan logika proporsional: durasi penyiraman dihitung berdasarkan delta suhu/kelembapan terhadap threshold. Terdapat *safety check* — pompa ditahan jika suhu tinggi tapi kelembapan sudah maksimal. |
+| **FR-4.1** | Endpoint Penerimaan Data IoT | Endpoint publik `POST /api/sensor-data` menerima payload JSON dari ESP32. Validasi ketat via `StoreSensorDataRequest`. Dilengkapi feedback alert jika melanggar threshold. |
+| **FR-4.2** | Logging Aktuator | Endpoint publik `POST /api/sprinkler-logs` mencatat durasi, jenis aktuator (`misting` atau `fan`), dan alasan aktivasi/terminasi. |
+| **FR-4.3** | Konfigurasi Threshold & Preset | Admin dapat mengatur batas suhu/kelembapan secara manual atau memilih preset 1-klik (Inkubasi, Primordia, Fruiting). Threshold aktif dibaca ESP32 via `GET /api/thresholds/active`. |
+| **FR-4.4** | Kontrol Otomatisasi Cerdas (Firmware v3.5) | ESP32 mengevaluasi Weighted Sensor Fusion 3x DHT22 (35% A, 40% B, 25% C) dengan histeresis dinamis, Universal Guard (30 menit delay antar aktuator), 150s misting cooldown, 900s fan homogenize, Emergency Safety Override (> 34°C), dan Night Purge vs Periodic Flush. |
 
 ---
 
@@ -345,34 +347,37 @@ erDiagram
 
 | Komponen | Spesifikasi | Fungsi | Estimasi Harga |
 |----------|-------------|--------|----------------|
-| ESP32 DevKit V1 | 30/38-pin, Type-C | Mikrokontroler utama (Wi-Fi built-in) | Rp 50.000–70.000 |
-| DHT22 | Sensor Suhu & Kelembapan | Membaca suhu (°C) dan kelembapan relatif (%) | Rp 45.000–60.000 |
-| BH1750 | Digital Light Sensor (I2C) | Membaca intensitas cahaya (Lux) | Rp 15.000–20.000 |
-| MQ-135 | Gas Sensor Module | Deteksi kualitas udara / CO2 estimasi | Rp 20.000–30.000 |
-| RTC DS3231 | Real-Time Clock | Menjaga waktu akurat saat offline (untuk Blackbox) | Rp 15.000–25.000 |
-| Relay Module | 1-Channel 5V | Saklar otomatis untuk pompa air | Rp 10.000–15.000 |
-| Mini Water Pump | 5V/12V | Aktuator penyiraman otomatis | Rp 15.000–30.000 |
-| Breadboard + Jumper | MB-102, Dupont cables | Prototyping | Rp 30.000 |
-| Power Supply | Adaptor 5V 2A | Catu daya stabil untuk ESP32 | Rp 30.000 |
+| ESP32 DevKit V1 | 30/38-pin, Type-C | Mikrokontroler utama edge computing (Wi-Fi built-in) | Rp 50.000–70.000 |
+| 3x DHT22 | Sensor Suhu & Kelembapan Presisi | Formasi Segitiga Diagonal (Atas GPIO 4, Tengah GPIO 15, Bawah GPIO 2) | Rp 135.000–180.000 |
+| BH1750 | Digital Light Sensor (I2C) | Membaca intensitas cahaya kumbung (Lux) | Rp 15.000–20.000 |
+| MQ-135 | Gas Sensor Module | Deteksi kualitas udara & CO2 estimasi | Rp 20.000–30.000 |
+| RTC DS3231 | Real-Time Clock | Menjaga akurasi timestamp saat offline (Blackbox FIFO) | Rp 15.000–25.000 |
+| Relay Module | 2-Channel 5V Optocoupler | Saklar terisolasi untuk pompa misting & kipas ventilasi | Rp 15.000–25.000 |
+| High-Pressure Misting Pump | 12V DC + Nozzle Kabut | Pengabutan halus untuk menaikkan RH tanpa tetesan besar | Rp 80.000–120.000 |
+| Exhaust Fan | 12V / 220V Ventilasi | Sirkulasi homogenisasi udara & pembuangan akumulasi CO2 | Rp 40.000–70.000 |
+| Power Supply | Adaptor 12V 5A + Stepdown 5V | Catu daya stabil mikrokontroler dan seluruh aktuator | Rp 45.000–60.000 |
 
-**Total Estimasi: Rp 200.000–300.000** (opsi hemat, tanpa MH-Z19B)
+### 10.2 Algoritma Kendali Aktuator (Firmware v3.5)
 
-### 10.2 Logika Kontrol Aktuator (Sprinkler)
+Sistem menggunakan kendali umpan-balik tertutup (*closed-loop control*) dengan **Weighted Sensor Fusion (35% A, 40% B, 25% C)** dan histeresis dinamis:
 
-```
-JIKA suhu > temp_max DAN kelembapan < humidity_max:
-    durasi = min((delta_suhu x 30) + 30, 180) detik
-    → NYALAKAN POMPA
+1. **Formula Sensor Fusion:**
+   $$T_{\text{avg}} = 0.35 \cdot T_A + 0.40 \cdot T_B + 0.25 \cdot T_C$$
+   $$RH_{\text{avg}} = 0.35 \cdot RH_A + 0.40 \cdot RH_B + 0.25 \cdot RH_C$$
+   *(Jika terjadi sensor fail/NaN, bobot dinormalisasi ulang secara otomatis).*
 
-JIKA suhu > temp_max DAN kelembapan >= humidity_max:
-    → TAHAN POMPA (cegah busuk karena terlalu basah)
+2. **Logika Misting:**
+   - **START:** Saat $RH_{\text{avg}} < \text{humMin}$ atau $T_{\text{avg}} > \text{tempMax}$.
+   - **STOP:** Saat $RH_{\text{avg}} \ge \min(\text{humMax} - 4, \text{humMin} + 5)$. Rentang deadband 5% mencegah osilasi gigi gergaji (*sawtooth wave*).
+   - **Proteksi:** Interlock kipas, Emergency Timeout 60s, Evaporation Cooldown 150s, Night Lockout (17:00–06:00 WIB).
 
-JIKA kelembapan < humidity_min:
-    durasi = min((delta_kelembapan x 5) + 30, 120) detik
-    → NYALAKAN POMPA
-```
+3. **Logika Exhaust Fan:**
+   - **Pendinginan Siang:** ON jika $T_{\text{avg}} > \text{tempMax}$, OFF jika $T \le \text{tempMax} - 1.5^\circ\text{C}$ (Max 180s).
+   - **Homogenisasi Sirkulasi:** ON 30s jika disparitas $|RH_A - RH_C| > 12\%$, cooldown 900s.
+   - **Emergency Safety Override:** Jika sensor atas $> 34^\circ\text{C}$, bypass seluruh cooldown dan paksa fan ON segera.
+   - **Night Purge & Flush:** Siklus presisi 45s untuk kelembapan jenuh ($RH \ge 96\%$) dan pembilasan CO2 berkala tiap 60 menit.
 
-Durasi penyiraman bersifat **proporsional** (bukan biner on/off), dihitung berdasarkan besarnya selisih (delta) terhadap threshold. Ini menunjukkan penerapan kontrol adaptif yang lebih cerdas dibanding logika on/off sederhana.
+4. **Universal Guard:** Jeda minimum 30 menit antar aktuator untuk menjaga kestabilan mikroklimat.
 
 ### 10.3 Mekanisme Fault Tolerance (Blackbox)
 
@@ -408,52 +413,54 @@ flowchart TD
 | `/sales` | Sales Management | `SalesManagement.tsx` | Admin |
 | `/settings` | Settings (Threshold) | `Settings.tsx` | Admin |
 
-### 11.2 Tema Visual
+### 11.2 Tema Visual & Design Tokens
 
-- **Style:** Neubrutalism — border hitam tebal (4px), shadow offset `[6px_6px_0px]`, warna solid dan kontras tinggi.
+- **Gaya Desain:** Harmonious Modern Sage Green & Dark Mode (Ergonomis, Bersih, Kontras Lembut).
 - **Palet Warna:**
-  - Hijau aksen: `#28e085`
-  - Kuning badge: TailwindCSS `yellow-400`
-  - Biru badge: TailwindCSS `blue-400` (`#60a5fa`)
-  - Background: putih bersih
-  - Teks: hitam pekat
-- **Font:** Sistem font TailwindCSS default dengan `font-black` (900 weight) untuk heading.
-- **Sidebar:** Collapsible (icon-only mode), role-aware (menu Sales & Settings tersembunyi untuk Worker).
-- **Modals:** Menggunakan `createPortal()` ke `document.body` untuk overlay form input.
+  - Brand Primary: Emerald Deep `#244b37` (Hover `#1b3a2b`, Active `#142c20`)
+  - Canvas Background: `#edf5f0` (Light) / `#111f17` (Dark)
+  - Card & Surface: `#ffffff` dengan border halus `#d6e9df` (Light) / `#1a2e23` dengan border `#2a4435` (Dark)
+  - Status Optimal: Hijau Daun `#499b70` / `#15803d`
+  - Status Waspada: Amber Soft `#f59e0b` / `#b45309`
+  - Status Kritis / Bahaya: Coral Red `#e05345` / `#991b1b`
+- **Tipografi:** Google Font `'Plus Jakarta Sans'`, `'Inter'`, dan `'JetBrains Mono'`.
+- **Interaksi:** Micro-animation 60 FPS pada angka metrik, gauge sweep animasi jarum SVG rotasi CSS, serta transisi smooth progress bar.
 
 ### 11.3 Komponen UI Reusable
 
 | Komponen | Lokasi | Deskripsi |
 |----------|--------|-----------|
-| `Card` | `components/ui/index.tsx` | Container card dengan border tebal dan shadow Neubrutalism |
-| `Button` | `components/ui/index.tsx` | Tombol aksi dengan efek hover naik dan active ditekan |
-| `ToastContainer` | `components/ui/ToastContainer.tsx` | Notifikasi toast (success/error) dengan state global Zustand |
-| `DashboardLayout` | `components/DashboardLayout.tsx` | Layout utama dengan sidebar, header jam real-time, dan Outlet |
-| `ThemeProvider` | `components/ThemeProvider.tsx` | Provider konteks tema (Dark Mode support) |
+| `SemiCircleGauge` | `components/SemiCircleGauge.tsx` | Gauge setengah lingkaran dengan jarum putar terakselerasi GPU (`transform: rotate`, 50ms mount buffer) |
+| `AnimatedNumber` | `components/AnimatedNumber.tsx` | Counter angka 60 FPS menggunakan `requestAnimationFrame` + `easeOutCubic` |
+| `AnimatedProgressBar` | `components/AnimatedProgressBar.tsx` | Progress bar visual kapasitas dan target panen dengan transisi CSS |
+| `Card` | `components/ui/index.tsx` | Card surface modular dengan border halus dan bayangan lembut |
+| `ToastContainer` | `components/ui/ToastContainer.tsx` | Notifikasi toast interaktif tersinkronisasi Zustand |
+| `DashboardLayout` | `components/DashboardLayout.tsx` | Shell navigasi dengan sidebar responsif dan live WIB clock |
+| `ThemeProvider` | `components/ThemeProvider.tsx` | Pengelola Dark Mode / Light Mode otomatis |
 
 ---
 
 ## 12. Strategi Pengujian
 
-### 12.1 Automated Testing (PHPUnit)
+### 12.1 Automated Testing (PHPUnit) — 115 Tests Passing (299 Assertions)
 
-| Kategori | File Test | Cakupan |
-|----------|-----------|---------|
-| **Feature: Auth** | `SecurityAuthTest.php` | Login, logout, akses tanpa token, akses dengan role salah |
-| **Feature: Injection** | `SecurityInjectionTest.php` | SQL injection attempt, XSS payload, input sanitization |
-| **Feature: Rate Limit** | `SecurityRateLimitTest.php` | Endpoint publik IoT melebihi 20 request/menit → 429 |
-| **Unit: Baglog** | `BaglogBatchLogicTest.php` | Generate batch code, lifecycle status transition, age calculation |
-| **Unit: Sale** | `SaleCalculationTest.php` | Kalkulasi revenue via `bcmul()`, presisi DECIMAL |
-| **Unit: Sensor** | `SensorDataHelperTest.php` | Helper methods `isTemperatureAbove()`, `isHumidityBelow()`, dll. |
-| **Unit: Threshold** | `ThresholdViolationTest.php` | `checkViolations()` — skenario suhu kritis, kelembapan rendah, semua normal |
+Pengujian otomatis mengadopsi Extreme Programming (XP) dengan 100% kelulusan (115 tests, 299 assertions):
 
-### 12.2 IoT Simulator
+| Kategori | File Test Utama | Cakupan Pengujian |
+|----------|-----------------|-------------------|
+| **Feature: Auth & RBAC** | `SecurityAuthTest.php`, `RolePermissionTest.php` | Login, token Sanctum, proteksi endpoint, role guard admin vs worker |
+| **Feature: Security** | `SecurityInjectionTest.php`, `SecurityRateLimitTest.php` | Proteksi SQL injection, XSS escaping, rate limit 20 req/menit |
+| **Feature: API Endpoints** | `SensorDataApiTest.php`, `BaglogApiTest.php`, `HarvestApiTest.php`, `SaleApiTest.php` | Pengujian respons HTTP, validasi FormRequest, status code 200/201/422 |
+| **Unit: Business Logic** | `SaleCalculationTest.php`, `BaglogBatchLogicTest.php` | Kalkulasi revenue presisi `bcmul()`, siklus status baglog, hitung umur |
+| **Unit: Climate & Downsampling** | `SensorDataRepositoryTest.php`, `ThresholdViolationTest.php` | Verifikasi SQL time-bucketing 5m/10m/15m/60m, filter pelanggaran threshold |
 
-File `iot_simulator.py` (Python) menyimulasikan perilaku ESP32 tanpa perangkat keras fisik:
-- Mengirim data sensor acak setiap 10 detik ke `POST /api/sensor-data`.
-- Membaca threshold aktif dari `GET /api/thresholds/active`.
-- Menjalankan logika kontrol sprinkler proporsional.
-- Mengirim log sprinkler ke `POST /api/sprinkler-logs`.
+### 12.2 IoT Simulator v3.5 (`iot_simulator.py`)
+
+File `iot_simulator.py` menyimulasikan operasional kumbung nyata secara akurat tanpa perangkat fisik:
+- Menjalankan model termal-kelembapan berbasis siklus diurnal matahari (panas siang, dingin malam).
+- Weighted Sensor Fusion 3x DHT22 (A=35%, B=40%, C=25%).
+- Logika kendali pompa misting & fan sesuai spesifikasi Firmware v3.5 termasuk Universal Guard (30 menit delay).
+- Sinkronisasi otomatis ke backend Laravel lokal (`POST /api/sensor-data` dan `POST /api/sprinkler-logs`).
 
 ---
 
