@@ -83,6 +83,8 @@ class SensorDataController extends Controller
         return $this->success([
             'temperature' => $sensorData->temperature,
             'humidity' => $sensorData->humidity,
+            'co2_level' => $sensorData->co2_level,
+            'light_intensity' => $sensorData->light_intensity,
             'device_id' => $sensorData->device_id,
             'recorded_at' => $sensorData->recorded_at->toIso8601String(),
             'alerts' => $alerts,
@@ -99,7 +101,7 @@ class SensorDataController extends Controller
      */
     public function chart(Request $request): JsonResponse
     {
-        $hours = min((int) $request->get('hours', 24), 168);
+        $hours = min((int) $request->get('hours', 24), 720);
 
         $chartData = $this->service->getChartData($hours);
 

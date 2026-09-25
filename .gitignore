@@ -8,4 +8,4 @@ backend/.env
 backend/.env.production
 __pycache__/
 *.pyc
-
+.codegraph/

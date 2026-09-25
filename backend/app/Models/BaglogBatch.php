@@ -85,7 +85,7 @@ class BaglogBatch extends Model
      */
     public function getAgeDaysAttribute(): int
     {
-        return Carbon::parse($this->entry_date)->diffInDays(now());
+        return (int) Carbon::parse($this->entry_date)->diffInDays(now());
     }
 
     // ─── Relationships ──────────────────────────────────────────

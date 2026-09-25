@@ -327,6 +327,41 @@ class EccComprehensiveTestSuiteTest extends TestCase
             ->assertJsonPath('data.actuator', 'fan');
     }
 
+    /**
+     * [Positive REST] GET /api/sprinkler-logs mengembalikan log aktuator terurut dan mendukung filter.
+     */
+    public function test_positive_get_sprinkler_logs_authenticated_with_filters(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+
+        $this->postJson('/api/sprinkler-logs', [
+            'device_id' => 'ESP32-KUMBUNG-01',
+            'actuator' => 'misting',
+            'duration_seconds' => 30,
+            'trigger_reason' => 'Safety Override: Sensor Terkering',
+        ]);
+
+        $this->postJson('/api/sprinkler-logs', [
+            'device_id' => 'ESP32-KUMBUNG-01',
+            'actuator' => 'fan',
+            'duration_seconds' => 45,
+            'trigger_reason' => 'Night Over-Humidity Purge',
+        ]);
+
+        // Act: Fetch all logs
+        $resAll = $this->actingAs($admin)->getJson('/api/sprinkler-logs?limit=5');
+        $resAll->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonCount(2, 'data');
+
+        // Act: Filter by actuator fan
+        $resFan = $this->actingAs($admin)->getJson('/api/sprinkler-logs?actuator=fan');
+        $resFan->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.actuator', 'fan');
+    }
+
     // ══════════════════════════════════════════════════════════════════
     // BAGIAN 2: NEGATIVE TESTS (Boundary, Validasi & Hak Akses)
     // ══════════════════════════════════════════════════════════════════

@@ -47,6 +47,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Dashboard Quick Stats (FR-1.3)
     Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
 
+    // Actuator Logs History
+    Route::get('/sprinkler-logs', [SprinklerLogController::class, 'index']);
+
     // Baglog Management (FR-2.x)
     Route::get('/baglogs', [BaglogBatchController::class, 'index']);
     Route::patch('/baglogs/{id}/status', [BaglogBatchController::class, 'updateStatus']);
