@@ -1,131 +1,101 @@
-# Panduan Komponen Frontend: ClimateCards.tsx
+# Panduan Komponen KPI Iklim: SemiCircleGauge & AnimatedNumber
 
-Dokumen ini berisi kode dan penjelasan untuk komponen React `ClimateCards.tsx`. Komponen ini bertugas menampilkan kartu informasi Suhu dan Kelembapan secara dinamis (warnanya berubah sesuai status cuaca). Komponen ini menggunakan gaya desain **Neobrutalism** agar senada dengan UI *dashboard* secara keseluruhan.
-
----
-
-## 1. Logika Status Warna
-
-Komponen ini dirancang khusus untuk memenuhi batasan mikroklimat **Jamur Kuping**:
-*   **Suhu Ruangan:**
-    *   **Hijau (Optimal):** 25 - 30 °C
-    *   **Kuning (Waspada):** 20 - 24.9 °C ATAU 30.1 - 35 °C
-    *   **Merah (Kritis):** < 20 °C ATAU > 35 °C
-*   **Kelembapan Udara (RH):**
-    *   **Hijau (Optimal):** 85 - 95 %
-    *   **Kuning (Waspada):** 75 - 84.9 % ATAU > 95 %
-    *   **Merah (Kritis):** < 75 %
+Dokumen ini menjelaskan implementasi kartu indikator iklim (**Climate KPI Cards**) pada halaman utama Dashboard Smart Shroom SCM. Sistem menggunakan gaya desain **Harmonious Modern Sage Green & Dark Mode** yang dilengkapi dengan **Hardware-Accelerated Gauge Needle Animation** dan **60 FPS Number Counter**.
 
 ---
 
-## 2. Kode Komponen (`frontend/src/components/ClimateCards.tsx`)
+## 1. Arsitektur Komponen KPI
 
-File ini diletakkan pada folder `components` di sistem frontend React/Vite.
+Alih-alih kartu statis kotak kaku, Dashboard menggunakan visualisasi dial setengah lingkaran (*semi-circle radial gauge*) dan interpolasi angka dinamis:
+
+```
+[Dashboard.tsx]
+     ├── Kartu Suhu (°C)       ──> SemiCircleGauge (min: 15, max: 35) + AnimatedNumber
+     ├── Kartu Kelembapan (%)  ──> SemiCircleGauge (min: 40, max: 100) + AnimatedNumber
+     ├── Kartu Baglog Aktif    ──> AnimatedProgressBar (kapasitas 3.000) + AnimatedNumber
+     └── Kartu Panen Hari Ini  ──> AnimatedProgressBar (target 15 KG) + AnimatedNumber
+```
+
+---
+
+## 2. Kode Komponen Gauge (`frontend/src/components/SemiCircleGauge.tsx`)
+
+Komponen ini merender SVG path busur setengah lingkaran (`minAngle = -90°`, `maxAngle = +90°`) dengan jarum penunjuk yang dirotasi menggunakan properti CSS `transform: rotate(...)` dan diakselerasi GPU.
 
 ```tsx
-import React from 'react';
-import { Thermometer, Droplets, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import React, { useEffect, useState } from 'react';
 
-// Helper untuk menggabungkan class Tailwind
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
+interface SemiCircleGaugeProps {
+  value: number;
+  min: number;
+  max: number;
+  unit: string;
+  optimalMin?: number;
+  optimalMax?: number;
+  isDark?: boolean;
 }
 
-// Logika Status Warna Suhu
-const getTempStatus = (temp: number) => {
-  if (temp >= 25 && temp <= 30) return { label: 'Optimal', color: 'bg-[#28e085]', icon: CheckCircle2 };
-  if ((temp >= 20 && temp < 25) || (temp > 30 && temp <= 35)) return { label: 'Waspada', color: 'bg-yellow-400', icon: Info };
-  return { label: 'Kritis', color: 'bg-red-500', icon: AlertTriangle };
-};
+export default function SemiCircleGauge({
+  value,
+  min,
+  max,
+  unit,
+  optimalMin,
+  optimalMax,
+  isDark = false,
+}: SemiCircleGaugeProps) {
+  const [animatedValue, setAnimatedValue] = useState(min);
 
-// Logika Status Warna Kelembapan
-const getHumStatus = (hum: number) => {
-  if (hum >= 85 && hum <= 95) return { label: 'Optimal', color: 'bg-[#28e085]', icon: CheckCircle2 };
-  if ((hum >= 75 && hum < 85) || hum > 95) return { label: 'Waspada', color: 'bg-yellow-400', icon: Info };
-  return { label: 'Kritis', color: 'bg-red-500', icon: AlertTriangle };
-};
+  // Buffer 50ms memastikan state 0 ter-render di DOM sebelum transisi CSS dimulai
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAnimatedValue(value);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [value, min]);
 
-interface ClimateCardsProps {
-  temperature?: number | null;
-  humidity?: number | null;
-  isLoading?: boolean;
-}
+  const clampedVal = Math.min(Math.max(animatedValue, min), max);
+  const ratio = (clampedVal - min) / (max - min);
+  const rotationDeg = -90 + ratio * 180;
 
-export default function ClimateCards({ temperature, humidity, isLoading }: ClimateCardsProps) {
-  const tempStatus = temperature ? getTempStatus(temperature) : null;
-  const humStatus = humidity ? getHumStatus(humidity) : null;
+  // Penentuan warna status berdasarkan rentang optimal
+  const isOptimal = optimalMin !== undefined && optimalMax !== undefined
+    ? clampedVal >= optimalMin && clampedVal <= optimalMax
+    : true;
+
+  const needleColor = isOptimal ? '#244b37' : '#e05345';
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-      {/* Kartu Suhu (Temperature) */}
-      <div className={cn(
-        "relative flex flex-col p-6 border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all hover:-translate-y-1 hover:shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] duration-300",
-        tempStatus?.color || "bg-gray-200"
-      )}>
-        <div className="flex justify-between items-start">
-          <div className="p-3 bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] shrink-0">
-            <Thermometer className="w-8 h-8 text-black stroke-[3]" />
-          </div>
-          
-          {tempStatus && (
-            <div className="flex items-center gap-2 bg-white border-4 border-black px-4 py-1.5 font-black uppercase text-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-              <tempStatus.icon className="w-5 h-5 stroke-[3]" />
-              {tempStatus.label}
-            </div>
-          )}
-        </div>
-        
-        <div className="mt-8">
-          <p className="text-sm font-black uppercase text-black mb-1">Suhu Ruangan</p>
-          <div className="flex items-baseline gap-2">
-            <h2 className="text-6xl sm:text-7xl font-black text-black tracking-tighter">
-              {isLoading ? '--' : temperature?.toFixed(1) || '--'}
-            </h2>
-            <span className="text-3xl font-black text-black">°C</span>
-          </div>
-        </div>
+    <div className="relative flex flex-col items-center">
+      <svg viewBox="0 0 100 55" className="w-full h-auto max-w-[150px]">
+        {/* Track Latar Busur */}
+        <path
+          d="M 12 44 A 38 38 0 0 1 88 44"
+          fill="none"
+          stroke={isDark ? '#233d2e' : '#e2ede6'}
+          strokeWidth="7"
+          strokeLinecap="round"
+        />
 
-        <div className="mt-6 pt-4 border-t-4 border-black flex justify-between text-xs sm:text-sm font-black uppercase">
-          <span>Target: 25 - 30 °C</span>
-          <span className="opacity-70 truncate max-w-[100px] sm:max-w-none text-right">IoT ESP32</span>
-        </div>
-      </div>
+        {/* Jarum Indikator (Transform-Origin di Titik Poros) */}
+        <line
+          x1="50"
+          y1="44"
+          x2="50"
+          y2="18"
+          stroke={needleColor}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          style={{
+            transform: `rotate(${rotationDeg}deg)`,
+            transformOrigin: '50px 44px',
+            transition: 'transform 1000ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+          }}
+        />
 
-      {/* Kartu Kelembapan (Humidity) */}
-      <div className={cn(
-        "relative flex flex-col p-6 border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all hover:-translate-y-1 hover:shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] duration-300",
-        humStatus?.color || "bg-gray-200"
-      )}>
-        <div className="flex justify-between items-start">
-          <div className="p-3 bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] shrink-0">
-            <Droplets className="w-8 h-8 text-black stroke-[3]" />
-          </div>
-          
-          {humStatus && (
-            <div className="flex items-center gap-2 bg-white border-4 border-black px-4 py-1.5 font-black uppercase text-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-              <humStatus.icon className="w-5 h-5 stroke-[3]" />
-              {humStatus.label}
-            </div>
-          )}
-        </div>
-        
-        <div className="mt-8">
-          <p className="text-sm font-black uppercase text-black mb-1">Kelembapan Udara (RH)</p>
-          <div className="flex items-baseline gap-2">
-            <h2 className="text-6xl sm:text-7xl font-black text-black tracking-tighter">
-              {isLoading ? '--' : humidity?.toFixed(1) || '--'}
-            </h2>
-            <span className="text-3xl font-black text-black">%</span>
-          </div>
-        </div>
-
-        <div className="mt-6 pt-4 border-t-4 border-black flex justify-between text-xs sm:text-sm font-black uppercase">
-          <span>Target: 85 - 95 %</span>
-          <span className="opacity-70 truncate max-w-[100px] sm:max-w-none text-right">IoT ESP32</span>
-        </div>
-      </div>
+        {/* Titik Poros Tengah */}
+        <circle cx="50" cy="44" r="3.5" fill={needleColor} />
+      </svg>
     </div>
   );
 }
@@ -133,23 +103,92 @@ export default function ClimateCards({ temperature, humidity, isLoading }: Clima
 
 ---
 
-## 3. Cara Penggunaan di Frontend
+## 3. Kode Komponen Counter (`frontend/src/components/AnimatedNumber.tsx`)
 
-Untuk mengaktifkan dan me-render komponen ini di halaman utama Dashboard, cukup edit file `frontend/src/pages/Dashboard.tsx`.
+Menghasilkan efek angka yang menghitung naik (*count-up*) secara mulus pada kecepatan 60 FPS menggunakan `requestAnimationFrame` dan kurva perlambatan kubik (*ease-out cubic*):
 
-### A. Import Komponen
-Letakkan di barisan import paling atas:
 ```tsx
-import ClimateCards from '../components/ClimateCards';
+import React, { useEffect, useState, useRef } from 'react';
+
+interface AnimatedNumberProps {
+  value: number;
+  duration?: number;
+  precision?: number;
+  prefix?: string;
+  suffix?: string;
+  className?: string;
+}
+
+export default function AnimatedNumber({
+  value,
+  duration = 1000,
+  precision = 1,
+  prefix = '',
+  suffix = '',
+  className = '',
+}: AnimatedNumberProps) {
+  const [displayValue, setDisplayValue] = useState<number>(0);
+  const startValRef = useRef<number>(0);
+  const startTimeRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    let animId: number;
+    const startVal = startValRef.current;
+    const endVal = value;
+    startTimeRef.current = null;
+
+    const step = (timestamp: number) => {
+      if (!startTimeRef.current) startTimeRef.current = timestamp;
+      const progress = Math.min((timestamp - startTimeRef.current) / duration, 1);
+      
+      // Easing function: Ease-Out Cubic
+      const ease = 1 - Math.pow(1 - progress, 3);
+      const current = startVal + (endVal - startVal) * ease;
+
+      setDisplayValue(current);
+
+      if (progress < 1) {
+        animId = requestAnimationFrame(step);
+      } else {
+        startValRef.current = endVal;
+      }
+    };
+
+    animId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animId);
+  }, [value, duration]);
+
+  return (
+    <span className={className}>
+      {prefix}{displayValue.toFixed(precision)}{suffix}
+    </span>
+  );
+}
 ```
 
-### B. Memanggil Komponen
-Panggil komponen `<ClimateCards />` dengan melempar *props* suhu dan kelembapan dari hasil *fetch* API.
+---
+
+## 4. Penggunaan di Kartu Dashboard (`Dashboard.tsx`)
 
 ```tsx
-<ClimateCards 
-  temperature={latestSensor?.temperature} 
-  humidity={latestSensor?.humidity} 
-  isLoading={sensorLoading} 
-/>
+{/* Kartu Suhu Kumbung */}
+<div className="bg-white dark:bg-[#1a2e23] border border-[#d6e9df] dark:border-[#2a4435] rounded-3xl p-5 shadow-xs">
+  <div className="flex justify-between items-center mb-2">
+    <span className="text-xs font-bold text-[#759183] uppercase tracking-wider">Suhu Kumbung</span>
+    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#e8f4ed] text-[#15803d]">Optimal</span>
+  </div>
+  
+  <div className="text-3xl font-extrabold text-[#192e22] dark:text-[#edf5f0]">
+    <AnimatedNumber value={currentTemp} precision={1} suffix="°C" />
+  </div>
+
+  <SemiCircleGauge 
+    value={currentTemp} 
+    min={15} 
+    max={35} 
+    unit="°C" 
+    optimalMin={24} 
+    optimalMax={32} 
+  />
+</div>
 ```

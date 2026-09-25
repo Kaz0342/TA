@@ -1,132 +1,78 @@
-# Panduan Custom Hook: useDashboardData.ts
+# Panduan Sinkronisasi Data Dashboard (TanStack Query)
 
-Dokumen ini berisi kode untuk *Custom Hook* React **`useDashboardData.ts`**. Hook ini mengandalkan **TanStack Query (React Query)** dipadukan dengan **Axios** untuk melakukan pengambilan data (fetch) API secara otomatis.
-
-Fitur andalan dari hook ini:
-1.  **Auto-Polling:** Otomatis narik data dari *server* tiap 10 detik (nyesuaiin interval pengiriman data ESP32).
-2.  **Server Offline Detection:** Bisa deteksi kalau *server* mati/RTO (*Request Time Out*) dan mengembalikan status `isOffline`.
-3.  **Background Refresh:** Bisa tahu kalau data lagi di- *refresh* di *background* tanpa harus nge-blok UI.
+Dokumen ini menjelaskan strategi sinkronisasi data frontend React menggunakan **TanStack Query (React Query)** pada sistem **Smart Shroom SCM**. Pola ini mengelola cache data server, *auto-polling*, *background refresh*, serta penanganan *network fail-safe*.
 
 ---
 
-## 1. Kode Hook (`frontend/src/hooks/useDashboardData.ts`)
+## 1. Arsitektur Polling & Caching
 
-Simpan file ini di folder `hooks` di dalam proyek React lu. Pastikan lo udah *install* `@tanstack/react-query` dan `axios`.
-
-```typescript
-import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
-
-// Konfigurasi instance Axios
-// Kasih timeout 5 detik, kalau server ga jawab berarti offline/mati
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
-  timeout: 5000, 
-});
-
-interface DashboardStats {
-  current_temperature: number | null;
-  current_humidity: number | null;
-  active_baglogs: number;
-  today_harvest_kg: number;
-  last_update: string | null;
-}
-
-export function useDashboardData() {
-  // Fungsi utama untuk nembak API
-  const fetchDashboardStats = async (): Promise<DashboardStats> => {
-    const response = await api.get('/dashboard/stats');
-    return response.data.data;
-  };
-
-  // Konfigurasi TanStack Query
-  const query = useQuery({
-    queryKey: ['dashboardStats'],
-    queryFn: fetchDashboardStats,
-    
-    // Auto-polling tiap 10.000 ms (10 detik)
-    refetchInterval: 10000, 
-    
-    // Kalau gagal (RTO/server mati), coba ulang 2 kali aja biar ga nyepam
-    retry: 2, 
-    
-    // Data dianggap basi setelah 5 detik, jadi wajar kalau mau fetch ulang
-    staleTime: 5000, 
-  });
-
-  // Logika deteksi Server Offline / Network Error
-  // Kalau error dan nggak ada response dari server (artinya ga konek sama sekali)
-  const isOffline = query.isError && (
-    !axios.isAxiosError(query.error) || 
-    !query.error.response || 
-    query.error.code === 'ERR_NETWORK' ||
-    query.error.code === 'ECONNABORTED'
-  );
-
-  // Return objek data dan status ke komponen yang manggil
-  return {
-    data: query.data,
-    
-    // isLoading cuma True waktu PERTAMA KALI fetch data
-    isLoading: query.isLoading, 
-    
-    // isFetching True TIAP KALI auto-polling jalan di background
-    isFetching: query.isFetching, 
-    
-    isError: query.isError,
-    isOffline: isOffline,
-    error: query.error,
-  };
-}
-```
+| Query Key | Endpoint API | Interval Polling | Fungsi |
+|---|---|---|---|
+| `['dashboardStats']` | `GET /api/dashboard/stats` | 30 detik | 4 KPI Cards, EWS Violations, status fase aktif |
+| `['sensorChart', range]` | `GET /api/sensor-data/chart?hours=X` | 60 detik | Grafik Recharts multirentang (6h / 12h / 24h / 7d) |
+| `['sprinklerLogs']` | `GET /api/sprinkler-logs` | 30 detik | Log riwayat otomasi aktuator misting & fan |
 
 ---
 
-## 2. Cara Menggunakannya di Komponen (Contoh: `Dashboard.tsx`)
-
-Hook ini bikin kode di *file* komponen lu jadi super bersih dan elegan. Semua urusan *loading*, *error*, dan data udah di-*handle* sama hook-nya.
+## 2. Implementasi Polling di Dashboard (`Dashboard.tsx`)
 
 ```tsx
-import React from 'react';
-import { useDashboardData } from '../hooks/useDashboardData';
-import ClimateCards from './ClimateCards';
-import { WifiOff, RefreshCw } from 'lucide-react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import api from '../services/api';
+import SemiCircleGauge from '../components/SemiCircleGauge';
+import AnimatedNumber from '../components/AnimatedNumber';
+import AnimatedProgressBar from '../components/AnimatedProgressBar';
+import { WifiOff, RefreshCw, AlertTriangle } from 'lucide-react';
 
 export default function Dashboard() {
-  // Panggil hook-nya. Keliatan bersih banget kan?
-  const { data, isLoading, isFetching, isOffline } = useDashboardData();
+  const [range, setRange] = useState<'6h' | '12h' | '24h' | '7d'>('6h');
+
+  // Query Stats Utama (Polling setiap 30 detik)
+  const { data: statsData, isLoading, isError, isFetching } = useQuery({
+    queryKey: ['dashboardStats'],
+    queryFn: async () => {
+      const res = await api.get('/dashboard/stats');
+      return res.data.data;
+    },
+    refetchInterval: 30000,
+    staleTime: 10000,
+  });
 
   return (
     <div className="space-y-6">
-      
-      {/* 1. Indikator Server Offline (Banner Merah) */}
-      {isOffline && (
-        <div className="bg-red-500 border-4 border-black p-4 flex items-center gap-3 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-          <WifiOff className="text-black w-8 h-8 stroke-[3] animate-pulse" />
+      {/* 1. Indikator Server Offline (Banner Merah Sage) */}
+      {isError && (
+        <div className="bg-[#fff5f5] dark:bg-[#2d1b1b] border border-[#fecaca] dark:border-[#5c2828] p-4 rounded-2xl flex items-center gap-3 shadow-xs">
+          <WifiOff className="text-[#e05345] w-6 h-6 animate-pulse" />
           <div>
-            <h3 className="font-black text-black text-lg uppercase">Koneksi Terputus!</h3>
-            <p className="font-bold text-black text-sm">Server sedang offline atau koneksi internet bermasalah.</p>
+            <h3 className="font-bold text-[#991b1b] dark:text-[#fca5a5] text-sm">Koneksi Terputus</h3>
+            <p className="text-xs text-[#7f1d1d] dark:text-[#f87171]">Gagal menghubungi server API. Sistem mencoba menyambung ulang otomatis...</p>
           </div>
         </div>
       )}
 
-      {/* 2. Indikator Refreshing (Kecil di pojok atas) */}
-      <div className="flex justify-end">
-        {isFetching && !isLoading && !isOffline && (
-          <span className="flex items-center gap-1 text-xs font-black uppercase text-gray-500 bg-gray-200 px-2 py-1 border-2 border-black">
-            <RefreshCw className="w-3 h-3 animate-spin stroke-[3]" />
-            Syncing...
+      {/* 2. Indikator Background Syncing */}
+      {isFetching && !isLoading && (
+        <div className="flex justify-end">
+          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#759183] bg-[#e8f4ed] dark:bg-[#1e382b] px-3 py-1 rounded-full border border-[#d6e9df] dark:border-[#2a4435]">
+            <RefreshCw className="w-3 h-3 animate-spin text-[#244b37] dark:text-[#cee8dc]" />
+            Memperbarui data...
           </span>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* 3. Oper data ke komponen ClimateCards */}
-      <ClimateCards 
-        temperature={data?.current_temperature} 
-        humidity={data?.current_humidity} 
-        isLoading={isLoading} 
-      />
-      
+      {/* 3. Grid 4 Kartu KPI Utama */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Suhu */}
+        <div className="bg-white dark:bg-[#1a2e23] border border-[#d6e9df] dark:border-[#2a4435] rounded-3xl p-5 shadow-xs">
+          <span className="text-xs font-bold text-[#759183] uppercase">Suhu Ruangan</span>
+          <div className="text-3xl font-extrabold text-[#192e22] dark:text-[#edf5f0] my-2">
+            <AnimatedNumber value={statsData?.current_temperature ?? 0} precision={1} suffix="°C" />
+          </div>
+          <SemiCircleGauge value={statsData?.current_temperature ?? 24} min={15} max={35} unit="°C" optimalMin={24} optimalMax={32} />
+        </div>
+      </div>
     </div>
   );
 }
