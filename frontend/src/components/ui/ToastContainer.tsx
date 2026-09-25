@@ -6,36 +6,37 @@ const ToastItem = ({ toast }: { toast: Toast }) => {
   const removeToast = useToastStore((state) => state.removeToast);
 
   const icons = {
-    success: <CheckCircle className="w-6 h-6 stroke-[3]" />,
-    error: <AlertCircle className="w-6 h-6 stroke-[3]" />,
-    warning: <AlertTriangle className="w-6 h-6 stroke-[3]" />,
-    info: <Info className="w-6 h-6 stroke-[3]" />,
+    success: <CheckCircle className="w-5 h-5 text-emerald-600" />,
+    error: <AlertCircle className="w-5 h-5 text-rose-600" />,
+    warning: <AlertTriangle className="w-5 h-5 text-amber-600" />,
+    info: <Info className="w-5 h-5 text-sky-600" />,
   };
 
   const colors = {
-    success: 'bg-[#28e085] text-black border-4 border-black',
-    error: 'bg-red-500 text-black border-4 border-black',
-    warning: 'bg-yellow-400 text-black border-4 border-black',
-    info: 'bg-[#60a5fa] text-black border-4 border-black',
+    success: 'bg-white dark:bg-[#142219] border border-emerald-200 dark:border-emerald-800/60 text-slate-800 dark:text-[#e4efe8] shadow-lg',
+    error: 'bg-white dark:bg-[#142219] border border-rose-200 dark:border-rose-800/60 text-slate-800 dark:text-[#e4efe8] shadow-lg',
+    warning: 'bg-white dark:bg-[#142219] border border-amber-200 dark:border-amber-800/60 text-slate-800 dark:text-[#e4efe8] shadow-lg',
+    info: 'bg-white dark:bg-[#142219] border border-sky-200 dark:border-sky-800/60 text-slate-800 dark:text-[#e4efe8] shadow-lg',
   };
 
   return (
     <div
       className={cn(
-        "flex items-center gap-3 p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-in slide-in-from-right fade-in duration-300 w-full sm:w-auto max-w-sm",
+        "flex items-center gap-3 px-4 py-3.5 rounded-2xl animate-in slide-in-from-right fade-in duration-200 w-full sm:w-auto max-w-sm",
         colors[toast.type]
       )}
     >
       <div className="shrink-0">{icons[toast.type]}</div>
-      <p className="font-black flex-1 leading-snug">{toast.message}</p>
+      <p className="font-semibold text-xs text-slate-800 dark:text-[#e4efe8] flex-1 leading-snug">{toast.message}</p>
       <button
         onClick={() => removeToast(toast.id)}
-        className="shrink-0 p-1 hover:bg-white/20 active:scale-95 transition-all"
+        className="shrink-0 p-1 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 rounded-lg transition-all cursor-pointer"
       >
-        <X className="w-5 h-5 stroke-[3]" />
+        <X className="w-4 h-4" />
       </button>
     </div>
   );
+
 };
 
 export function ToastContainer() {

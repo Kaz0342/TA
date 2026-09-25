@@ -1,227 +1,168 @@
-import { useState, useEffect } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { NavLink, Outlet } from 'react-router-dom';
 import { 
   LayoutDashboard, 
-  Package, 
   Sprout, 
+  Scale, 
   Banknote, 
-  Settings, 
-  LogOut, 
+  Settings,
   Menu,
   X,
-  Clock,
-  ChevronsLeft,
-  ChevronsRight
+  LogOut,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
-import { Button } from './ui';
+import { useThemeStore } from '../stores/themeStore';
 import { cn } from '../utils/cn';
-import api from '../services/api';
 
-const fetchThresholds = async () => (await api.get('/thresholds/active')).data.data;
+// Cute Mushroom Icon matching the reference mockup
+const MushroomLogo = ({ className = "w-7 h-7 text-[#244b37]" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 32 32" fill="currentColor">
+    <path d="M16 4C9.5 4 4.5 9 4.5 15.5c0 1.2.9 2 2.1 2h18.8c1.2 0 2.1-.8 2.1-2C27.5 9 22.5 4 16 4z" />
+    <path d="M13 18.5c-.8 0-1.5.7-1.5 1.5v6c0 1.1.9 2 2 2h5c1.1 0 2-.9 2-2v-6c0-.8-.7-1.5-1.5-1.5h-6z" opacity="0.95" />
+    <circle cx="10" cy="11" r="1.4" fill="#e4f3eb" />
+    <circle cx="17" cy="8.5" r="1.6" fill="#e4f3eb" />
+    <circle cx="22" cy="13" r="1.2" fill="#e4f3eb" />
+  </svg>
+);
 
 export default function DashboardLayout() {
-  const { user, logout } = useAuthStore();
-  const navigate = useNavigate();
+  const { logout, user } = useAuthStore();
+  const { theme, toggleTheme } = useThemeStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(() => {
-    return localStorage.getItem('sidebar-collapsed') === 'true';
-  });
-  const [time, setTime] = useState(new Date());
 
-  // Fetch fase aktif untuk ditampilkan di header
-  const { data: thresholds } = useQuery({
-    queryKey: ['thresholds'],
-    queryFn: fetchThresholds,
-    refetchInterval: 30000,
-  });
-
-  const phaseLabel = (() => {
-    switch (thresholds?.phase_mode) {
-      case 'incubation': return '🌱 Inkubasi';
-      case 'primordia': return '⚡ Primordia';
-      case 'fruiting': return '🍄 Fruiting';
-      case 'custom': return '🛠️ Kustom';
-      default: return '🍄 Fruiting';
-    }
-  })();
-
-  useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('sidebar-collapsed', String(isCollapsed));
-  }, [isCollapsed]);
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-
+  // 5 Modul Utama Tugas Akhir Smart Shroom SCM
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Baglog Management', path: '/baglogs', icon: Package },
-    { name: 'Harvests', path: '/harvests', icon: Sprout },
-    { name: 'Sales', path: '/sales', icon: Banknote, adminOnly: true },
-    { name: 'Settings', path: '/settings', icon: Settings, adminOnly: true },
+    { name: 'Manajemen Baglog', path: '/baglogs', icon: Sprout },
+    { name: 'Hasil Panen', path: '/harvests', icon: Scale },
+    // Penjualan & Keuangan hanya untuk role admin
+    ...(user?.role === 'admin' ? [{ name: 'Penjualan & Cuan', path: '/sales', icon: Banknote }] : []),
+    { name: 'Pengaturan', path: '/settings', icon: Settings },
   ];
 
   return (
-    <div className="min-h-screen bg-white flex text-black transition-colors duration-200">
+    <div className="min-h-screen bg-[#edf5f0] dark:bg-[#0c140e] flex text-[#192e22] dark:text-[#e4efe8] antialiased transition-colors duration-200">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar — Soft Sage / Forest Dark */}
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-50 bg-white border-r-4 border-black flex flex-col transition-all duration-300 ease-in-out lg:translate-x-0 lg:static shadow-[4px_0_0_0_rgba(0,0,0,1)] lg:shadow-none lg:z-10",
-        isSidebarOpen ? "translate-x-0" : "-translate-x-full",
-        isCollapsed ? "lg:w-20 w-64" : "w-64"
+        "fixed inset-y-0 left-0 z-50 bg-[#e4f3eb] dark:bg-[#111c15] border-r border-[#d2e8dc]/70 dark:border-[#1e382b] flex flex-col justify-between transition-all duration-300 ease-in-out lg:translate-x-0 lg:static w-60 shrink-0",
+        isSidebarOpen ? "translate-x-0 shadow-xl" : "-translate-x-full"
       )}>
-        {/* Sidebar Header */}
-        <div className="h-16 flex items-center px-4 border-b-4 border-black bg-[#28e085] gap-2">
-          <Sprout className="w-6 h-6 stroke-[3] shrink-0" />
-          <h1 className={cn(
-            "text-xl font-black text-black tracking-tight transition-all duration-300 overflow-hidden whitespace-nowrap",
-            isCollapsed ? "lg:w-0 lg:opacity-0" : "w-auto opacity-100"
-          )}>
-            Smart Shroom
-          </h1>
-          <button 
-            className="ml-auto lg:hidden text-black hover:scale-110 active:scale-95 transition-all"
-            onClick={() => setIsSidebarOpen(false)}
-          >
-            <X className="w-6 h-6 stroke-[3]" />
-          </button>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 p-3 space-y-2 overflow-y-auto overflow-x-hidden">
-          {navItems.map((item) => {
-            if (item.adminOnly && user?.role !== 'admin') return null;
-            const Icon = item.icon;
-            
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                title={isCollapsed ? item.name : undefined}
-                onClick={() => setIsSidebarOpen(false)}
-                className={({ isActive }) => cn(
-                  "flex items-center gap-3 px-4 py-3 border-4 border-transparent text-sm font-black transition-all",
-                  isActive 
-                    ? "bg-[#28e085] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] -translate-y-1" 
-                    : "hover:bg-gray-100 border-black hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1",
-                  isCollapsed && "lg:justify-center lg:px-2"
-                )}
-              >
-                <Icon className="w-5 h-5 stroke-[3] shrink-0" />
-                <span className={cn(
-                  "transition-all duration-300 overflow-hidden whitespace-nowrap",
-                  isCollapsed ? "lg:w-0 lg:opacity-0" : "w-auto opacity-100"
-                )}>
-                  {item.name}
-                </span>
-              </NavLink>
-            );
-          })}
-        </nav>
-
-        {/* Collapse Toggle (desktop only) */}
-        <div className="hidden lg:flex justify-center p-2 border-t-4 border-black">
-          <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-2 border-4 border-black bg-gray-100 hover:bg-yellow-400 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none transition-all"
-            title={isCollapsed ? 'Buka Sidebar' : 'Tutup Sidebar'}
-          >
-            {isCollapsed 
-              ? <ChevronsRight className="w-5 h-5 stroke-[3]" /> 
-              : <ChevronsLeft className="w-5 h-5 stroke-[3]" />
-            }
-          </button>
-        </div>
-
-        {/* User Info & Logout */}
-        <div className="p-3 border-t-4 border-black bg-white">
-          <div className={cn(
-            "flex items-center gap-3 px-2 py-2 mb-3",
-            isCollapsed && "lg:justify-center"
-          )}>
-            <div className="w-10 h-10 rounded-none border-4 border-black bg-[#28e085] flex items-center justify-center text-black font-black text-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] shrink-0">
-              {(user?.name?.replace(/\bKing\s*/gi, '').trim() || 'Admin').charAt(0).toUpperCase()}
-            </div>
-            <div className={cn(
-              "flex-1 min-w-0 transition-all duration-300 overflow-hidden",
-              isCollapsed ? "lg:w-0 lg:opacity-0" : "w-auto opacity-100"
-            )}>
-              <p className="text-sm font-black truncate">
-                {user?.name?.replace(/\bKing\s*/gi, '').trim() || 'Admin'}
-              </p>
-              <p className="text-xs font-bold text-gray-600 capitalize">{user?.role}</p>
-            </div>
+        <div>
+          {/* Brand Header */}
+          <div className="h-20 flex items-center px-6 gap-3 pt-2">
+            <MushroomLogo className="w-8 h-8 text-[#244b37] dark:text-[#86efac]" />
+            <h1 className="text-xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight">
+              Smart Shroom
+            </h1>
+            <button 
+              className="ml-auto lg:hidden text-[#37473f] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8] p-1.5 rounded-lg"
+              onClick={() => setIsSidebarOpen(false)}
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
-          <Button 
-            variant="danger" 
-            onClick={handleLogout} 
-            className={cn(
-              "w-full justify-start gap-3 border-4 border-black",
-              isCollapsed && "lg:justify-center lg:px-2"
-            )}
-            title={isCollapsed ? 'Logout' : undefined}
+
+          {/* Navigation Links */}
+          <nav className="px-3.5 space-y-1.5 mt-2">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              
+              return (
+                <NavLink
+                  key={item.name}
+                  to={item.path}
+                  onClick={() => setIsSidebarOpen(false)}
+                  className={({ isActive }) => cn(
+                    "flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-150",
+                    isActive 
+                      ? "bg-[#bde5d1] dark:bg-[#1f3a2b] text-[#1c382b] dark:text-[#86efac] font-bold shadow-2xs" 
+                      : "text-[#37473f] dark:text-[#a3c9b4] hover:bg-[#d8ece1]/60 dark:hover:bg-[#182c20] hover:text-[#192e22] dark:hover:text-[#e4efe8]"
+                  )}
+                >
+                  <Icon className="w-5 h-5 shrink-0 stroke-[2.2]" />
+                  <span>{item.name}</span>
+                </NavLink>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Bottom Quick Controls: Theme Toggle & Logout */}
+        <div className="p-4 border-t border-[#d2e8dc]/70 dark:border-[#1e382b] space-y-2">
+          {/* Theme Toggle Button */}
+          <button
+            onClick={toggleTheme}
+            className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold text-[#244b37] dark:text-[#a3c9b4] bg-[#d7ebe0]/70 dark:bg-[#182c20] hover:bg-[#d7ebe0] dark:hover:bg-[#1f3a2b] transition-all cursor-pointer shadow-2xs active:scale-[0.98]"
+            title={theme === 'dark' ? 'Ganti ke Tema Terang' : 'Ganti ke Tema Gelap'}
           >
-            <LogOut className="w-5 h-5 stroke-[3] shrink-0" />
-            <span className={cn(
-              "transition-all duration-300 overflow-hidden whitespace-nowrap",
-              isCollapsed ? "lg:w-0 lg:opacity-0" : "w-auto opacity-100"
-            )}>
-              Logout
+            <div className="flex items-center gap-2.5">
+              {theme === 'dark' ? (
+                <Moon className="w-4 h-4 text-emerald-400 stroke-[2.2]" />
+              ) : (
+                <Sun className="w-4 h-4 text-amber-600 stroke-[2.2]" />
+              )}
+              <span>{theme === 'dark' ? 'Mode Gelap' : 'Mode Terang'}</span>
+            </div>
+            <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-md bg-white dark:bg-[#142219] text-[#192e22] dark:text-[#e4efe8] shadow-2xs">
+              {theme === 'dark' ? 'Dark' : 'Light'}
             </span>
-          </Button>
+          </button>
+
+          {/* Logout Button */}
+          <button 
+            onClick={logout}
+            className="w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-2xl text-xs font-bold text-[#b91c1c] dark:text-[#f87171] bg-[#fff0f0] dark:bg-[#2a1717] hover:bg-[#ffe5e5] dark:hover:bg-[#3b1c1c] border border-[#fecaca] dark:border-[#4a2020] shadow-2xs hover:shadow-xs active:scale-[0.98] transition-all cursor-pointer group"
+            title="Keluar dari akun Smart Shroom"
+          >
+            <LogOut className="w-4 h-4 text-[#dc2626] dark:text-[#ef4444] stroke-[2.2] group-hover:-translate-x-0.5 transition-transform" />
+            <span>Keluar Akun</span>
+          </button>
         </div>
       </aside>
 
-      {/* Main Content */}
+      {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        {/* Top Header */}
-        <header className="h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8 border-b-4 border-black bg-white shrink-0">
-          <button 
-            className="lg:hidden text-black hover:scale-110 active:scale-95 transition-all p-2 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-            onClick={() => setIsSidebarOpen(true)}
-          >
-            <Menu className="w-6 h-6 stroke-[3]" />
-          </button>
-
-          <div className="flex-1" />
-
-          {/* Fase Aktif Indicator */}
-          <div className="hidden sm:flex items-center gap-1.5 text-xs font-black border-2 border-black px-3 py-1.5 bg-[#28e085] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] shrink-0 mr-2">
-            <span className="w-2 h-2 bg-black rounded-full animate-pulse" />
-            <span className="uppercase">{phaseLabel}</span>
+        {/* Mobile Header Toggle */}
+        <div className="lg:hidden flex items-center justify-between p-4 bg-[#e4f3eb] dark:bg-[#111c15] border-b border-[#d2e8dc] dark:border-[#1e382b]">
+          <div className="flex items-center gap-2">
+            <MushroomLogo className="w-7 h-7 text-[#244b37] dark:text-[#86efac]" />
+            <span className="font-bold text-[#192e22] dark:text-[#e4efe8]">Smart Shroom</span>
           </div>
-
-          <div className="text-xs sm:text-sm font-black border-2 border-black px-2.5 sm:px-4 py-1.5 sm:py-2 bg-yellow-400 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" />
-            <span className="sm:hidden font-mono">
-              {time.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB
-            </span>
-            <span className="hidden sm:inline">
-              {time.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} - {time.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}
-            </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-xl bg-white/80 dark:bg-[#182c20] text-[#192e22] dark:text-[#86efac] shadow-2xs transition-all cursor-pointer"
+              title="Toggle Dark Mode"
+            >
+              {theme === 'dark' ? <Moon className="w-5 h-5 text-emerald-400" /> : <Sun className="w-5 h-5 text-amber-600" />}
+            </button>
+            <button 
+              className="p-2 rounded-xl bg-white/80 dark:bg-[#182c20] text-[#192e22] dark:text-[#e4efe8] shadow-2xs cursor-pointer"
+              onClick={() => setIsSidebarOpen(true)}
+            >
+              <Menu className="w-5 h-5" />
+            </button>
           </div>
-        </header>
+        </div>
 
-        {/* Page Content */}
-        <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 relative">
-          <Outlet />
+        {/* Scrollable Main Viewport */}
+        <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 sm:py-8 bg-[#edf5f0] dark:bg-[#0c140e] transition-colors duration-200">
+          <div className="max-w-[1400px] mx-auto">
+            <Outlet />
+          </div>
         </div>
       </main>
     </div>
   );
 }
+
