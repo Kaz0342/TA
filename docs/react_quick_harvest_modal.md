@@ -1,223 +1,209 @@
-# Panduan Komponen Frontend: QuickHarvestModal.jsx
+# Panduan Komponen Frontend: QuickHarvestModal.tsx
 
-Dokumen ini berisi kode untuk **QuickHarvestModal.jsx**. Komponen ini dirancang khusus untuk layar *smartphone* (mobile-first) agar para pekerja/buruh kebun gampang mencatat hasil panen harian langsung dari dalam kumbung jamur tanpa harus ke meja komputer.
+Dokumen ini berisi kode dan panduan teknis untuk **QuickHarvestModal.tsx**. Komponen ini dirancang responsif (*mobile-friendly*) untuk mencatat hasil panen harian langsung dari dalam kumbung jamur menggunakan gaya desain **Harmonious Modern Sage Green & Dark Mode** tanpa menggunakan `alert()`, melainkan melalui *custom state feedback* dan sistem Toast global.
 
-Komponen ini punya fitur **Tombol Cepat (+1kg, +5kg)** supaya buruh nggak perlu repot ngetik angka pecahan di *keyboard* HP kalau tangan mereka lagi kotor atau basah kena tanah.
+Komponen ini menyediakan fitur **Tombol Cepat (+0.5 kg, +1 kg, +5 kg)** agar pekerja kebun dapat memasukkan berat panen dengan cepat meski tangan dalam keadaan memakai sarung tangan kerja.
 
 ---
 
 ## 1. Kode Komponen (`frontend/src/components/QuickHarvestModal.tsx`)
 
-Simpan kode di bawah ini pada folder `components` di *frontend*.
-
 ```tsx
 import React, { useState } from 'react';
-import { X, Sprout, Loader2, Check } from 'lucide-react';
+import { X, Sprout, Loader2, Check, Plus } from 'lucide-react';
+import { useToastStore } from '../stores/toastStore';
+
+interface ActiveBatchOption {
+  id: number;
+  batch_code: string;
+  quantity: number;
+}
 
 interface QuickHarvestModalProps {
   isOpen: boolean;
   onClose: () => void;
-  activeBatches: { id: number; batch_code: string; quantity: number }[];
-  onSubmit: (data: any) => Promise<void>;
+  activeBatches: ActiveBatchOption[];
+  onSubmit: (data: { baglog_batch_id: number; weight_kg: number; notes?: string }) => Promise<void>;
 }
 
-export default function QuickHarvestModal({ isOpen, onClose, activeBatches = [], onSubmit }: QuickHarvestModalProps) {
+export default function QuickHarvestModal({
+  isOpen,
+  onClose,
+  activeBatches = [],
+  onSubmit,
+}: QuickHarvestModalProps) {
   const [weight, setWeight] = useState<number>(0);
-  const [selectedBatch, setSelectedBatch] = useState('');
-  const [notes, setNotes] = useState('');
+  const [selectedBatch, setSelectedBatch] = useState<string>('');
+  const [notes, setNotes] = useState<string>('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
+  const { addToast } = useToastStore();
 
-  // Guard kalau modal lagi ga dibuka
   if (!isOpen) return null;
 
-  // Fungsi buat nambah berat cepet tanpa ngetik
   const handleWeightAdd = (amount: number) => {
     setWeight((prev) => parseFloat((prev + amount).toFixed(2)));
   };
 
-  // Fungsi simpan ke database (lewat props)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (weight <= 0 || !selectedBatch) return;
+    if (weight <= 0 || !selectedBatch) {
+      addToast('Harap pilih batch dan masukkan berat panen yang valid!', 'error');
+      return;
+    }
 
-    setStatus('loading'); // Kasih feedback visual loading muter
-    
+    setStatus('loading');
+
     try {
       await onSubmit({
-        baglog_batch_id: selectedBatch,
-        total_kg: weight,
-        notes: notes
+        baglog_batch_id: parseInt(selectedBatch, 10),
+        weight_kg: weight,
+        notes: notes || undefined,
       });
-      
-      setStatus('success'); // Ganti jadi centang hijau
-      
-      // Auto tutup modal setelah 1.5 detik
+
+      setStatus('success');
+      addToast('Hasil panen berhasil dicatat!', 'success');
+
       setTimeout(() => {
         setStatus('idle');
         setWeight(0);
         setNotes('');
+        setSelectedBatch('');
         onClose();
-      }, 1500);
-      
+      }, 1200);
     } catch (error) {
       setStatus('idle');
-      alert("Gagal menyimpan panen! Cek koneksi internet.");
+      addToast('Gagal menyimpan hasil panen. Periksa koneksi ke server!', 'error');
     }
   };
 
   return (
-    // Overlay Gelap (Backdrop)
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      
-      {/* Container Modal (Neobrutalism Design) */}
-      <div className="bg-white w-full max-w-md border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col animate-in zoom-in-95 duration-200">
-        
-        {/* Modal Header */}
-        <div className="flex items-center justify-between p-4 border-b-4 border-black bg-[#28e085]">
-          <div className="flex items-center gap-2">
-            <Sprout className="w-6 h-6 stroke-[3] text-black" />
-            <h2 className="text-xl font-black text-black uppercase">Catat Panen Harian</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-[#1a2e23] w-full max-w-md rounded-3xl border border-[#d6e9df] dark:border-[#2a4435] shadow-xl overflow-hidden flex flex-col">
+        {/* Header Modal */}
+        <div className="flex items-center justify-between p-6 border-b border-[#f0f5f1] dark:border-[#253f30]">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-[#e8f4ed] dark:bg-[#233d2e] text-[#244b37] dark:text-[#cee8dc]">
+              <Sprout className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-[#192e22] dark:text-[#edf5f0]">Catat Panen Cepat</h2>
+              <p className="text-xs text-[#759183]">Input hasil petik panen jamur harian</p>
+            </div>
           </div>
-          <button 
+          <button
+            type="button"
             onClick={onClose}
             disabled={status === 'loading'}
-            className="p-1 bg-white border-2 border-black hover:bg-red-400 hover:text-white transition-colors"
+            className="p-2 rounded-xl text-[#759183] hover:bg-[#f0f5f1] dark:hover:bg-[#233d2e] transition-colors"
           >
-            <X className="w-6 h-6 stroke-[3]" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Modal Body / Form */}
-        <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-5">
-          
-          {/* 1. Dropdown Batch Aktif */}
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-black uppercase text-black">Pilih Batch Baglog</label>
-            <select 
+        {/* Formulir Body */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {/* Pilih Batch Baglog */}
+          <div>
+            <label className="block text-xs font-bold text-[#192e22] dark:text-[#cee8dc] uppercase tracking-wider mb-2">
+              Batch Baglog Asal
+            </label>
+            <select
               required
               value={selectedBatch}
               onChange={(e) => setSelectedBatch(e.target.value)}
-              className="w-full p-3 border-4 border-black bg-gray-50 text-black font-bold focus:outline-none focus:bg-yellow-200 transition-colors cursor-pointer"
+              className="w-full px-4 py-3 bg-[#f8faf8] dark:bg-[#15241c] border border-[#dce8de] dark:border-[#2a4435] rounded-2xl text-xs font-semibold text-[#192e22] dark:text-[#edf5f0] focus:bg-white dark:focus:bg-[#1c3226] focus:border-[#244b37] focus:outline-none transition-all"
             >
-              <option value="" disabled>-- Pilih Batch Jamur --</option>
-              {activeBatches.map(batch => (
+              <option value="" disabled>-- Pilih Batch Aktif --</option>
+              {activeBatches.map((batch) => (
                 <option key={batch.id} value={batch.id}>
-                  {batch.batch_code} (Sisa: {batch.quantity} log)
+                  {batch.batch_code} ({batch.quantity} baglog)
                 </option>
               ))}
             </select>
           </div>
 
-          {/* 2. Input Berat & Tombol Tambah Cepat */}
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-black uppercase text-black">Total Berat (Kg)</label>
-            
-            <div className="flex gap-2">
-              <input 
-                type="number" 
+          {/* Input Berat & Quick Chips */}
+          <div>
+            <label className="block text-xs font-bold text-[#192e22] dark:text-[#cee8dc] uppercase tracking-wider mb-2">
+              Berat Bersih Panen (KG)
+            </label>
+            <div className="flex gap-2 mb-3">
+              <input
+                type="number"
                 step="0.1"
-                min="0"
+                min="0.1"
                 required
                 value={weight === 0 ? '' : weight}
                 onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
                 placeholder="0.0"
-                className="w-full p-3 text-4xl font-black border-4 border-black bg-white focus:outline-none focus:bg-yellow-200 transition-colors text-center"
+                className="w-full px-4 py-3 text-3xl font-extrabold text-center bg-[#f8faf8] dark:bg-[#15241c] border border-[#dce8de] dark:border-[#2a4435] rounded-2xl text-[#244b37] dark:text-[#cee8dc] focus:bg-white dark:focus:bg-[#1c3226] focus:border-[#244b37] focus:outline-none transition-all"
               />
-              
-              {/* Tombol Cepat (Biar pekerja ga usah ngetik) */}
-              <div className="flex flex-col gap-2 shrink-0">
-                <button 
-                  type="button" 
-                  onClick={() => handleWeightAdd(1)}
-                  className="px-4 py-2 bg-[#c084fc] border-4 border-black font-black hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-none transition-all"
-                >
-                  +1 Kg
-                </button>
-                <button 
-                  type="button" 
-                  onClick={() => handleWeightAdd(5)}
-                  className="px-4 py-2 bg-[#60a5fa] border-4 border-black font-black hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-none transition-all"
-                >
-                  +5 Kg
-                </button>
-              </div>
+            </div>
+
+            {/* Quick Action Chips */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleWeightAdd(0.5)}
+                className="flex-1 py-2 px-3 rounded-xl bg-[#e8f4ed] dark:bg-[#233d2e] hover:bg-[#d8ece1] dark:hover:bg-[#2c4e3a] text-[#244b37] dark:text-[#cee8dc] text-xs font-bold transition-colors flex items-center justify-center gap-1"
+              >
+                <Plus className="w-3.5 h-3.5" /> 0.5 Kg
+              </button>
+              <button
+                type="button"
+                onClick={() => handleWeightAdd(1.0)}
+                className="flex-1 py-2 px-3 rounded-xl bg-[#e8f4ed] dark:bg-[#233d2e] hover:bg-[#d8ece1] dark:hover:bg-[#2c4e3a] text-[#244b37] dark:text-[#cee8dc] text-xs font-bold transition-colors flex items-center justify-center gap-1"
+              >
+                <Plus className="w-3.5 h-3.5" /> 1.0 Kg
+              </button>
+              <button
+                type="button"
+                onClick={() => handleWeightAdd(5.0)}
+                className="flex-1 py-2 px-3 rounded-xl bg-[#e8f4ed] dark:bg-[#233d2e] hover:bg-[#d8ece1] dark:hover:bg-[#2c4e3a] text-[#244b37] dark:text-[#cee8dc] text-xs font-bold transition-colors flex items-center justify-center gap-1"
+              >
+                <Plus className="w-3.5 h-3.5" /> 5.0 Kg
+              </button>
             </div>
           </div>
 
-          {/* 3. Catatan Kondisi Jamur */}
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-black uppercase text-black">Kondisi Jamur (Opsional)</label>
-            <textarea 
-              rows={2}
+          {/* Catatan Kualitas */}
+          <div>
+            <label className="block text-xs font-bold text-[#192e22] dark:text-[#cee8dc] uppercase tracking-wider mb-2">
+              Catatan Kualitas (Opsional)
+            </label>
+            <input
+              type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Cth: Jamur agak kering, butuh disiram..."
-              className="w-full p-3 border-4 border-black bg-gray-50 text-black font-bold focus:outline-none focus:bg-yellow-200 transition-colors resize-none"
+              placeholder="Contoh: Daun tebal, bersih dari spora liar"
+              className="w-full px-4 py-2.5 bg-[#f8faf8] dark:bg-[#15241c] border border-[#dce8de] dark:border-[#2a4435] rounded-2xl text-xs font-semibold text-[#192e22] dark:text-[#edf5f0] focus:bg-white dark:focus:bg-[#1c3226] focus:border-[#244b37] focus:outline-none transition-all"
             />
           </div>
 
-          {/* 4. Tombol Submit (Dengan efek Loading/Success) */}
-          <button 
-            type="submit" 
-            disabled={status !== 'idle' || weight <= 0 || !selectedBatch}
-            className="mt-2 w-full p-4 bg-black text-white border-4 border-black font-black text-lg uppercase flex items-center justify-center gap-2 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {status === 'loading' && <Loader2 className="w-6 h-6 animate-spin" />}
-            {status === 'success' && <Check className="w-6 h-6 text-green-400" />}
-            
-            {status === 'idle' && "Simpan Data Panen"}
-            {status === 'loading' && "Menyimpan..."}
-            {status === 'success' && "Tersimpan!"}
-          </button>
-          
+          {/* Tombol Simpan */}
+          <div className="pt-2">
+            <button
+              type="submit"
+              disabled={status === 'loading'}
+              className="w-full py-3.5 px-4 bg-[#244b37] hover:bg-[#1b3a2b] text-white rounded-2xl font-bold text-xs shadow-xs hover:shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {status === 'loading' ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Menyimpan Data Panen...
+                </>
+              ) : status === 'success' ? (
+                <>
+                  <Check className="w-4 h-4 text-emerald-300" />
+                  Tersimpan!
+                </>
+              ) : (
+                'Simpan Hasil Panen'
+              )}
+            </button>
+          </div>
         </form>
       </div>
-    </div>
-  );
-}
-```
-
----
-
-## 2. Cara Memanggilnya di Halaman Lain
-
-Misalnya di halaman `Harvests.tsx` atau ada tombol ngambang (FAB) di HP:
-
-```tsx
-import { useState } from 'react';
-import QuickHarvestModal from '../components/QuickHarvestModal';
-
-export default function WorkerPage() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  
-  // Dummy data batch (Ganti jadi hasil fetch API nanti)
-  const activeBatches = [
-    { id: 1, batch_code: 'BATCH-001', quantity: 1000 },
-    { id: 2, batch_code: 'BATCH-002', quantity: 800 }
-  ];
-
-  // Fungsi yang dilempar ke modal pas tombol simpan dipencet
-  const handleSaveHarvest = async (data) => {
-    // Await API Call contoh:
-    // await api.post('/harvests', data);
-    console.log("Data siap kirim ke Laravel:", data);
-  };
-
-  return (
-    <div>
-      <button 
-        onClick={() => setIsModalOpen(true)}
-        className="bg-[#28e085] p-4 border-4 border-black font-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-      >
-        Mulai Panen
-      </button>
-
-      <QuickHarvestModal 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        activeBatches={activeBatches}
-        onSubmit={handleSaveHarvest}
-      />
     </div>
   );
 }
