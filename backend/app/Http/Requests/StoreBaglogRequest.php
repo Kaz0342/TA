@@ -20,6 +20,7 @@ class StoreBaglogRequest extends FormRequest
             'entry_date' => 'required|date',
             'quantity' => 'required|integer|min:1',
             'supplier' => 'required|string|max:100',
+            'price_per_baglog' => 'nullable|numeric|min:0',
             'status' => 'nullable|in:'.implode(',', [BaglogBatch::STATUS_ACTIVE, BaglogBatch::STATUS_CONTAMINATED, BaglogBatch::STATUS_DISPOSED]),
             'notes' => 'nullable|string',
         ];

@@ -45,6 +45,7 @@ class Sale extends Model
      */
     protected $fillable = [
         'user_id',
+        'baglog_batch_id',
         'sale_date',
         'quantity_kg',
         'price_per_kg',
@@ -76,6 +77,16 @@ class Sale extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Batch baglog sumber penjualan (opsional/nullable).
+     *
+     * @return BelongsTo<BaglogBatch, $this>
+     */
+    public function baglogBatch(): BelongsTo
+    {
+        return $this->belongsTo(BaglogBatch::class, 'baglog_batch_id');
     }
 
     // ─── Scopes ─────────────────────────────────────────────────

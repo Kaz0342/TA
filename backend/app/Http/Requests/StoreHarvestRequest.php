@@ -20,6 +20,9 @@ class StoreHarvestRequest extends FormRequest
             'harvest_date' => 'required|date',
             'weight_kg' => 'required|numeric|min:0.1',
             'baglog_batch_id' => 'nullable|exists:baglog_batches,id',
+            'slot_code' => 'nullable|string|exists:slots,slot_code',
+            'flush_number' => 'nullable|integer|min:1|max:10',
+            'quality_grade' => 'nullable|in:A,B,REJECT',
             'notes' => 'nullable|string',
         ];
     }

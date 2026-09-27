@@ -60,6 +60,7 @@ class BaglogBatch extends Model
         'entry_date',
         'quantity',
         'supplier',
+        'price_per_baglog',
         'status',
         'notes',
     ];
@@ -72,6 +73,7 @@ class BaglogBatch extends Model
         return [
             'entry_date' => 'date',
             'quantity' => 'integer',
+            'price_per_baglog' => 'decimal:2',
         ];
     }
 
@@ -108,6 +110,46 @@ class BaglogBatch extends Model
     public function harvests(): HasMany
     {
         return $this->hasMany(Harvest::class);
+    }
+
+    /**
+     * Alokasi slot rak yang ditempati oleh batch ini.
+     *
+     * @return HasMany<BatchSlotAssignment, $this>
+     */
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(BatchSlotAssignment::class, 'baglog_batch_id');
+    }
+
+    /**
+     * Ledger kematian / afkir baglog dari batch ini.
+     *
+     * @return HasMany<BaglogCull, $this>
+     */
+    public function culls(): HasMany
+    {
+        return $this->hasMany(BaglogCull::class, 'baglog_batch_id');
+    }
+
+    /**
+     * Biaya operasional yang diatribusikan ke batch ini.
+     *
+     * @return HasMany<OperationalExpense, $this>
+     */
+    public function operationalExpenses(): HasMany
+    {
+        return $this->hasMany(OperationalExpense::class, 'baglog_batch_id');
+    }
+
+    /**
+     * Transaksi penjualan yang bersumber dari batch ini.
+     *
+     * @return HasMany<Sale, $this>
+     */
+    public function sales(): HasMany
+    {
+        return $this->hasMany(Sale::class, 'baglog_batch_id');
     }
 
     // ─── Scopes ─────────────────────────────────────────────────
@@ -190,5 +232,110 @@ class BaglogBatch extends Model
         }
 
         return $prefix.str_pad((string) $nextNumber, 3, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Hitung total modal awal pembelian baglog (IDR).
+     * Modal = quantity × price_per_baglog.
+     */
+    public function totalModalAwal(): string
+    {
+        return bcmul((string) $this->quantity, (string) ($this->price_per_baglog ?? 0), 2);
+    }
+
+    /**
+     * Hitung Margin Kontribusi & status HPP batch ini.
+     *
+     * Sesuai Audit #5: dinamakan Margin Kontribusi (bukan laba bersih riil
+     * karena belum memasukkan depresiasi infrastruktur rak/kumbung/IoT).
+     * Sesuai Audit #7: menyertakan indikator persentase siklus agar
+     * batch yang baru sebulan tidak salah dinilai merugi.
+     */
+    public function marginKontribusi(): array
+    {
+        $modalAwal = $this->totalModalAwal();
+        
+        $directOps = (float) $this->operationalExpenses()->sum('amount');
+        $totalOverhead = (float) OperationalExpense::whereNull('baglog_batch_id')->sum('amount');
+        $totalBatchesCount = BaglogBatch::count();
+        $prorataOverhead = $totalBatchesCount > 0 ? ($totalOverhead / $totalBatchesCount) : 0;
+        
+        $biayaOps = (string) ($directOps + $prorataOverhead);
+        
+        $omzetKotor = (string) ($this->sales()->sum('total_revenue') ?? '0.00');
+
+        // Margin Kontribusi = Omzet - Modal Awal - Biaya Operasional Variabel
+        $totalBiaya = bcadd($modalAwal, $biayaOps, 2);
+        $margin = bcsub($omzetKotor, $totalBiaya, 2);
+
+        // Siklus hidup jamur kuping: ~120 hari (3.5 - 4 bulan)
+        $persenSiklus = min(100.0, round(($this->age_days / 120) * 100, 1));
+
+        $totalPanenKg = $this->totalHarvestKg();
+        $totalCulls = (int) $this->culls()->sum('quantity');
+        $activeCapacity = max(0, $this->quantity - $totalCulls);
+        $mortalityRate = $this->quantity > 0 ? round(($totalCulls / $this->quantity) * 100, 1) : 0.0;
+
+        $totalSalesKg = (float) ($this->sales()->sum('quantity_kg') ?? 0);
+        $avgSellingPrice = $totalSalesKg > 0 ? round((float) $omzetKotor / $totalSalesKg, 2) : 25000.0;
+
+        $bepHarvestKg = $avgSellingPrice > 0 ? round((float) $totalBiaya / $avgSellingPrice, 2) : 0.0;
+        $bepProgress = $bepHarvestKg > 0 ? min(100.0, round(($totalPanenKg / $bepHarvestKg) * 100, 1)) : 0.0;
+        $hppPerKg = $totalPanenKg > 0 ? round((float) $totalBiaya / $totalPanenKg, 2) : 0.0;
+
+        return [
+            // Standard identifiers
+            'batch_id' => $this->id,
+            'batch_code' => $this->batch_code,
+            'entry_date' => $this->entry_date,
+            'age_days' => $this->age_days,
+            'cycle_target_days' => 120,
+            'cycle_progress_percent' => $persenSiklus,
+            'persen_siklus' => $persenSiklus,
+            'is_completed' => in_array($this->status, [self::STATUS_DISPOSED, 'completed']),
+
+            // Quantities & Capacity
+            'total_quantity' => $this->quantity,
+            'initial_quantity' => $this->quantity,
+            'active_capacity' => $activeCapacity,
+            'culled_quantity' => $totalCulls,
+            'total_culls_qty' => $totalCulls,
+            'mortality_rate_percent' => $mortalityRate,
+
+            // Financial & Capital
+            'price_per_baglog' => (float) $this->price_per_baglog,
+            'modal_baglog_awal' => (float) $modalAwal,
+            'baglog_capital_cost' => (float) $modalAwal,
+            'biaya_operasional' => (float) $biayaOps,
+            'operational_expense_allocated' => (float) $biayaOps,
+            'total_biaya' => (float) $totalBiaya,
+            'total_modal_investasi' => (float) $totalBiaya,
+
+            // Harvest & HPP
+            'total_panen_kg' => $totalPanenKg,
+            'total_harvest_kg' => $totalPanenKg,
+            'hpp_per_kg_harvested' => $hppPerKg,
+
+            // Sales & Omzet
+            'omzet_kotor' => (float) $omzetKotor,
+            'total_sales_revenue' => (float) $omzetKotor,
+            'total_sales_kg' => $totalSalesKg,
+            'avg_selling_price_per_kg' => $avgSellingPrice,
+
+            // Margin & BEP
+            'margin_kontribusi' => (float) $margin,
+            'bep_harvest_kg' => $bepHarvestKg,
+            'bep_progress_percent' => $bepProgress,
+        ];
+    }
+
+    /**
+     * Hitung sisa total baglog aktif di seluruh slot yang ditempati batch ini.
+     */
+    public function totalActiveCapacity(): int
+    {
+        $totalCulls = (int) $this->culls()->sum('quantity');
+
+        return max(0, $this->quantity - $totalCulls);
     }
 }

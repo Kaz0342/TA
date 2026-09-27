@@ -18,6 +18,7 @@ class StoreSaleRequest extends FormRequest
     {
         return [
             'sale_date' => 'required|date',
+            'baglog_batch_id' => 'nullable|exists:baglog_batches,id',
             'quantity_kg' => 'required|numeric|min:0.1',
             'price_per_kg' => 'required|numeric|min:1000',
             'buyer_name' => 'required|string|max:100',

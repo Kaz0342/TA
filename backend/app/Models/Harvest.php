@@ -40,8 +40,11 @@ class Harvest extends Model
     protected $fillable = [
         'user_id',
         'baglog_batch_id',
+        'slot_code',
         'harvest_date',
         'weight_kg',
+        'flush_number',
+        'quality_grade',
         'notes',
     ];
 
@@ -53,6 +56,7 @@ class Harvest extends Model
         return [
             'harvest_date' => 'date',
             'weight_kg' => 'decimal:2',
+            'flush_number' => 'integer',
         ];
     }
 
@@ -76,6 +80,16 @@ class Harvest extends Model
     public function baglogBatch(): BelongsTo
     {
         return $this->belongsTo(BaglogBatch::class);
+    }
+
+    /**
+     * Panen bersumber dari koordinat slot rak tertentu.
+     *
+     * @return BelongsTo<Slot, $this>
+     */
+    public function slot(): BelongsTo
+    {
+        return $this->belongsTo(Slot::class, 'slot_code', 'slot_code');
     }
 
     // ─── Scopes ─────────────────────────────────────────────────

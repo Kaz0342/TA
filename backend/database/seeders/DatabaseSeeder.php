@@ -34,6 +34,9 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // ─── 0. SLOTS (Master Grid Kumbung 3D) ──────────────────
+        $this->call(SlotSeeder::class);
+
         // ─── 1. USERS ───────────────────────────────────────────
         // Admin: pemilik kumbung (Administrator)
         $admin = User::factory()->admin()->create([
