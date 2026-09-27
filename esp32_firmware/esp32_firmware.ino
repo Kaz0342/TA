@@ -143,6 +143,12 @@ bool isHomogenizing  = false;
 bool isNightFan      = false;
 bool isCriticalOverride = false; // Flag apakah fan sedang running mode Safety Override suhu kritis
 
+// MODE PANEN / JEDA KONTROL (PAUSE & RESUME) — PRD SECTION 3
+bool isPausedMode               = false;   // Mode jeda manual (Panen / pintu terbuka)
+unsigned long pauseStartTime    = 0;
+unsigned long pauseDurationMs   = 0;       // Durasi jeda dalam milidetik (non-blocking millis)
+String pauseReason              = "Mode Panen";
+
 unsigned long mistingStartTime           = 0;
 unsigned long mistingLastStopTime        = 0;
 unsigned long fanStartTime               = 0;
@@ -169,6 +175,8 @@ void startMisting(String reason, bool isPulse);
 void stopMisting(String stopReason);
 void startFan(String reason, bool homogenize, bool nightMode, bool criticalOverride = false);
 void stopFan(String stopReason);
+void startPauseMode(unsigned long durationSec, String reason = "Mode Panen");
+void endPauseMode(String reason);
 void controlMisting(float temp, float hum, float minHum);
 void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum);
 void updateLCD(float temp, float hum, bool misting, bool fan);
@@ -407,6 +415,15 @@ void loop() {
       stopFan("Safety timeout fan pendinginan (180s, cegah dehidrasi baglog)");
     }
   }
+
+  // ── H. WATCHDOG: MODE PANEN JEDA TIMEOUT (NON-BLOCKING millis) ────
+  // Failsafe otomatis: jika waktu habis, kembali ke AUTO & instant-read sensor.
+  if (isPausedMode) {
+    unsigned long elapsed = now - pauseStartTime;
+    if (elapsed >= pauseDurationMs) {
+      endPauseMode("Timer Failsafe Selesai (Otomatis Kembali ke AUTO)");
+    }
+  }
 }
 
 // ============================================================
@@ -414,6 +431,12 @@ void loop() {
 // ============================================================
 
 void controlMisting(float temp, float hum, float minHum) {
+  // GUARD MODE PANEN / JEDA MANUAL (PRD Section 3)
+  if (isPausedMode) {
+    if (isMistingActive) stopMisting("Mode Panen Aktif (Jeda Manual)");
+    return;
+  }
+
   unsigned long now = millis();
   float criticalLowRh = 75.0; // Batas darurat dehidrasi rak tunggal (75.0%), membiarkan Tier 1 mengontrol rata-rata dengan stabil
   int currentHour = getCurrentHourWIB();
@@ -522,6 +545,14 @@ void stopMisting(String stopReason) {
 // ============================================================
 
 void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum) {
+  // FLUID DYNAMICS GUARD (PRD Section 3.B):
+  // Jika mode Panen / Jeda Misting diaktifkan (pintu kumbung terbuka lebar),
+  // Exhaust Fan WAJIB dimatikan untuk mencegah Short-Circuiting sirkulasi udara.
+  if (isPausedMode) {
+    if (isFanActive) stopFan("Mode Panen Aktif (Fluid Dynamics Guard — Pintu Terbuka)");
+    return;
+  }
+
   unsigned long now = millis();
   float criticalThreshold = tempMax + CRITICAL_TEMP_OFFSET;
   int currentHour = getCurrentHourWIB();
@@ -689,9 +720,70 @@ void stopFan(String stopReason) {
 }
 
 // ============================================================
+// LOGIKA JEDA PANEN (PAUSE & RESUME) — PRD SECTION 3
+// ============================================================
+
+void startPauseMode(unsigned long durationSec, String reason) {
+  if (isMistingActive) stopMisting("Mode Panen Dimulai (" + reason + ")");
+  if (isFanActive) stopFan("Mode Panen Dimulai (Fluid Dynamic Guard)");
+
+  digitalWrite(PIN_RELAY_PUMP, RELAY_OFF);
+  digitalWrite(PIN_RELAY_SOLENOID, RELAY_OFF);
+  digitalWrite(PIN_RELAY_FAN, RELAY_OFF);
+
+  isPausedMode = true;
+  pauseStartTime = millis();
+  pauseDurationMs = durationSec * 1000UL;
+  pauseReason = reason;
+
+  Serial.printf("\n============================================================\n");
+  Serial.printf("   ⏸️  [MODE PANEN DIAKTIFKAN]\n");
+  Serial.printf("   Durasi Jeda : %lu detik (%lu jam %lu menit)\n", durationSec, durationSec / 3600, (durationSec % 3600) / 60);
+  Serial.printf("   Status Fisik: Pompa, Valve, dan Exhaust Fan dipaksa OFF!\n");
+  Serial.printf("   Fisika Udara: Mencegah short-circuiting udara saat pintu terbuka.\n");
+  Serial.printf("============================================================\n\n");
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("MODE PANEN JEDA ");
+  lcd.setCursor(0, 1);
+  lcd.printf("PAUSE %02luh %02lum  ", durationSec / 3600, (durationSec % 3600) / 60);
+}
+
+void endPauseMode(String reason) {
+  isPausedMode = false;
+  pauseDurationMs = 0;
+  pauseStartTime = 0;
+
+  Serial.printf("\n============================================================\n");
+  Serial.println("   ▶️  [RESUME -> MODE AUTO] " + reason);
+  Serial.println("   ⚡  [INSTANT-READ] Segera membaca sensor DHT22 untuk stabilisasi mikroklimat...");
+  Serial.printf("============================================================\n\n");
+
+  // PRD 3.A: ESP32 otomatis masuk mode AUTO dan langsung melakukan instant-read sensor DHT22
+  lastSensorReadTime = 0;
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("RESUMED -> AUTO ");
+  lcd.setCursor(0, 1);
+  lcd.print("Instant Read... ");
+}
+
+// ============================================================
 // LCD DISPLAY
 // ============================================================
 void updateLCD(float temp, float hum, bool misting, bool fan) {
+  if (isPausedMode) {
+    unsigned long elapsed = millis() - pauseStartTime;
+    unsigned long rem = (pauseDurationMs > elapsed) ? (pauseDurationMs - elapsed) / 1000UL : 0;
+    lcd.setCursor(0, 0);
+    lcd.print("PAUSE MODE PANEN");
+    lcd.setCursor(0, 1);
+    lcd.printf("Sisa: %02luh %02lum %02lus", rem / 3600, (rem % 3600) / 60, rem % 60);
+    return;
+  }
+
   lcd.setCursor(0, 0);
   lcd.printf("T:%.1fC  H:%.1f%%", temp, hum);
 
@@ -730,7 +822,7 @@ void fetchThresholds() {
 
   if (httpCode == 200) {
     String payload = http.getString();
-    StaticJsonDocument<512> doc;
+    StaticJsonDocument<768> doc;
     DeserializationError error = deserializeJson(doc, payload);
 
     if (!error) {
@@ -746,6 +838,23 @@ void fetchThresholds() {
 
       Serial.printf("[API] Threshold Sinkron! T:%.1f-%.1f°C | RH:%.1f-%.1f%%\n",
                     tempMin, tempMax, humMin, humMax);
+
+      // ── BACA PERINTAH KONTROL JEDA PANEN (PRD Section 3.A) ──
+      if (doc["data"].containsKey("device_command")) {
+        JsonObject cmdObj = doc["data"]["device_command"];
+        String cmd = cmdObj["command"].as<String>();
+        if (cmd == "PAUSE") {
+          unsigned long remSec = cmdObj["remaining_seconds"].as<unsigned long>();
+          if (remSec > 0 && !isPausedMode) {
+            String rsn = cmdObj.containsKey("reason") ? cmdObj["reason"].as<String>() : "Mode Panen (Dashboard)";
+            startPauseMode(remSec, rsn);
+          }
+        } else if (cmd == "AUTO" || cmd == "RESUME") {
+          if (isPausedMode) {
+            endPauseMode("Command " + cmd + " diterima dari Dashboard");
+          }
+        }
+      }
     } else {
       Serial.println("[API] ⚠️ Gagal parse JSON threshold.");
     }

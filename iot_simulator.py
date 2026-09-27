@@ -413,6 +413,9 @@ class KumbungState:
         self.last_night_fan_stop_time = 0.0      # Timestamp terakhir fan malam dimatikan (independen dari cooldown homogenisasi)
         self.is_night_fan = False                # Flag apakah fan sedang running di mode malam
         self.is_critical_override = False        # Flag apakah fan sedang running mode Safety Override suhu kritis
+        self.is_paused = False                   # Flag mode jeda manual (Panen / pintu terbuka)
+        self.pause_reason = "Mode Panen"
+        self.pause_remaining = 0
 
         # Buffer kebasahan permukaan baglog & lantai kumbung (0.0% - 100.0%)
         # Air semprotan yang jatuh ke lantai, rak & kantung baglog tidak langsung hilang,
@@ -487,6 +490,27 @@ class KumbungState:
         # Mencegah short-cycling (osilasi cepat 2-3 menit yang membuat grafik lancip) sekaligus menjaga baglog tetap di zona aman.
         self.rh_trigger_high = min(self.hum_max - 4.0, self.hum_min + 5.0)  # Misal 85 + 5 = 90.0%
 
+        # Baca perintah kontrol perangkat (PRD Section 3.A)
+        cmd_info = thresholds.get('device_command', {})
+        if cmd_info:
+            cmd = cmd_info.get('command', 'AUTO')
+            rem = cmd_info.get('remaining_seconds', 0)
+            if cmd == 'PAUSE' and rem > 0:
+                if not self.is_paused:
+                    self.is_paused = True
+                    self.pause_remaining = rem
+                    self.pause_reason = cmd_info.get('reason', 'Mode Panen')
+                    print(f"\n   ⏸️  [SIMULATOR] MODE PANEN DIAKTIFKAN! ({rem}s / {round(rem/3600, 1)} jam). Misting & Fan OFF!")
+                    if self.is_misting_active:
+                        self.is_misting_active = False
+                    if self.is_fan_active:
+                        self.is_fan_active = False
+            elif cmd in ['AUTO', 'RESUME']:
+                if self.is_paused:
+                    self.is_paused = False
+                    self.pause_remaining = 0
+                    print(f"\n   ▶️  [SIMULATOR] MODE AUTO DIAKTIFKAN (RESUME)! Instant read & mikroklimat normal.")
+
     def simulate_tick(self, dt_seconds: float):
         """
         Simulasikan perubahan mikroklimat selama dt_seconds untuk 3 sensor.
@@ -494,6 +518,14 @@ class KumbungState:
         """
         # 0. Update state cuaca musiman stokastik
         self.weather_gen.tick(dt_seconds)
+
+        # Watchdog: Jeda Mode Panen Countdown (Non-blocking timer mirror esp32)
+        if getattr(self, 'is_paused', False) and getattr(self, 'pause_remaining', 0) > 0:
+            self.pause_remaining -= dt_seconds
+            if self.pause_remaining <= 0:
+                self.is_paused = False
+                self.pause_remaining = 0
+                print("\n   ▶️  [SIMULATOR] TIMER JEDA PANEN HABIS! Otomatis kembali ke Mode AUTO.")
 
         now = get_wib_now()
         base_ambient_temp = self._get_ambient_temp(now)
@@ -633,6 +665,16 @@ def control_misting(state: KumbungState):
     hour = now_dt.hour
     is_night = (hour >= NIGHT_START_HOUR or hour < NIGHT_END_HOUR)
 
+    # GUARD MODE PANEN / JEDA MANUAL (PRD Section 3)
+    if getattr(state, 'is_paused', False):
+        if state.is_misting_active:
+            elapsed = int(time.time() - state.misting_start_time) if state.misting_start_time else 0
+            state.is_misting_active = False
+            state.is_pulse_misting = False
+            state.misting_last_stop_time = time.time()
+            send_actuator_log(elapsed, state.misting_trigger_reason, "Mode Panen Aktif (Jeda Manual)", "misting")
+        return
+
     if not state.is_misting_active:
         # MUTUAL EXCLUSION (INTERLOCK):
         # Jika Exhaust Fan sedang aktif, Misting DILARANG nyala!
@@ -736,6 +778,19 @@ def control_fan(state: KumbungState):
     max_temp = state.get_max_temp()
     hum_disparity = state.get_hum_disparity()
     critical_threshold = state.temp_max + CRITICAL_TEMP_OFFSET
+
+    # FLUID DYNAMICS GUARD (PRD Section 3.B): Kipas WAJIB OFF saat mode panen (pintu terbuka)
+    # guna mencegah Short-Circuiting sirkulasi udara kumbung.
+    if getattr(state, 'is_paused', False):
+        if state.is_fan_active:
+            elapsed = int(time.time() - state.fan_start_time) if state.fan_start_time else 0
+            state.is_fan_active = False
+            state.is_homogenizing = False
+            state.is_night_fan = False
+            state.is_critical_override = False
+            state.fan_last_stop_time = time.time()
+            send_actuator_log(elapsed, state.fan_trigger_reason, "Mode Panen Aktif (Fluid Dynamics Guard — Pintu Terbuka)", "fan")
+        return
 
     now_dt = get_wib_now()
     hour = now_dt.hour
@@ -949,7 +1004,8 @@ def fetch_thresholds() -> dict:
                 'temp_min': float(data.get('temp_min', 24.0)),
                 'humidity_min': float(data.get('humidity_min', 80.0)),
                 'humidity_max': float(data.get('humidity_max', 95.0)),
-                'phase_mode': data.get('phase_mode', 'fruiting')
+                'phase_mode': data.get('phase_mode', 'fruiting'),
+                'device_command': data.get('device_command', {}),
             }
     except Exception as e:
         print(f"   ⚠️  Gagal fetch threshold: {e}")
