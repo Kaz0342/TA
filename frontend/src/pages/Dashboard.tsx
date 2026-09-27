@@ -27,6 +27,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
 import SemiCircleGauge from '../components/SemiCircleGauge';
 import AnimatedNumber from '../components/AnimatedNumber';
+import HarvestPauseWidget from '../components/HarvestPauseWidget';
 
 // Fetchers
 const fetchStats = async () => (await api.get('/dashboard/stats')).data.data;
@@ -590,6 +591,9 @@ export default function Dashboard() {
         </div>
 
       </div>
+ 
+      {/* Mode Panen & Kontrol Jeda Otomasi Mikroklimat */}
+      <HarvestPauseWidget />
 
       {/* Row 3: Middle Section (Enlarged & Detailed Dual Climate History + Automation Status Monitoring) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

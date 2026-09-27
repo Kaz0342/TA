@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Sprout, 
-  Scale, 
-  Banknote, 
+import {
+  LayoutDashboard,
+  Sprout,
+  Scale,
+  Banknote,
   Settings,
   Menu,
   X,
   LogOut,
   Sun,
-  Moon
+  Moon,
+  Grid as GridIcon
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
@@ -36,6 +37,7 @@ export default function DashboardLayout() {
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Manajemen Baglog', path: '/baglogs', icon: Sprout },
+    { name: 'Rak', path: '/kumbung', icon: GridIcon },
     { name: 'Hasil Panen', path: '/harvests', icon: Scale },
     // Penjualan & Keuangan hanya untuk role admin
     ...(user?.role === 'admin' ? [{ name: 'Penjualan & Cuan', path: '/sales', icon: Banknote }] : []),
@@ -46,7 +48,7 @@ export default function DashboardLayout() {
     <div className="min-h-screen bg-[#edf5f0] dark:bg-[#0c140e] flex text-[#192e22] dark:text-[#e4efe8] antialiased transition-colors duration-200">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
@@ -64,7 +66,7 @@ export default function DashboardLayout() {
             <h1 className="text-xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight">
               Smart Shroom
             </h1>
-            <button 
+            <button
               className="ml-auto lg:hidden text-[#37473f] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8] p-1.5 rounded-lg"
               onClick={() => setIsSidebarOpen(false)}
             >
@@ -76,7 +78,7 @@ export default function DashboardLayout() {
           <nav className="px-3.5 space-y-1.5 mt-2">
             {navItems.map((item) => {
               const Icon = item.icon;
-              
+
               return (
                 <NavLink
                   key={item.name}
@@ -84,8 +86,8 @@ export default function DashboardLayout() {
                   onClick={() => setIsSidebarOpen(false)}
                   className={({ isActive }) => cn(
                     "flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-150",
-                    isActive 
-                      ? "bg-[#bde5d1] dark:bg-[#1f3a2b] text-[#1c382b] dark:text-[#86efac] font-bold shadow-2xs" 
+                    isActive
+                      ? "bg-[#bde5d1] dark:bg-[#1f3a2b] text-[#1c382b] dark:text-[#86efac] font-bold shadow-2xs"
                       : "text-[#37473f] dark:text-[#a3c9b4] hover:bg-[#d8ece1]/60 dark:hover:bg-[#182c20] hover:text-[#192e22] dark:hover:text-[#e4efe8]"
                   )}
                 >
@@ -119,7 +121,7 @@ export default function DashboardLayout() {
           </button>
 
           {/* Logout Button */}
-          <button 
+          <button
             onClick={logout}
             className="w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-2xl text-xs font-bold text-[#b91c1c] dark:text-[#f87171] bg-[#fff0f0] dark:bg-[#2a1717] hover:bg-[#ffe5e5] dark:hover:bg-[#3b1c1c] border border-[#fecaca] dark:border-[#4a2020] shadow-2xs hover:shadow-xs active:scale-[0.98] transition-all cursor-pointer group"
             title="Keluar dari akun Smart Shroom"
@@ -146,7 +148,7 @@ export default function DashboardLayout() {
             >
               {theme === 'dark' ? <Moon className="w-5 h-5 text-emerald-400" /> : <Sun className="w-5 h-5 text-amber-600" />}
             </button>
-            <button 
+            <button
               className="p-2 rounded-xl bg-white/80 dark:bg-[#182c20] text-[#192e22] dark:text-[#e4efe8] shadow-2xs cursor-pointer"
               onClick={() => setIsSidebarOpen(true)}
             >

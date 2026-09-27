@@ -344,20 +344,26 @@ export default function Settings() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3 self-start sm:self-auto">
-          <div className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-[#eef7f2] dark:bg-[#162a1f] border border-[#cbe5d7] dark:border-[#235839] text-xs font-semibold text-[#244b37] dark:text-[#86efac]">
-            <span className="w-2 h-2 rounded-full bg-[#244b37] dark:bg-[#86efac] animate-pulse" />
-            <span>Otomasi Aktif</span>
-          </div>
+        <div className="flex items-center gap-2.5 flex-wrap self-start sm:self-auto">
           <button
             form="thresholdForm"
             type="submit"
             disabled={loading || fetching}
-            className="bg-[#244b37] hover:bg-[#1b3a2b] dark:bg-[#2e7d52] dark:hover:bg-[#246341] active:scale-[0.98] text-white px-5 py-2.5 rounded-2xl text-xs font-bold shadow-xs hover:shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            className="bg-[#244b37] hover:bg-[#1b3a2b] dark:bg-[#2e7d52] dark:hover:bg-[#246341] active:scale-[0.98] text-white px-4 py-2 rounded-xl text-xs font-bold shadow-xs hover:shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <Save className="w-4 h-4 stroke-[2.2]" />
             <span>{loading ? 'Menyimpan...' : 'Simpan Konfigurasi'}</span>
           </button>
+
+          <span className="text-[11px] font-bold px-3 py-1.5 rounded-xl bg-[#edf5f0] dark:bg-[#1a3324] text-[#244b37] dark:text-[#86efac] border border-[#cbe5d7] dark:border-[#235839] flex items-center gap-1.5 shadow-2xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Mode: {phaseMode.toUpperCase()}
+          </span>
+
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#eef7f2] dark:bg-[#162a1f] border border-[#cbe5d7] dark:border-[#235839] text-xs font-semibold text-[#244b37] dark:text-[#86efac]">
+            <span className="w-2 h-2 rounded-full bg-[#244b37] dark:bg-[#86efac] animate-pulse" />
+            <span>Otomasi Aktif</span>
+          </div>
         </div>
       </div>
 
@@ -371,28 +377,23 @@ export default function Settings() {
 
           {/* 2. Profil Fase Biologi Jamur Kuping (1-Click Presets) */}
           <div className="space-y-3.5">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base sm:text-lg font-bold text-[#192e22] dark:text-[#e4efe8] flex items-center gap-2">
-                  <Layers className="w-5 h-5 text-[#244b37] dark:text-[#86efac]" />
-                  Profil Fase Pertumbuhan Jamur Kuping
-                </h2>
-                <p className="text-xs text-[#526a5e] dark:text-[#a3c9b4] mt-0.5">
-                  Pilih salah satu profil standar biologi di bawah ini untuk mengisi batas suhu dan kelembaban secara instan.
-                </p>
-              </div>
-              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-[#edf5f0] dark:bg-[#1a3324] text-[#244b37] dark:text-[#86efac] border border-[#cbe5d7] dark:border-[#235839]">
-                Mode: {phaseMode.toUpperCase()}
-              </span>
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-[#192e22] dark:text-[#e4efe8] flex items-center gap-2">
+                <Layers className="w-5 h-5 text-[#244b37] dark:text-[#86efac]" />
+                Profil Fase Pertumbuhan Jamur Kuping
+              </h2>
+              <p className="text-xs text-[#526a5e] dark:text-[#a3c9b4] mt-0.5">
+                Pilih salah satu profil standar biologi di bawah ini untuk mengisi batas suhu dan kelembaban secara instan.
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+            <div className="flex overflow-x-auto pb-2 snap-x snap-mandatory gap-3 sm:grid sm:grid-cols-3 sm:gap-5 sm:overflow-visible">
               {PHASE_PRESETS.map((preset) => {
                 const isActive = phaseMode === preset.id;
                 return (
                   <div
                     key={preset.id}
-                    className={`rounded-3xl border p-5 sm:p-6 transition-all duration-200 flex flex-col justify-between ${
+                    className={`w-[82vw] sm:w-auto shrink-0 snap-start rounded-2xl sm:rounded-3xl border p-4 sm:p-5 transition-all duration-200 flex flex-col justify-between ${
                       isActive
                         ? 'border-[#244b37] dark:border-[#4ade80] ring-2 ring-[#244b37]/20 dark:ring-[#4ade80]/20 shadow-md bg-[#f9fcfa] dark:bg-[#16271c]'
                         : 'bg-white dark:bg-[#142219] border-[#d6e9df] dark:border-[#1e382b] hover:border-[#a5d1b7] dark:hover:border-[#2e7d52] shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-sm'
@@ -400,47 +401,47 @@ export default function Settings() {
                   >
                     <div>
                       {/* Icon & Title */}
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
+                      <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 ${
                             isActive ? 'bg-[#244b37] dark:bg-[#2e7d52] text-white' : 'bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac]'
                           }`}>
-                            {preset.id === 'incubation' && <Sprout className="w-5 h-5 stroke-[2.2]" />}
-                            {preset.id === 'primordia' && <Sparkles className="w-5 h-5 stroke-[2.2]" />}
-                            {preset.id === 'fruiting' && <Droplets className="w-5 h-5 stroke-[2.2]" />}
+                            {preset.id === 'incubation' && <Sprout className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.2]" />}
+                            {preset.id === 'primordia' && <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.2]" />}
+                            {preset.id === 'fruiting' && <Droplets className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.2]" />}
                           </div>
                           <div>
-                            <h3 className="font-bold text-[#192e22] dark:text-[#e4efe8] text-base leading-tight">
+                            <h3 className="font-bold text-[#192e22] dark:text-[#e4efe8] text-sm sm:text-base leading-tight">
                               {preset.name}
                             </h3>
-                            <span className="text-[11px] font-medium text-[#759183] dark:text-[#6b8a78]">
+                            <span className="text-[10px] sm:text-[11px] font-medium text-[#759183] dark:text-[#6b8a78]">
                               {preset.subName}
                             </span>
                           </div>
                         </div>
 
                         {isActive && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#e8f4ed] dark:bg-[#1a3324] text-[#244b37] dark:text-[#86efac] border border-[#cbe5d7] dark:border-[#235839] shrink-0">
+                          <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md bg-[#e8f4ed] dark:bg-[#1a3324] text-[#244b37] dark:text-[#86efac] border border-[#cbe5d7] dark:border-[#235839] shrink-0">
                             <CheckCircle2 className="w-3 h-3" />
                             Aktif
                           </span>
                         )}
                       </div>
 
-                      <p className="text-xs text-[#526a5e] dark:text-[#a3c9b4] leading-relaxed mb-4 min-h-[42px]">
+                      <p className="text-xs text-[#526a5e] dark:text-[#a3c9b4] leading-relaxed mb-3 line-clamp-2 sm:line-clamp-none min-h-0 sm:min-h-[40px]">
                         {preset.desc}
                       </p>
 
                       {/* Parameters Pills */}
-                      <div className="grid grid-cols-2 gap-2 mb-4 p-3 rounded-2xl bg-[#edf5f0]/80 dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b]">
+                      <div className="grid grid-cols-2 gap-2 mb-3 p-2.5 rounded-xl bg-[#edf5f0]/80 dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b]">
                         <div>
-                          <span className="text-[10px] font-bold uppercase text-[#759183] dark:text-[#6b8a78] block">Suhu Ideal</span>
+                          <span className="text-[9px] sm:text-[10px] font-bold uppercase text-[#759183] dark:text-[#6b8a78] block">Suhu Ideal</span>
                           <span className="text-xs sm:text-sm font-extrabold text-[#192e22] dark:text-[#e4efe8]">
                             {preset.tempMin} – {preset.tempMax} °C
                           </span>
                         </div>
                         <div>
-                          <span className="text-[10px] font-bold uppercase text-[#759183] dark:text-[#6b8a78] block">Kelembapan</span>
+                          <span className="text-[9px] sm:text-[10px] font-bold uppercase text-[#759183] dark:text-[#6b8a78] block">Kelembapan</span>
                           <span className="text-xs sm:text-sm font-extrabold text-[#192e22] dark:text-[#e4efe8]">
                             {preset.humMin} – {preset.humMax} %
                           </span>
@@ -452,7 +453,7 @@ export default function Settings() {
                     <button
                       type="button"
                       onClick={() => handleApplyPreset(preset)}
-                      className={`w-full py-2.5 px-4 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                      className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                         isActive
                           ? 'bg-[#e8f4ed] dark:bg-[#163321] text-[#244b37] dark:text-[#86efac] border border-[#cbe5d7] dark:border-[#235839] font-extrabold cursor-default'
                           : 'bg-[#f7faf8] dark:bg-[#111c15] hover:bg-[#edf5f0] dark:hover:bg-[#1a2e21] text-[#37473f] dark:text-[#a3c9b4] border border-[#d6e9df] dark:border-[#1e382b] active:scale-[0.98]'
@@ -477,199 +478,175 @@ export default function Settings() {
           <div className="space-y-4">
             
             {/* Status Indicator Bar */}
-            <div className="p-4 rounded-2xl bg-white dark:bg-[#142219] border border-[#d6e9df] dark:border-[#1e382b] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-[#142219] border border-[#d6e9df] dark:border-[#1e382b] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-2xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
                   <Sliders className="w-4 h-4 stroke-[2.2]" />
                 </div>
                 <div>
-                  <span className="text-xs text-[#759183] dark:text-[#6b8a78] block">Status Parameter Aktif:</span>
+                  <span className="text-[11px] sm:text-xs text-[#759183] dark:text-[#6b8a78] block">Status Parameter Aktif:</span>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-[#192e22] dark:text-[#e4efe8] text-sm">
+                    <span className="font-bold text-[#192e22] dark:text-[#e4efe8] text-xs sm:text-sm">
                       {phaseMode === 'incubation' && 'Fase Inkubasi (Vegetatif)'}
                       {phaseMode === 'primordia' && 'Fase Primordia (Transisi)'}
                       {phaseMode === 'fruiting' && 'Fase Fruiting (Generatif)'}
                       {phaseMode === 'custom' && 'Mode Kustom (Manual Fine-Tuning)'}
                     </span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#edf5f0] dark:bg-[#1a3324] text-[#244b37] dark:text-[#86efac] border border-[#cbe5d7] dark:border-[#235839]">
+                    <span className="text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md bg-[#edf5f0] dark:bg-[#1a3324] text-[#244b37] dark:text-[#86efac] border border-[#cbe5d7] dark:border-[#235839]">
                       {phaseMode === 'custom' ? 'Kustom' : 'Standar Biologi'}
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="text-xs text-[#526a5e] dark:text-[#a3c9b4] sm:text-right">
+              <div className="text-[11px] sm:text-xs text-[#526a5e] dark:text-[#a3c9b4] sm:text-right">
                 Batas di bawah ini mengatur logika pemicu otomatis Misting Sprinkler &amp; Exhaust Fan.
               </div>
             </div>
 
             {/* Manual Form Cards */}
-            <form id="thresholdForm" onSubmit={handleSave} className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <form id="thresholdForm" onSubmit={handleSave} className="space-y-4 sm:space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
                 
                 {/* Batas Suhu */}
-                <div className="p-6 rounded-3xl bg-white dark:bg-[#142219] border border-[#d6e9df] dark:border-[#1e382b] shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-4">
-                  <div className="flex items-center gap-3 pb-3 border-b border-[#eef5f1] dark:border-[#1e382b]">
-                    <div className="w-9 h-9 rounded-2xl bg-[#fef7ee] dark:bg-[#332205] text-[#b45309] dark:text-[#fbbf24] border border-[#fde68a] dark:border-[#78350f] flex items-center justify-center">
-                      <Thermometer className="w-5 h-5 stroke-[2.2]" />
+                <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#142219] border border-[#d6e9df] dark:border-[#1e382b] shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-3.5 sm:space-y-4">
+                  <div className="flex items-center gap-2.5 pb-2.5 sm:pb-3 border-b border-[#eef5f1] dark:border-[#1e382b]">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-[#fef7ee] dark:bg-[#332205] text-[#b45309] dark:text-[#fbbf24] border border-[#fde68a] dark:border-[#78350f] flex items-center justify-center shrink-0">
+                      <Thermometer className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.2]" />
                     </div>
                     <div>
-                      <h2 className="text-base font-bold text-[#192e22] dark:text-[#e4efe8]">Batas Suhu Kumbung (°C)</h2>
-                      <p className="text-xs text-[#759183] dark:text-[#6b8a78]">Toleransi temperatur untuk sirkulasi &amp; pendinginan</p>
+                      <h2 className="text-sm sm:text-base font-bold text-[#192e22] dark:text-[#e4efe8]">Batas Suhu Kumbung (°C)</h2>
+                      <p className="text-[10px] sm:text-xs text-[#759183] dark:text-[#6b8a78]">Toleransi temperatur untuk sirkulasi &amp; pendinginan</p>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    
-                    {/* Suhu Minimum */}
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-[#192e22] dark:text-[#e4efe8] mb-1.5">
-                        Suhu Minimum (°C)
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          step="0.01"
-                          required
-                          value={minTemp}
-                          onChange={(e) => handleManualChange(setMinTemp, e.target.value, 'minTemp')}
-                          className="w-full pl-4 pr-12 py-2.5 rounded-2xl bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] text-sm font-bold text-[#192e22] dark:text-[#e4efe8] focus:outline-none focus:ring-1 focus:ring-[#244b37]"
-                        />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-[#759183] dark:text-[#6b8a78]">
-                          °C
-                        </span>
+                  <div className="space-y-3 sm:space-y-4">
+                    {/* Inputs in 2 Columns Side-by-Side */}
+                    <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
+                      {/* Suhu Minimum */}
+                      <div>
+                        <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-[#192e22] dark:text-[#e4efe8] mb-1">
+                          Suhu Min
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="0.01"
+                            required
+                            value={minTemp}
+                            onChange={(e) => handleManualChange(setMinTemp, e.target.value, 'minTemp')}
+                            className="w-full pl-3 pr-8 py-2 rounded-xl bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] text-sm font-bold text-[#192e22] dark:text-[#e4efe8] focus:outline-none focus:ring-1 focus:ring-[#244b37]"
+                          />
+                          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#759183] dark:text-[#6b8a78]">
+                            °C
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-[#759183] dark:text-[#6b8a78] mt-1 line-clamp-1 sm:line-clamp-none">
+                          Batas bawah zona aman.
+                        </p>
                       </div>
-                      <p className="text-[11px] text-[#759183] dark:text-[#6b8a78] mt-1">
-                        Batas bawah zona aman. Di bawah suhu ini, exhaust fan tidak membuang hawa hangat.
-                      </p>
-                    </div>
 
-                    {/* Suhu Maksimum */}
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-[#192e22] dark:text-[#e4efe8] mb-1.5">
-                        Suhu Maksimum (°C) — Pemicu Exhaust Fan
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          step="0.01"
-                          required
-                          value={maxTemp}
-                          onChange={(e) => handleManualChange(setMaxTemp, e.target.value, 'maxTemp')}
-                          className="w-full pl-4 pr-12 py-2.5 rounded-2xl bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] text-sm font-bold text-[#192e22] dark:text-[#e4efe8] focus:outline-none focus:ring-1 focus:ring-[#244b37]"
-                        />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-[#759183] dark:text-[#6b8a78]">
-                          °C
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-[#759183] dark:text-[#6b8a78] mt-1">
-                        Pemicu exhaust fan menyala untuk membuang panas kumbung ke luar.
-                      </p>
-                    </div>
-
-                    {/* Range Visualizer Suhu */}
-                    <div className="p-3 rounded-2xl bg-[#edf5f0] dark:bg-[#111c15] border border-[#cbe5d7] dark:border-[#1e382b] text-xs">
-                      <div className="flex justify-between font-bold text-[#192e22] dark:text-[#e4efe8] mb-1">
-                        <span>Zona Aman Suhu:</span>
-                        <span>{minTemp}°C – {maxTemp}°C</span>
-                      </div>
-                      <div className="w-full h-2 bg-slate-200 dark:bg-[#1f382b] rounded-full overflow-hidden flex">
-                        <div className="w-1/4 bg-blue-300 dark:bg-blue-600" title="Zona Dingin" />
-                        <div className="w-2/4 bg-[#244b37] dark:bg-[#4ade80]" title="Zona Ideal Kumbung" />
-                        <div className="w-1/4 bg-rose-400 dark:bg-rose-600" title="Zona Panas (Fan ON)" />
+                      {/* Suhu Maksimum */}
+                      <div>
+                        <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-[#192e22] dark:text-[#e4efe8] mb-1">
+                          Suhu Max (Fan ON)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="0.01"
+                            required
+                            value={maxTemp}
+                            onChange={(e) => handleManualChange(setMaxTemp, e.target.value, 'maxTemp')}
+                            className="w-full pl-3 pr-8 py-2 rounded-xl bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] text-sm font-bold text-[#192e22] dark:text-[#e4efe8] focus:outline-none focus:ring-1 focus:ring-[#244b37]"
+                          />
+                          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#759183] dark:text-[#6b8a78]">
+                            °C
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-[#759183] dark:text-[#6b8a78] mt-1 line-clamp-1 sm:line-clamp-none">
+                          Pemicu exhaust fan nyala.
+                        </p>
                       </div>
                     </div>
-
                   </div>
                 </div>
 
                 {/* Batas Kelembapan */}
-                <div className="p-6 rounded-3xl bg-white dark:bg-[#142219] border border-[#d6e9df] dark:border-[#1e382b] shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-4">
-                  <div className="flex items-center gap-3 pb-3 border-b border-[#eef5f1] dark:border-[#1e382b]">
-                    <div className="w-9 h-9 rounded-2xl bg-[#e8f4fd] dark:bg-[#0f283d] text-[#0284c7] dark:text-[#38bdf8] border border-[#bae6fd] dark:border-[#0369a1] flex items-center justify-center">
-                      <Droplets className="w-5 h-5 stroke-[2.2]" />
+                <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#142219] border border-[#d6e9df] dark:border-[#1e382b] shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-3.5 sm:space-y-4">
+                  <div className="flex items-center gap-2.5 pb-2.5 sm:pb-3 border-b border-[#eef5f1] dark:border-[#1e382b]">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-[#e8f4fd] dark:bg-[#0f283d] text-[#0284c7] dark:text-[#38bdf8] border border-[#bae6fd] dark:border-[#0369a1] flex items-center justify-center shrink-0">
+                      <Droplets className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.2]" />
                     </div>
                     <div>
-                      <h2 className="text-base font-bold text-[#192e22] dark:text-[#e4efe8]">Batas Kelembapan (RH %)</h2>
-                      <p className="text-xs text-[#759183] dark:text-[#6b8a78]">Rentang Relative Humidity pemicu misting sprinkler</p>
+                      <h2 className="text-sm sm:text-base font-bold text-[#192e22] dark:text-[#e4efe8]">Batas Kelembapan (RH %)</h2>
+                      <p className="text-[10px] sm:text-xs text-[#759183] dark:text-[#6b8a78]">Rentang Relative Humidity pemicu misting sprinkler</p>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    
-                    {/* Kelembapan Minimum */}
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-[#192e22] dark:text-[#e4efe8] mb-1.5">
-                        Kelembapan Minimum (%) — Pemicu Misting ON
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          step="0.01"
-                          required
-                          value={minHum}
-                          onChange={(e) => handleManualChange(setMinHum, e.target.value, 'minHum')}
-                          className="w-full pl-4 pr-12 py-2.5 rounded-2xl bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] text-sm font-bold text-[#192e22] dark:text-[#e4efe8] focus:outline-none focus:ring-1 focus:ring-[#244b37]"
-                        />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-[#759183] dark:text-[#6b8a78]">
-                          %
-                        </span>
+                  <div className="space-y-3 sm:space-y-4">
+                    {/* Inputs in 2 Columns Side-by-Side */}
+                    <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
+                      {/* Kelembapan Minimum */}
+                      <div>
+                        <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-[#192e22] dark:text-[#e4efe8] mb-1">
+                          RH Min (Misting ON)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="0.01"
+                            required
+                            value={minHum}
+                            onChange={(e) => handleManualChange(setMinHum, e.target.value, 'minHum')}
+                            className="w-full pl-3 pr-7 py-2 rounded-xl bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] text-sm font-bold text-[#192e22] dark:text-[#e4efe8] focus:outline-none focus:ring-1 focus:ring-[#244b37]"
+                          />
+                          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#759183] dark:text-[#6b8a78]">
+                            %
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-[#759183] dark:text-[#6b8a78] mt-1 line-clamp-1 sm:line-clamp-none">
+                          Pemicu misting menyala.
+                        </p>
                       </div>
-                      <p className="text-[11px] text-[#759183] dark:text-[#6b8a78] mt-1">
-                        Pemicu misting sprinkler otomatis menyala saat kumbung terlalu kering.
-                      </p>
-                    </div>
 
-                    {/* Kelembapan Maksimum */}
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-[#192e22] dark:text-[#e4efe8] mb-1.5">
-                        Kelembapan Maksimum (%) — Target Henti
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          step="0.01"
-                          required
-                          value={maxHum}
-                          onChange={(e) => handleManualChange(setMaxHum, e.target.value, 'maxHum')}
-                          className="w-full pl-4 pr-12 py-2.5 rounded-2xl bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] text-sm font-bold text-[#192e22] dark:text-[#e4efe8] focus:outline-none focus:ring-1 focus:ring-[#244b37]"
-                        />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-[#759183] dark:text-[#6b8a78]">
-                          %
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-[#759183] dark:text-[#6b8a78] mt-1">
-                        Target batas atas misting sprinkler otomatis berhenti agar baglog tidak becek.
-                      </p>
-                    </div>
-
-                    {/* Range Visualizer Kelembapan */}
-                    <div className="p-3 rounded-2xl bg-[#edf5f0] dark:bg-[#111c15] border border-[#cbe5d7] dark:border-[#1e382b] text-xs">
-                      <div className="flex justify-between font-bold text-[#192e22] dark:text-[#e4efe8] mb-1">
-                        <span>Zona Aman Kelembapan:</span>
-                        <span>{minHum}% – {maxHum}%</span>
-                      </div>
-                      <div className="w-full h-2 bg-slate-200 dark:bg-[#1f382b] rounded-full overflow-hidden flex">
-                        <div className="w-1/4 bg-amber-300 dark:bg-amber-600" title="Kering (Misting ON)" />
-                        <div className="w-2/4 bg-[#244b37] dark:bg-[#4ade80]" title="Zona Lembap Ideal" />
-                        <div className="w-1/4 bg-sky-400 dark:bg-sky-600" title="Sangat Lembap (Misting OFF)" />
+                      {/* Kelembapan Maksimum */}
+                      <div>
+                        <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-[#192e22] dark:text-[#e4efe8] mb-1">
+                          RH Max (Target Henti)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="0.01"
+                            required
+                            value={maxHum}
+                            onChange={(e) => handleManualChange(setMaxHum, e.target.value, 'maxHum')}
+                            className="w-full pl-3 pr-7 py-2 rounded-xl bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] text-sm font-bold text-[#192e22] dark:text-[#e4efe8] focus:outline-none focus:ring-1 focus:ring-[#244b37]"
+                          />
+                          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#759183] dark:text-[#6b8a78]">
+                            %
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-[#759183] dark:text-[#6b8a78] mt-1 line-clamp-1 sm:line-clamp-none">
+                          Target misting berhenti.
+                        </p>
                       </div>
                     </div>
-
                   </div>
                 </div>
 
               </div>
 
               {/* Bottom Submit Card */}
-              <div className="p-5 rounded-3xl bg-white dark:bg-[#142219] border border-[#d6e9df] dark:border-[#1e382b] flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
-                <div className="text-xs text-[#526a5e] dark:text-[#a3c9b4] leading-relaxed">
+              <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#142219] border border-[#d6e9df] dark:border-[#1e382b] flex flex-col sm:flex-row items-center justify-between gap-3 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+                <div className="text-xs text-[#526a5e] dark:text-[#a3c9b4] leading-relaxed text-center sm:text-left">
                   Perubahan batas akan otomatis dibaca oleh mikrokontroler <strong>ESP32</strong> saat siklus polling berikutnya (~10 detik).
                 </div>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full sm:w-auto bg-[#244b37] hover:bg-[#1b3a2b] dark:bg-[#2e7d52] dark:hover:bg-[#246341] active:scale-[0.98] text-white px-7 py-3 rounded-2xl text-xs font-bold shadow-xs hover:shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="w-full sm:w-auto bg-[#244b37] hover:bg-[#1b3a2b] dark:bg-[#2e7d52] dark:hover:bg-[#246341] active:scale-[0.98] text-white px-6 py-2.5 rounded-xl text-xs font-bold shadow-xs hover:shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0"
                 >
                   <Save className="w-4 h-4 stroke-[2.2]" />
                   <span>{loading ? 'Menyimpan...' : 'Terapkan & Simpan Konfigurasi'}</span>

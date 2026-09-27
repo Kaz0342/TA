@@ -11,13 +11,17 @@ import {
   Search, 
   Clock,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Banknote
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { useToastStore } from '../stores/toastStore';
 import AnimatedNumber from '../components/AnimatedNumber';
 import AnimatedProgressBar from '../components/AnimatedProgressBar';
+import RecordCullModal from '../components/RecordCullModal';
+import CullHistoryTable from '../components/CullHistoryTable';
+import HppAnalysisCard from '../components/HppAnalysisCard';
 
 // Data Contract Interface
 interface BaglogBatch {
@@ -25,6 +29,7 @@ interface BaglogBatch {
   batch_code: string;
   entry_date: string;
   quantity: number;
+  price_per_baglog?: number;
   supplier: string;
   status: 'active' | 'contaminated' | 'disposed';
   notes?: string | null;
@@ -50,10 +55,15 @@ export default function BaglogManagement() {
     setCurrentPage(1);
   }, [statusFilter, searchQuery]);
 
+  // Tab State: 'batches' | 'culls' | 'hpp'
+  const [activeTab, setActiveTab] = useState<'batches' | 'culls' | 'hpp'>('batches');
+  const [isCullModalOpen, setIsCullModalOpen] = useState(false);
+
   // Create Batch Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]);
   const [quantity, setQuantity] = useState('');
+  const [pricePerBaglog, setPricePerBaglog] = useState('3000');
   const [supplier, setSupplier] = useState('');
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState('');
@@ -109,7 +119,7 @@ export default function BaglogManagement() {
 
     let dominantStage = 'Masa Kosong';
     if (activeBatches.length > 0) {
-      if (avgAge < 30) dominantStage = 'Fase Inkubasi Miselium';
+      if (avgAge < 30) dominantStage = 'Fase Masa Tumbuh';
       else if (avgAge <= 90) dominantStage = 'Fase Produktif Panen (Prime)';
       else dominantStage = 'Fase Akhir / Waspada Afkir';
     }
@@ -152,13 +162,14 @@ export default function BaglogManagement() {
 
   // Mutation: Create Baglog
   const createMutation = useMutation({
-    mutationFn: async (payload: { entry_date: string; quantity: number; supplier: string; notes?: string }) => {
+    mutationFn: async (payload: { entry_date: string; quantity: number; price_per_baglog?: number; supplier: string; notes?: string }) => {
       const res = await api.post('/baglogs', payload);
       return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['baglogs'] });
       queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
+      queryClient.invalidateQueries({ queryKey: ['hppSummary'] });
       addToast('Batch baglog baru berhasil didaftarkan ke kumbung!', 'success');
       setIsModalOpen(false);
       resetForm();
@@ -179,6 +190,7 @@ export default function BaglogManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['baglogs'] });
       queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
+      queryClient.invalidateQueries({ queryKey: ['hppSummary'] });
       addToast('Status batch baglog berhasil diperbarui!', 'success');
       setConfirmModal((prev) => ({ ...prev, isOpen: false }));
     },
@@ -190,6 +202,7 @@ export default function BaglogManagement() {
   const resetForm = () => {
     setEntryDate(new Date().toISOString().split('T')[0]);
     setQuantity('');
+    setPricePerBaglog('3000');
     setSupplier('');
     setNotes('');
     setFormError('');
@@ -218,9 +231,12 @@ export default function BaglogManagement() {
       return;
     }
 
+    const numericPrice = parseFloat(pricePerBaglog.replace(/[^0-9]/g, '')) || 3000;
+
     createMutation.mutate({
       entry_date: entryDate,
       quantity: numericQty,
+      price_per_baglog: numericPrice,
       supplier: supplier.trim(),
       notes: notes.trim() || undefined,
     });
@@ -230,9 +246,9 @@ export default function BaglogManagement() {
   const renderAgeBadge = (ageDays: number) => {
     if (ageDays < 30) {
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#e8f4fd] dark:bg-[#0f283d] text-[#0284c7] dark:text-[#38bdf8] border border-[#bae6fd] dark:border-[#0369a1]" title="Fase Inkubasi Miselium (0-29 Hari)">
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#e8f4fd] dark:bg-[#0f283d] text-[#0284c7] dark:text-[#38bdf8] border border-[#bae6fd] dark:border-[#0369a1]" title="Fase Masa Tumbuh (0-29 Hari)">
           <span className="w-1.5 h-1.5 rounded-full bg-[#0284c7] dark:bg-[#38bdf8]"></span>
-          {ageDays} Hari • Inkubasi
+          {ageDays} Hari • Tumbuh
         </span>
       );
     }
@@ -247,7 +263,7 @@ export default function BaglogManagement() {
     return (
       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#fffbeb] dark:bg-[#332205] text-[#b45309] dark:text-[#fbbf24] border border-[#fde68a] dark:border-[#78350f]" title="Masa Akhir / Rawan Kontaminasi (>90 Hari)">
         <span className="w-1.5 h-1.5 rounded-full bg-[#b45309] dark:bg-[#fbbf24]"></span>
-        {ageDays} Hari • Tua (Afkir)
+        {ageDays} Hari • Tua (Dibuang)
       </span>
     );
   };
@@ -273,7 +289,7 @@ export default function BaglogManagement() {
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-[#fef2f2] dark:bg-[#381111] text-[#991b1b] dark:text-[#f87171] border border-[#fecaca] dark:border-[#7f1d1d]">
             <Trash2 className="w-3 h-3 text-[#dc2626] dark:text-[#f87171]" />
-            Dibuang / Afkir
+            Dibuang / Rusak
           </span>
         );
     }
@@ -299,7 +315,7 @@ export default function BaglogManagement() {
               resetForm();
               setIsModalOpen(true);
             }}
-            className="self-start sm:self-auto bg-[#244b37] hover:bg-[#1b3a2b] dark:bg-[#2e7d52] dark:hover:bg-[#246341] active:scale-[0.98] text-white px-4 py-2.5 rounded-2xl text-xs font-bold shadow-xs hover:shadow-md transition-all flex items-center gap-2 cursor-pointer"
+            className="self-end sm:self-auto bg-[#244b37] hover:bg-[#1b3a2b] dark:bg-[#2e7d52] dark:hover:bg-[#246341] active:scale-[0.98] text-white px-4 py-2.5 rounded-2xl text-xs font-bold shadow-xs hover:shadow-md transition-all flex items-center gap-2 cursor-pointer"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Tambah Batch Baru</span>
@@ -308,137 +324,177 @@ export default function BaglogManagement() {
       </div>
 
       {/* 4 Operational KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
         
         {/* KPI 1: Baglog Aktif */}
-        <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8]">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center">
-                <Layers className="w-4 h-4" />
+        <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
+          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] gap-1">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
+                <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
-              <span className="font-bold text-sm text-[#192e22] dark:text-[#e4efe8]">Baglog Aktif</span>
+              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Baglog Aktif</span>
             </div>
-            <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 bg-[#eaf5ef] dark:bg-[#163321] px-2 py-0.5 rounded-md border border-[#a5d1b7] dark:border-[#235839]">
-              {metrics.capacityPercentage}% Kapasitas
+            <span className="text-[9px] sm:text-[11px] font-bold text-emerald-800 dark:text-emerald-300 bg-[#eaf5ef] dark:bg-[#163321] px-1.5 sm:px-2 py-0.5 rounded-md border border-[#a5d1b7] dark:border-[#235839] shrink-0">
+              {metrics.capacityPercentage}%
             </span>
           </div>
 
-          <div className="mt-4">
-            <div className="flex items-baseline gap-1.5">
+          <div className="mt-3 sm:mt-4">
+            <div className="flex items-baseline gap-1">
               <AnimatedNumber
                 value={metrics.activeQuantity}
-                className="text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
+                className="text-xl sm:text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
               />
-              <span className="text-sm font-semibold text-[#526a5e] dark:text-[#a3c9b4]">Baglog</span>
+              <span className="text-xs sm:text-sm font-semibold text-[#526a5e] dark:text-[#a3c9b4]">Baglog</span>
             </div>
             
             {/* Kapasitas Progress Bar Beranimasi */}
             <AnimatedProgressBar percentage={metrics.capacityPercentage} />
-            <p className="text-[11px] text-[#759183] dark:text-[#6b8a78] mt-2 font-medium">
-              Dari kapasitas maks. {metrics.maxCapacity.toLocaleString('id-ID')} baglog kumbung
+            <p className="text-[10px] sm:text-[11px] text-[#759183] dark:text-[#6b8a78] mt-1.5 sm:mt-2 font-medium truncate">
+              Maks. {metrics.maxCapacity.toLocaleString('id-ID')} kumbung
             </p>
           </div>
         </div>
 
         {/* KPI 2: Total Batch Terdaftar */}
-        <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8]">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center">
-                <Package className="w-4 h-4" />
+        <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
+          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] gap-1">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
+                <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
-              <span className="font-bold text-sm text-[#192e22] dark:text-[#e4efe8]">Batch Terdaftar</span>
+              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Batch Terdaftar</span>
             </div>
-            <span className="text-[11px] font-bold text-[#244b37] dark:text-[#86efac] bg-slate-100 dark:bg-[#1a2e22] px-2 py-0.5 rounded-md">
-              Siklus Tanam
+            <span className="text-[9px] sm:text-[11px] font-bold text-[#244b37] dark:text-[#86efac] bg-slate-100 dark:bg-[#1a2e22] px-1.5 sm:px-2 py-0.5 rounded-md shrink-0">
+              Siklus
             </span>
           </div>
 
-          <div className="mt-4">
-            <div className="flex items-baseline gap-1.5">
+          <div className="mt-3 sm:mt-4">
+            <div className="flex items-baseline gap-1">
               <AnimatedNumber
                 value={metrics.totalBatches}
-                className="text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
+                className="text-xl sm:text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
               />
-              <span className="text-sm font-semibold text-[#526a5e] dark:text-[#a3c9b4]">Kelompok Batch</span>
+              <span className="text-xs sm:text-sm font-semibold text-[#526a5e] dark:text-[#a3c9b4]">Batch</span>
             </div>
-            <p className="text-xs font-bold text-[#2e7d52] dark:text-[#4ade80] mt-1">
-              {metrics.activeBatchesCount} Batch Aktif Produktif
+            <p className="text-[10px] sm:text-xs font-bold text-[#2e7d52] dark:text-[#4ade80] mt-1 truncate">
+              {metrics.activeBatchesCount} Batch Aktif
             </p>
-            <p className="text-[11px] text-[#759183] dark:text-[#6b8a78] mt-2 font-medium">
-              Tiap batch memiliki rotasi panen independen
+            <p className="text-[10px] sm:text-[11px] text-[#759183] dark:text-[#6b8a78] mt-1.5 sm:mt-2 font-medium truncate">
+              Rotasi panen independen
             </p>
           </div>
         </div>
 
         {/* KPI 3: Rata-rata Umur Media */}
-        <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8]">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center">
-                <Clock className="w-4 h-4" />
+        <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
+          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] gap-1">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
+                <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
-              <span className="font-bold text-sm text-[#192e22] dark:text-[#e4efe8]">Rata-rata Umur</span>
+              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Rata-rata Umur</span>
             </div>
-            <span className="text-[11px] font-bold text-blue-800 dark:text-blue-300 bg-[#e8f4fd] dark:bg-[#0f283d] px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-900">
-              Media Aktif
+            <span className="text-[9px] sm:text-[11px] font-bold text-blue-800 dark:text-blue-300 bg-[#e8f4fd] dark:bg-[#0f283d] px-1.5 sm:px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-900 shrink-0">
+              Aktif
             </span>
           </div>
 
-          <div className="mt-4">
-            <div className="flex items-baseline gap-1.5">
+          <div className="mt-3 sm:mt-4">
+            <div className="flex items-baseline gap-1">
               <AnimatedNumber
                 value={metrics.avgAge}
-                className="text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
+                className="text-xl sm:text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
               />
-              <span className="text-sm font-semibold text-[#526a5e] dark:text-[#a3c9b4]">Hari Sejak Tanam</span>
+              <span className="text-xs sm:text-sm font-semibold text-[#526a5e] dark:text-[#a3c9b4]">Hari</span>
             </div>
-            <p className="text-xs font-bold text-[#0284c7] dark:text-[#38bdf8] mt-1">
+            <p className="text-[10px] sm:text-xs font-bold text-[#0284c7] dark:text-[#38bdf8] mt-1 truncate">
               {metrics.dominantStage}
             </p>
-            <p className="text-[11px] text-[#759183] dark:text-[#6b8a78] mt-2 font-medium">
-              Jamur kuping optimal dipanen umur 30–90 hari
+            <p className="text-[10px] sm:text-[11px] text-[#759183] dark:text-[#6b8a78] mt-1.5 sm:mt-2 font-medium truncate">
+              Optimal panen 30–90 hari
             </p>
           </div>
         </div>
 
         {/* KPI 4: Total Afkir & Terkontaminasi */}
-        <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8]">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-[#fff1f2] dark:bg-[#381111] text-[#e11d48] dark:text-[#f87171] flex items-center justify-center">
-                <AlertTriangle className="w-4 h-4" />
+        <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
+          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] gap-1">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#fff1f2] dark:bg-[#381111] text-[#e11d48] dark:text-[#f87171] flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
-              <span className="font-bold text-sm text-[#192e22] dark:text-[#e4efe8]">Media Afkir / Rusak</span>
+              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Media Rusak</span>
             </div>
-            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
+            <span className={`text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md shrink-0 ${
               metrics.totalAfkir > 0 ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300' : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
             }`}>
-              {metrics.totalAfkir > 0 ? 'Perlu Dibuang' : 'Steril'}
+              {metrics.totalAfkir > 0 ? 'Afkir' : 'Steril'}
             </span>
           </div>
 
-          <div className="mt-4">
-            <div className="flex items-baseline gap-1.5">
+          <div className="mt-3 sm:mt-4">
+            <div className="flex items-baseline gap-1">
               <AnimatedNumber
                 value={metrics.totalAfkir}
-                className="text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
+                className="text-xl sm:text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
               />
-              <span className="text-sm font-semibold text-[#526a5e] dark:text-[#a3c9b4]">Baglog</span>
+              <span className="text-xs sm:text-sm font-semibold text-[#526a5e] dark:text-[#a3c9b4]">Baglog</span>
             </div>
-            <p className={`text-xs font-bold mt-1 ${metrics.contaminatedQuantity > 0 ? 'text-[#e05345] dark:text-rose-400' : 'text-[#2e7d52] dark:text-[#4ade80]'}`}>
-              {metrics.contaminatedQuantity} Terkontaminasi • {metrics.disposedQuantity} Dibuang
+            <p className={`text-[10px] sm:text-xs font-bold mt-1 truncate ${metrics.contaminatedQuantity > 0 ? 'text-[#e05345] dark:text-rose-400' : 'text-[#2e7d52] dark:text-[#4ade80]'}`}>
+              {metrics.contaminatedQuantity} Kontam • {metrics.disposedQuantity} Dibuang
             </p>
-            <p className="text-[11px] text-[#759183] dark:text-[#6b8a78] mt-2 font-medium">
-              Segera pisahkan media hijau agar tidak menular
+            <p className="text-[10px] sm:text-[11px] text-[#759183] dark:text-[#6b8a78] mt-1.5 sm:mt-2 font-medium truncate">
+              Segera pisahkan media
             </p>
           </div>
         </div>
 
       </div>
 
-      {/* Main Table Card with Integrated Search & Filter Controls */}
+      {/* Module Navigation Tabs */}
+      <div className="flex items-center gap-2 bg-[#d7ebe0]/50 dark:bg-[#182c20]/60 p-1.5 rounded-2xl border border-[#d6e9df] dark:border-[#1e382b] overflow-x-auto">
+        <button
+          onClick={() => setActiveTab('batches')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'batches'
+              ? 'bg-white dark:bg-[#142219] text-[#192e22] dark:text-[#86efac] shadow-xs'
+              : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          <span>Daftar Batch Baglog ({baglogs.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('culls')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'culls'
+              ? 'bg-white dark:bg-[#142219] text-rose-700 dark:text-rose-400 shadow-xs'
+              : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-rose-700 dark:hover:text-rose-400'
+          }`}
+        >
+          <Trash2 className="w-4 h-4" />
+          <span>Riwayat Baglog Rusak &amp; Kontaminasi</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('hpp')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'hpp'
+              ? 'bg-white dark:bg-[#142219] text-emerald-800 dark:text-[#86efac] shadow-xs'
+              : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-emerald-800 dark:hover:text-[#86efac]'
+          }`}
+        >
+          <Banknote className="w-4 h-4" />
+          <span>Analisis HPP &amp; Keuntungan Kotor</span>
+        </button>
+      </div>
+
+      {activeTab === 'batches' && (
+      /* Main Table Card with Integrated Search & Filter Controls */
       <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-5">
         
         {/* Toolbar: Search + Segmented Status Tabs */}
@@ -621,13 +677,13 @@ export default function BaglogManagement() {
                                     batchCode: batch.batch_code,
                                     batchId: batch.id,
                                     status: 'disposed',
-                                    title: 'Bongkar & Afkir Media Tanam',
+                                    title: 'Bongkar & Buang Media Tanam',
                                     description: `Apakah seluruh baglog pada batch ${batch.batch_code} sudah habis masa produktifnya dan akan dibongkar dari rak kumbung?`,
-                                    actionLabel: 'Afkir & Buang',
+                                    actionLabel: 'Buang Baglog',
                                     statusNotes: '',
                                   })
                                 }
-                                title="Bongkar & buang baglog afkir"
+                                title="Bongkar & buang baglog rusak/tua"
                                 className="p-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800 transition-colors cursor-pointer"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -697,7 +753,7 @@ export default function BaglogManagement() {
           <div className="flex items-center gap-4 text-[11px]">
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-[#0284c7]"></span>
-              &lt; 30 Hari: Inkubasi
+              &lt; 30 Hari: Tumbuh
             </span>
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-[#15803d]"></span>
@@ -705,7 +761,7 @@ export default function BaglogManagement() {
             </span>
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-[#b45309]"></span>
-              &gt; 90 Hari: Rawan Afkir
+              &gt; 90 Hari: Rawan Buang
             </span>
           </div>
         </div>
@@ -751,6 +807,23 @@ export default function BaglogManagement() {
         )}
 
       </div>
+      )}
+
+      {/* View 2: Riwayat Afkir & Sanitasi Kumbung */}
+      {activeTab === 'culls' && (
+        <CullHistoryTable
+          onOpenRecordModal={() => setIsCullModalOpen(true)}
+          isAdmin={user?.role === 'admin'}
+        />
+      )}
+
+      {/* View 3: Analisis HPP & Margin Kontribusi */}
+      {activeTab === 'hpp' && (
+        <HppAnalysisCard
+          batches={baglogs}
+          isAdmin={user?.role === 'admin'}
+        />
+      )}
 
       {/* Modal: Tambah Batch Baglog Baru (Modern Glassmorphism) */}
       {isModalOpen && (
@@ -787,24 +860,24 @@ export default function BaglogManagement() {
             {/* Form */}
             <form onSubmit={handleSubmitNewBatch} className="space-y-4">
               
-              {/* Row 1: Tanggal Masuk & Jumlah */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* Row 1: Tanggal Masuk, Jumlah, Harga Modal */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-[#192e22] dark:text-[#e4efe8] mb-1.5">
-                    Tanggal Masuk / Tanam <span className="text-rose-500">*</span>
+                    Tanggal Masuk <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="date"
                     value={entryDate}
                     onChange={(e) => setEntryDate(e.target.value)}
                     required
-                    className="w-full px-3.5 py-2.5 bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] focus:border-[#2e7d52] focus:bg-white dark:focus:bg-[#16271c] rounded-2xl text-xs font-semibold text-[#192e22] dark:text-[#e4efe8] outline-none transition-all"
+                    className="w-full px-3 py-2.5 bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] focus:border-[#2e7d52] focus:bg-white dark:focus:bg-[#16271c] rounded-2xl text-xs font-semibold text-[#192e22] dark:text-[#e4efe8] outline-none transition-all"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-[#192e22] dark:text-[#e4efe8] mb-1.5">
-                    Jumlah Baglog (Unit) <span className="text-rose-500">*</span>
+                    Jumlah (Unit) <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -812,7 +885,23 @@ export default function BaglogManagement() {
                     onChange={(e) => handleQuantityChange(e.target.value)}
                     placeholder="Contoh: 500"
                     required
-                    className="w-full px-3.5 py-2.5 bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] focus:border-[#2e7d52] focus:bg-white dark:focus:bg-[#16271c] rounded-2xl text-xs font-semibold text-[#192e22] dark:text-[#e4efe8] outline-none transition-all"
+                    className="w-full px-3 py-2.5 bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] focus:border-[#2e7d52] focus:bg-white dark:focus:bg-[#16271c] rounded-2xl text-xs font-semibold text-[#192e22] dark:text-[#e4efe8] outline-none transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#192e22] dark:text-[#e4efe8] mb-1.5">
+                    Harga Modal (Rp) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="500"
+                    step="100"
+                    value={pricePerBaglog}
+                    onChange={(e) => setPricePerBaglog(e.target.value)}
+                    placeholder="3000"
+                    required
+                    className="w-full px-3 py-2.5 bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] focus:border-[#2e7d52] focus:bg-white dark:focus:bg-[#16271c] rounded-2xl text-xs font-semibold text-[#192e22] dark:text-[#e4efe8] outline-none transition-all"
                   />
                 </div>
               </div>
@@ -981,6 +1070,13 @@ export default function BaglogManagement() {
           </div>
         </div>
       )}
+
+      {/* Record Cull Modal */}
+      <RecordCullModal
+        isOpen={isCullModalOpen}
+        onClose={() => setIsCullModalOpen(false)}
+        batches={baglogs}
+      />
 
     </div>
   );

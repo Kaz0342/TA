@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
 import BaglogManagement from './pages/BaglogManagement';
+import KumbungGrid from './pages/KumbungGrid';
 import HarvestManagement from './pages/HarvestManagement';
 import SalesManagement from './pages/SalesManagement';
 import DashboardLayout from './components/DashboardLayout';
@@ -59,6 +60,7 @@ function App() {
           {/* Outlet Children */}
           <Route index element={<Dashboard />} />
           <Route path="baglogs" element={<BaglogManagement />} />
+          <Route path="kumbung" element={<KumbungGrid />} />
           <Route path="harvests" element={<HarvestManagement />} />
           <Route path="sales" element={<SalesManagement />} />
           <Route path="settings" element={<Settings />} />

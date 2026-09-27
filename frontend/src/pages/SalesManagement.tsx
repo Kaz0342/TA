@@ -24,6 +24,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import api from '../services/api';
+import { saleService, type BuyerRankingItem, type PriceTrendData } from '../services/saleService';
 import { useAuthStore } from '../stores/authStore';
 import { useToastStore } from '../stores/toastStore';
 import { useThemeStore } from '../stores/themeStore';
@@ -32,6 +33,7 @@ import AnimatedNumber from '../components/AnimatedNumber';
 interface SaleRecord {
   id: number;
   user_id: number;
+  baglog_batch_id?: number | null;
   sale_date: string;
   quantity_kg: string | number;
   price_per_kg: string | number;
@@ -93,13 +95,14 @@ export default function SalesManagement() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
   const [buyerName, setBuyerName] = useState('');
+  const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
   const [quantityKg, setQuantityKg] = useState('');
   const [pricePerKg, setPricePerKg] = useState('');
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState('');
 
   // 1. Query: All Sales
-  const { data: sales = [], isLoading: isLoadingSales, refetch: refetchSales } = useQuery<SaleRecord[]>({
+  const { data: sales = [], isLoading: isLoadingSales } = useQuery<SaleRecord[]>({
     queryKey: ['sales'],
     queryFn: async () => {
       const res = await api.get('/sales');
@@ -118,13 +121,35 @@ export default function SalesManagement() {
     enabled: user?.role === 'admin'
   });
 
-  // 3. Mutation: Create Sale
+  // 3. Query: Top 4 Buyer Ranking
+  const { data: topBuyers = [] } = useQuery<BuyerRankingItem[]>({
+    queryKey: ['buyerRanking'],
+    queryFn: () => saleService.getBuyerRanking(4),
+    enabled: user?.role === 'admin',
+  });
+
+  // 4. Query: Price Trend & Recommended Presets
+  const { data: priceTrend } = useQuery<PriceTrendData>({
+    queryKey: ['priceTrend'],
+    queryFn: () => saleService.getPriceTrend(),
+    enabled: user?.role === 'admin',
+  });
+
+  // 5. Query: Active Baglog Batches (for batch attribution dropdown)
+  const { data: batches = [] } = useQuery<Array<{ id: number; batch_code: string; entry_date: string; status: string }>>({
+    queryKey: ['baglogs'],
+    queryFn: async () => (await api.get('/baglogs')).data.data || [],
+    enabled: user?.role === 'admin',
+  });
+
+  // 6. Mutation: Create Sale
   const createMutation = useMutation({
     mutationFn: async (payload: {
       sale_date: string;
       quantity_kg: number;
       price_per_kg: number;
       buyer_name: string;
+      baglog_batch_id?: number | null;
       notes?: string;
     }) => {
       const res = await api.post('/sales', payload);
@@ -134,6 +159,10 @@ export default function SalesManagement() {
       queryClient.invalidateQueries({ queryKey: ['sales'] });
       queryClient.invalidateQueries({ queryKey: ['salesWeeklyReport'] });
       queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
+      queryClient.invalidateQueries({ queryKey: ['buyerRanking'] });
+      queryClient.invalidateQueries({ queryKey: ['priceTrend'] });
+      queryClient.invalidateQueries({ queryKey: ['hppSummary'] });
+      queryClient.invalidateQueries({ queryKey: ['batchHpp'] });
       addToast('Transaksi penjualan berhasil dicatat!', 'success');
       setIsModalOpen(false);
       resetForm();
@@ -148,6 +177,7 @@ export default function SalesManagement() {
   const resetForm = () => {
     setSaleDate(new Date().toISOString().split('T')[0]);
     setBuyerName('');
+    setSelectedBatchId(null);
     setQuantityKg('');
     setPricePerKg('');
     setNotes('');
@@ -346,6 +376,7 @@ export default function SalesManagement() {
       quantity_kg: modalParsedKg,
       price_per_kg: modalParsedPrice,
       buyer_name: buyerName.trim(),
+      baglog_batch_id: selectedBatchId || null,
       notes: notes.trim() || undefined
     });
   };
@@ -382,136 +413,127 @@ export default function SalesManagement() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          <button
-            onClick={() => refetchSales()}
-            className="p-2.5 rounded-2xl bg-white dark:bg-[#142219] hover:bg-slate-50 dark:hover:bg-[#1b3324] text-[#37473f] dark:text-[#a3c9b4] border border-[#d6e9df] dark:border-[#1e382b] shadow-2xs hover:shadow-xs transition-all cursor-pointer"
-            title="Refresh Data Penjualan"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoadingSales ? 'animate-spin text-[#244b37] dark:text-[#86efac]' : ''}`} />
-          </button>
-          <button
-            onClick={() => {
-              resetForm();
-              setIsModalOpen(true);
-            }}
-            className="bg-[#244b37] hover:bg-[#1b3a2b] dark:bg-[#2e7d52] dark:hover:bg-[#246341] active:scale-[0.98] text-white px-4 py-2.5 rounded-2xl text-xs font-bold shadow-xs hover:shadow-md transition-all flex items-center gap-2 cursor-pointer"
-          >
-            <Plus className="w-4 h-4 stroke-[2.2]" />
-            <span>Catat Transaksi Penjualan</span>
-          </button>
-        </div>
+        <button
+          onClick={() => {
+            resetForm();
+            setIsModalOpen(true);
+          }}
+          className="self-end sm:self-auto bg-[#244b37] hover:bg-[#1b3a2b] dark:bg-[#2e7d52] dark:hover:bg-[#246341] active:scale-[0.98] text-white px-4 py-2.5 rounded-2xl text-xs font-bold shadow-xs hover:shadow-md transition-all flex items-center gap-2 cursor-pointer"
+        >
+          <Plus className="w-4 h-4 stroke-[2.2]" />
+          <span>Catat Transaksi Penjualan</span>
+        </button>
       </div>
 
       {/* 2. Top 4 Financial & SCM KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
         
         {/* Card 1: Omzet Bulan Ini */}
-        <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center">
-                <Banknote className="w-4 h-4 stroke-[2.2]" />
+        <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
+          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] mb-2 sm:mb-3 gap-1">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
+                <Banknote className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
               </div>
-              <span className="font-bold text-sm text-[#192e22] dark:text-[#e4efe8]">Omzet Bulan Ini</span>
+              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Omzet Bulan Ini</span>
             </div>
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-[#e8f4ed] dark:bg-[#1a3324] text-[#244b37] dark:text-[#86efac]">
+            <span className="text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md bg-[#e8f4ed] dark:bg-[#1a3324] text-[#244b37] dark:text-[#86efac] shrink-0">
               {metrics.monthTransactionsCount} Nota
             </span>
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-[#192e22] dark:text-[#e4efe8] tracking-tight">
+          <div className="text-lg sm:text-3xl font-extrabold text-[#192e22] dark:text-[#e4efe8] tracking-tight truncate">
             <AnimatedNumber
               value={metrics.monthRevenue}
               formatter={(val) => formatCurrency(val)}
             />
           </div>
-          <div className="mt-2.5 flex items-center justify-between text-xs text-[#759183] dark:text-[#6b8a78]">
-            <span>Rata-rata/Nota:</span>
-            <span className="font-semibold text-[#192e22] dark:text-[#e4efe8]">
+          <div className="mt-2 sm:mt-2.5 flex items-center justify-between text-[10px] sm:text-xs text-[#759183] dark:text-[#6b8a78] gap-1">
+            <span className="truncate">Rata-rata/Nota:</span>
+            <span className="font-semibold text-[#192e22] dark:text-[#e4efe8] shrink-0">
               {formatCurrency(metrics.avgTransactionRevenue)}
             </span>
           </div>
         </div>
 
         {/* Card 2: Volume Jamur Terjual */}
-        <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center">
-                <Scale className="w-4 h-4 stroke-[2.2]" />
+        <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
+          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] mb-2 sm:mb-3 gap-1">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
+                <Scale className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
               </div>
-              <span className="font-bold text-sm text-[#192e22] dark:text-[#e4efe8]">Volume Terjual</span>
+              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Volume Terjual</span>
             </div>
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-[#e8f4ed] dark:bg-[#1a3324] text-[#244b37] dark:text-[#86efac]">
+            <span className="text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md bg-[#e8f4ed] dark:bg-[#1a3324] text-[#244b37] dark:text-[#86efac] shrink-0">
               Bulan Ini
             </span>
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-[#192e22] dark:text-[#e4efe8] tracking-tight flex items-baseline gap-1.5">
+          <div className="text-lg sm:text-3xl font-extrabold text-[#192e22] dark:text-[#e4efe8] tracking-tight flex items-baseline gap-1">
             <AnimatedNumber
               value={metrics.monthVolumeKg}
               decimals={0}
             />
-            <span className="text-base font-semibold text-[#759183] dark:text-[#6b8a78]">Kg</span>
+            <span className="text-xs sm:text-base font-semibold text-[#759183] dark:text-[#6b8a78]">Kg</span>
           </div>
-          <div className="mt-2.5 flex items-center justify-between text-xs text-[#759183] dark:text-[#6b8a78]">
-            <span>Total Kumulatif:</span>
-            <span className="font-semibold text-[#192e22] dark:text-[#e4efe8]">
+          <div className="mt-2 sm:mt-2.5 flex items-center justify-between text-[10px] sm:text-xs text-[#759183] dark:text-[#6b8a78] gap-1">
+            <span className="truncate">Kumulatif:</span>
+            <span className="font-semibold text-[#192e22] dark:text-[#e4efe8] shrink-0">
               {metrics.totalAllVolumeKg.toLocaleString('id-ID')} Kg
             </span>
           </div>
         </div>
 
         {/* Card 3: Rata-Rata Harga Jual */}
-        <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center">
-                <Tag className="w-4 h-4 stroke-[2.2]" />
+        <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
+          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] mb-2 sm:mb-3 gap-1">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
+                <Tag className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
               </div>
-              <span className="font-bold text-sm text-[#192e22] dark:text-[#e4efe8]">Rata2 Harga/Kg</span>
+              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Rata2 Harga/Kg</span>
             </div>
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-[#f7faf8] dark:bg-[#111c15] text-[#526a5e] dark:text-[#a3c9b4] border border-[#d6e9df] dark:border-[#1e382b]">
+            <span className="text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md bg-[#f7faf8] dark:bg-[#111c15] text-[#526a5e] dark:text-[#a3c9b4] border border-[#d6e9df] dark:border-[#1e382b] shrink-0">
               Pasar &amp; Resto
             </span>
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-[#192e22] dark:text-[#e4efe8] tracking-tight flex items-baseline gap-1">
+          <div className="text-lg sm:text-3xl font-extrabold text-[#192e22] dark:text-[#e4efe8] tracking-tight flex items-baseline gap-1 truncate">
             <AnimatedNumber
               value={metrics.monthAvgPrice || 22500}
               formatter={(val) => formatCurrency(val)}
             />
             <span className="text-xs font-medium text-[#759183] dark:text-[#6b8a78]">/Kg</span>
           </div>
-          <div className="mt-2.5 flex items-center justify-between text-xs text-[#759183] dark:text-[#6b8a78]">
-            <span>Rentang:</span>
-            <span className="font-semibold text-[#192e22] dark:text-[#e4efe8]">
-              {formatCurrency(metrics.minPrice)} – {formatCurrency(metrics.maxPrice)}
+          <div className="mt-2 sm:mt-2.5 flex items-center justify-between text-[10px] sm:text-xs text-[#759183] dark:text-[#6b8a78] gap-1">
+            <span className="truncate">Rentang:</span>
+            <span className="font-semibold text-[#192e22] dark:text-[#e4efe8] truncate text-[9px] sm:text-xs">
+              {formatCurrency(metrics.minPrice)}–{formatCurrency(metrics.maxPrice)}
             </span>
           </div>
         </div>
 
         {/* Card 4: Neraca SCM Panen vs Terjual */}
-        <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center">
-                <ShoppingBag className="w-4 h-4 stroke-[2.2]" />
+        <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
+          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] mb-2 sm:mb-3 gap-1">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
+                <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
               </div>
-              <span className="font-bold text-sm text-[#192e22] dark:text-[#e4efe8]">Neraca SCM</span>
+              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Neraca SCM</span>
             </div>
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-[#e8f4ed] dark:bg-[#1a3324] text-[#244b37] dark:text-[#86efac]">
+            <span className="text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md bg-[#e8f4ed] dark:bg-[#1a3324] text-[#244b37] dark:text-[#86efac] shrink-0">
               Mingguan
             </span>
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-[#192e22] dark:text-[#e4efe8] tracking-tight flex items-baseline gap-1.5">
+          <div className="text-lg sm:text-3xl font-extrabold text-[#192e22] dark:text-[#e4efe8] tracking-tight flex items-baseline gap-1">
             <AnimatedNumber
               value={weeklyReport?.unsold_kg ?? 0}
               decimals={2}
             />
-            <span className="text-base font-semibold text-[#759183] dark:text-[#6b8a78]">Kg Buffer</span>
+            <span className="text-xs sm:text-base font-semibold text-[#759183] dark:text-[#6b8a78]">Kg Buffer</span>
           </div>
-          <div className="mt-2.5 flex items-center justify-between text-xs text-[#759183] dark:text-[#6b8a78]">
-            <span>Panen Supply:</span>
-            <span className="font-semibold text-[#192e22] dark:text-[#e4efe8]">
+          <div className="mt-2 sm:mt-2.5 flex items-center justify-between text-[10px] sm:text-xs text-[#759183] dark:text-[#6b8a78] gap-1">
+            <span className="truncate">Supply:</span>
+            <span className="font-semibold text-[#192e22] dark:text-[#e4efe8] shrink-0">
               {(weeklyReport?.total_harvest_kg ?? 0).toFixed(2)} Kg
             </span>
           </div>
@@ -543,6 +565,10 @@ export default function SalesManagement() {
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-[#e8f4fd] dark:bg-[#0f283d] text-[#0284c7] dark:text-[#38bdf8] border border-[#bae6fd] dark:border-[#0369a1]">
                 <span className="w-2 h-2 rounded-full bg-[#0284c7] dark:bg-[#38bdf8]" />
                 Volume (Kg)
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-[#1f2937] text-slate-600 dark:text-[#9ca3af] border border-slate-200 dark:border-[#374151]">
+                <span className="w-3 h-[2px] bg-slate-400 dark:bg-[#6b7280] border-t border-dashed" />
+                Target (Rp 300k)
               </span>
             </div>
           </div>
@@ -609,7 +635,6 @@ export default function SalesManagement() {
                     y={300000} 
                     stroke={isDark ? '#4ade80' : '#8fa89b'} 
                     strokeDasharray="4 4" 
-                    label={{ value: 'Target Harian (Rp 300k)', fill: isDark ? '#86efac' : '#486356', fontSize: 10, position: 'insideTopLeft' }}
                   />
                   <Area
                     yAxisId="left"
@@ -1060,18 +1085,32 @@ export default function SalesManagement() {
                   onChange={(e) => setBuyerName(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-2xl bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] text-sm font-semibold text-[#192e22] dark:text-[#e4efe8] focus:outline-none focus:ring-1 focus:ring-[#244b37]"
                 />
-                {/* Quick Suggestion Chips */}
+                {/* Quick Suggestion Chips (Dynamic Top Buyers) */}
                 <div className="flex flex-wrap gap-1.5 mt-2">
-                  {BUYER_SUGGESTIONS.map((b) => (
-                    <button
-                      type="button"
-                      key={b.name}
-                      onClick={() => setBuyerName(b.name)}
-                      className="text-[11px] px-2.5 py-1 rounded-xl bg-[#edf5f0] dark:bg-[#1b3324] hover:bg-[#e2f0e7] dark:hover:bg-[#244531] text-[#244b37] dark:text-[#86efac] font-semibold border border-[#d6e9df] dark:border-[#2a5a3d] transition-colors cursor-pointer"
-                    >
-                      {b.name}
-                    </button>
-                  ))}
+                  {topBuyers.length > 0
+                    ? topBuyers.map((b) => (
+                        <button
+                          type="button"
+                          key={b.buyer_name}
+                          onClick={() => setBuyerName(b.buyer_name)}
+                          className="text-[11px] px-2.5 py-1 rounded-xl bg-[#edf5f0] dark:bg-[#1b3324] hover:bg-[#e2f0e7] dark:hover:bg-[#244531] text-[#244b37] dark:text-[#86efac] font-semibold border border-[#d6e9df] dark:border-[#2a5a3d] transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <span>{b.buyer_name}</span>
+                          <span className="text-[10px] text-[#759183] dark:text-[#6b8a78] font-normal">
+                            ({b.total_kg} kg)
+                          </span>
+                        </button>
+                      ))
+                    : BUYER_SUGGESTIONS.map((b) => (
+                        <button
+                          type="button"
+                          key={b.name}
+                          onClick={() => setBuyerName(b.name)}
+                          className="text-[11px] px-2.5 py-1 rounded-xl bg-[#edf5f0] dark:bg-[#1b3324] hover:bg-[#e2f0e7] dark:hover:bg-[#244531] text-[#244b37] dark:text-[#86efac] font-semibold border border-[#d6e9df] dark:border-[#2a5a3d] transition-colors cursor-pointer"
+                        >
+                          {b.name}
+                        </button>
+                      ))}
                 </div>
               </div>
 
@@ -1120,19 +1159,52 @@ export default function SalesManagement() {
 
               </div>
 
-              {/* Price Presets */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[11px] font-semibold text-[#759183] dark:text-[#6b8a78]">Preset:</span>
-                {PRICE_PRESETS.map((p) => (
-                  <button
-                    type="button"
-                    key={p}
-                    onClick={() => setPricePerKg(p.toLocaleString('id-ID'))}
-                    className="text-[11px] px-2.5 py-0.5 rounded-lg bg-slate-100 dark:bg-[#1b3324] hover:bg-slate-200 dark:hover:bg-[#244531] text-slate-700 dark:text-[#86efac] font-bold transition-colors cursor-pointer"
-                  >
-                    Rp {(p / 1000).toFixed(0)}k
-                  </button>
-                ))}
+              {/* Dynamic Price Presets */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-semibold text-[#759183] dark:text-[#6b8a78]">
+                    Preset Harga Pasar:
+                  </span>
+                  {priceTrend && (
+                    <span className="text-[10px] text-emerald-700 dark:text-[#86efac] font-bold">
+                      Rata-rata: Rp {Math.round(priceTrend.avg_price).toLocaleString('id-ID')}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {(priceTrend?.recommended_presets || PRICE_PRESETS).map((p) => (
+                    <button
+                      type="button"
+                      key={p}
+                      onClick={() => setPricePerKg(p.toLocaleString('id-ID'))}
+                      className="text-[11px] px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-[#1b3324] hover:bg-emerald-100 dark:hover:bg-[#244531] text-slate-800 dark:text-[#86efac] font-bold transition-colors cursor-pointer border border-transparent hover:border-emerald-300"
+                    >
+                      Rp {(p / 1000).toFixed(0)}k
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Batch Baglog Asal Panen (Opsional untuk atribusi HPP) */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#192e22] dark:text-[#e4efe8] mb-1.5">
+                  Batch Baglog Asal (Opsional untuk Alokasi HPP)
+                </label>
+                <select
+                  value={selectedBatchId || ''}
+                  onChange={(e) => setSelectedBatchId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full px-4 py-2.5 rounded-2xl bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] text-xs font-semibold text-[#192e22] dark:text-[#e4efe8] focus:outline-none focus:ring-1 focus:ring-[#244b37]"
+                >
+                  <option value="">Semua Batch / Campuran Hasil Panen</option>
+                  {batches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.batch_code} (Status: {b.status.toUpperCase()} • Tanam: {b.entry_date})
+                    </option>
+                  ))}
+                </select>
+                <span className="text-[10px] text-[#759183] dark:text-[#6b8a78] mt-1 block">
+                  Pilih batch spesifik jika penjualan ini berasal dari panen batch tertentu agar Margin Kontribusi batch langsung terhitung.
+                </span>
               </div>
 
               {/* Real-time Calculation Preview */}

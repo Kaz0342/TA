@@ -279,7 +279,7 @@ export default function HarvestManagement() {
             resetForm();
             setIsModalOpen(true);
           }}
-          className="self-start sm:self-auto bg-[#244b37] dark:bg-[#1f3a2b] hover:bg-[#1b3a2b] dark:hover:bg-[#2b503d] active:scale-[0.98] text-white px-4 py-2.5 rounded-2xl text-xs font-bold shadow-xs hover:shadow-md transition-all flex items-center gap-2 cursor-pointer"
+          className="self-end sm:self-auto bg-[#244b37] dark:bg-[#1f3a2b] hover:bg-[#1b3a2b] dark:hover:bg-[#2b503d] active:scale-[0.98] text-white px-4 py-2.5 rounded-2xl text-xs font-bold shadow-xs hover:shadow-md transition-all flex items-center gap-2 cursor-pointer"
         >
           <Scale className="w-4 h-4 stroke-[2.2]" />
           <span>Input Timbangan Panen</span>
@@ -287,18 +287,18 @@ export default function HarvestManagement() {
       </div>
 
       {/* 4 Operational KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
         
         {/* KPI 1: Panen Hari Ini */}
-        <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8]">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-[#e8f4ed] dark:bg-[#182c20] text-[#244b37] dark:text-[#86efac] flex items-center justify-center">
-                <Scale className="w-4 h-4 stroke-[2.2]" />
+        <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
+          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] gap-1">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#182c20] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
+                <Scale className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
               </div>
-              <span className="font-bold text-sm text-[#192e22] dark:text-[#e4efe8]">Panen Hari Ini</span>
+              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Panen Hari Ini</span>
             </div>
-            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
+            <span className={`text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md shrink-0 ${
               metrics.todayTotalKg > 0 
                 ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300' 
                 : 'bg-slate-100 dark:bg-[#1f382b] text-slate-600 dark:text-[#a3c9b4]'
@@ -307,116 +307,116 @@ export default function HarvestManagement() {
             </span>
           </div>
 
-          <div className="mt-4">
-            <div className="flex items-baseline gap-1.5">
+          <div className="mt-3 sm:mt-4">
+            <div className="flex items-baseline gap-1">
               <AnimatedNumber
                 value={metrics.todayTotalKg}
                 decimals={2}
-                className="text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
+                className="text-xl sm:text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
               />
-              <span className="text-sm font-semibold text-[#526a5e] dark:text-[#a3c9b4]">Kg Basah</span>
+              <span className="text-xs sm:text-sm font-semibold text-[#526a5e] dark:text-[#a3c9b4]">Kg Basah</span>
             </div>
             
             {/* Target Progress Bar */}
             <AnimatedProgressBar percentage={metrics.targetProgress} />
-            <p className="text-[11px] text-[#759183] dark:text-[#6b8a78] mt-2 font-medium">
-              Target panen harian: {metrics.dailyTargetKg} Kg kumbung
+            <p className="text-[10px] sm:text-[11px] text-[#759183] dark:text-[#6b8a78] mt-1.5 sm:mt-2 font-medium truncate">
+              Target harian: {metrics.dailyTargetKg} Kg kumbung
             </p>
           </div>
         </div>
 
         {/* KPI 2: Total Panen Bulan Ini */}
-        <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8]">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-[#e8f4ed] dark:bg-[#182c20] text-[#244b37] dark:text-[#86efac] flex items-center justify-center">
-                <TrendingUp className="w-4 h-4 stroke-[2.2]" />
+        <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
+          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] gap-1">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#182c20] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
+                <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
               </div>
-              <span className="font-bold text-sm text-[#192e22] dark:text-[#e4efe8]">Bulan Berjalan</span>
+              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Bulan Berjalan</span>
             </div>
-            <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 bg-[#eaf5ef] dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-[#a5d1b7] dark:border-emerald-800">
+            <span className="text-[9px] sm:text-[11px] font-bold text-emerald-800 dark:text-emerald-300 bg-[#eaf5ef] dark:bg-emerald-950/60 px-1.5 sm:px-2 py-0.5 rounded-md border border-[#a5d1b7] dark:border-emerald-800 shrink-0">
               Akumulasi
             </span>
           </div>
 
-          <div className="mt-4">
-            <div className="flex items-baseline gap-1.5">
+          <div className="mt-3 sm:mt-4">
+            <div className="flex items-baseline gap-1">
               <AnimatedNumber
                 value={metrics.monthTotalKg}
                 decimals={1}
-                className="text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
+                className="text-xl sm:text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
               />
-              <span className="text-sm font-semibold text-[#526a5e] dark:text-[#a3c9b4]">Kg</span>
+              <span className="text-xs sm:text-sm font-semibold text-[#526a5e] dark:text-[#a3c9b4]">Kg</span>
             </div>
-            <p className="text-xs font-bold text-[#15803d] dark:text-[#4ade80] mt-1 flex items-center gap-1">
-              <Banknote className="w-3.5 h-3.5" />
+            <p className="text-[10px] sm:text-xs font-bold text-[#15803d] dark:text-[#4ade80] mt-1 flex items-center gap-1 truncate">
+              <Banknote className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
               <span>Est. Rp <AnimatedNumber value={metrics.monthEstimatedRevenue} /></span>
             </p>
-            <p className="text-[11px] text-[#759183] dark:text-[#6b8a78] mt-2 font-medium">
-              Estimasi patokan harga pasar Rp 25.000/Kg
+            <p className="text-[10px] sm:text-[11px] text-[#759183] dark:text-[#6b8a78] mt-1.5 sm:mt-2 font-medium truncate">
+              Patokan pasar Rp 25.000/Kg
             </p>
           </div>
         </div>
 
         {/* KPI 3: Rata-rata per Petik */}
-        <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8]">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-[#e8f4ed] dark:bg-[#182c20] text-[#244b37] dark:text-[#86efac] flex items-center justify-center">
-                <Clock className="w-4 h-4 stroke-[2.2]" />
+        <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
+          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] gap-1">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#182c20] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
+                <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
               </div>
-              <span className="font-bold text-sm text-[#192e22] dark:text-[#e4efe8]">Rata-rata Petik</span>
+              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Rata-rata Petik</span>
             </div>
-            <span className="text-[11px] font-bold text-blue-800 dark:text-blue-300 bg-[#e8f4fd] dark:bg-blue-950/60 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800">
+            <span className="text-[9px] sm:text-[11px] font-bold text-blue-800 dark:text-blue-300 bg-[#e8f4fd] dark:bg-blue-950/60 px-1.5 sm:px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800 shrink-0">
               Per Sesi
             </span>
           </div>
 
-          <div className="mt-4">
-            <div className="flex items-baseline gap-1.5">
+          <div className="mt-3 sm:mt-4">
+            <div className="flex items-baseline gap-1">
               <AnimatedNumber
                 value={metrics.avgWeightKg}
                 decimals={2}
-                className="text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
+                className="text-xl sm:text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
               />
-              <span className="text-sm font-semibold text-[#526a5e] dark:text-[#a3c9b4]">Kg / Sesi</span>
+              <span className="text-xs sm:text-sm font-semibold text-[#526a5e] dark:text-[#a3c9b4]">Kg / Sesi</span>
             </div>
-            <p className="text-xs font-bold text-[#0284c7] dark:text-[#38bdf8] mt-1">
-              Dari {metrics.totalSessions} total pencatatan timbangan
+            <p className="text-[10px] sm:text-xs font-bold text-[#0284c7] dark:text-[#38bdf8] mt-1 truncate">
+              {metrics.totalSessions} total timbangan
             </p>
-            <p className="text-[11px] text-[#759183] dark:text-[#6b8a78] mt-2 font-medium">
-              Konsistensi panen menentukan siklus penyiraman
+            <p className="text-[10px] sm:text-[11px] text-[#759183] dark:text-[#6b8a78] mt-1.5 sm:mt-2 font-medium truncate">
+              Konsistensi siklus panen
             </p>
           </div>
         </div>
 
         {/* KPI 4: Batch Kontributor */}
-        <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8]">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-[#e8f4ed] dark:bg-[#182c20] text-[#244b37] dark:text-[#86efac] flex items-center justify-center">
-                <Layers className="w-4 h-4 stroke-[2.2]" />
+        <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
+          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] gap-1">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#182c20] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
+                <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
               </div>
-              <span className="font-bold text-sm text-[#192e22] dark:text-[#e4efe8]">Batch Produktif</span>
+              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Batch Produktif</span>
             </div>
-            <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 bg-[#eaf5ef] dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-[#a5d1b7] dark:border-emerald-800">
+            <span className="text-[9px] sm:text-[11px] font-bold text-emerald-800 dark:text-emerald-300 bg-[#eaf5ef] dark:bg-emerald-950/60 px-1.5 sm:px-2 py-0.5 rounded-md border border-[#a5d1b7] dark:border-emerald-800 shrink-0">
               Kelompok Rak
             </span>
           </div>
 
-          <div className="mt-4">
-            <div className="flex items-baseline gap-1.5">
+          <div className="mt-3 sm:mt-4">
+            <div className="flex items-baseline gap-1">
               <AnimatedNumber
                 value={metrics.contributingBatchesCount}
-                className="text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
+                className="text-xl sm:text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
               />
-              <span className="text-sm font-semibold text-[#526a5e] dark:text-[#a3c9b4]">Batch Baglog</span>
+              <span className="text-xs sm:text-sm font-semibold text-[#526a5e] dark:text-[#a3c9b4]">Batch</span>
             </div>
-            <p className="text-xs font-bold text-[#2e7d52] dark:text-[#4ade80] mt-1">
-              Menghasilkan panen aktif di kumbung
+            <p className="text-[10px] sm:text-xs font-bold text-[#2e7d52] dark:text-[#4ade80] mt-1 truncate">
+              Panen aktif kumbung
             </p>
-            <p className="text-[11px] text-[#759183] dark:text-[#6b8a78] mt-2 font-medium">
-              Tiap batch dipantau produktivitas per baglognya
+            <p className="text-[10px] sm:text-[11px] text-[#759183] dark:text-[#6b8a78] mt-1.5 sm:mt-2 font-medium truncate">
+              Produktivitas per baglog
             </p>
           </div>
         </div>
