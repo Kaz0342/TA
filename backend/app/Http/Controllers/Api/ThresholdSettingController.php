@@ -29,7 +29,11 @@ class ThresholdSettingController extends Controller
             return $this->notFound('Belum ada setting threshold aktif.');
         }
 
-        return $this->success($threshold, 'Threshold retrieved');
+        $command = app(\App\Services\DeviceControlService::class)->getCurrentCommand();
+        $data = $threshold->toArray();
+        $data['device_command'] = $command;
+
+        return $this->success($data, 'Threshold retrieved');
     }
 
     /**

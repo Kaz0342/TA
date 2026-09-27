@@ -2,10 +2,15 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BaglogBatchController;
+use App\Http\Controllers\Api\BaglogCullController;
+use App\Http\Controllers\Api\BatchSlotAssignmentController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\DeviceControlController;
 use App\Http\Controllers\Api\HarvestController;
+use App\Http\Controllers\Api\OperationalExpenseController;
 use App\Http\Controllers\Api\SaleController;
 use App\Http\Controllers\Api\SensorDataController;
+use App\Http\Controllers\Api\SlotController;
 use App\Http\Controllers\Api\SprinklerLogController;
 use App\Http\Controllers\Api\ThresholdSettingController;
 use Illuminate\Support\Facades\Artisan;
@@ -28,10 +33,10 @@ Route::middleware('throttle:20,1')->group(function () {
     Route::post('/sprinkler-logs', [SprinklerLogController::class, 'store']);
 });
 
-// NO AUTH — Threshold Read-Only untuk IoT Device
-// ESP32 butuh baca threshold tanpa punya akun user
-// @see Audit BE-C2: endpoint ini HARUS publik agar ESP32 bisa baca threshold terbaru
+// NO AUTH — Threshold & Command Read-Only untuk IoT Device & Dashboard
+// ESP32 butuh baca threshold dan status jeda panen tanpa token
 Route::get('/thresholds/active', [ThresholdSettingController::class, 'index']);
+Route::get('/device/command', [DeviceControlController::class, 'status']);
 
 // Protected Routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -63,6 +68,28 @@ Route::middleware('auth:sanctum')->group(function () {
     // Sales (FR-3.x)
     Route::get('/sales', [SaleController::class, 'index']);
     Route::get('/sales/weekly-report', [SaleController::class, 'weeklyReport']);
+    Route::get('/sales/buyer-ranking', [SaleController::class, 'buyerRanking']);
+    Route::get('/sales/price-trend', [SaleController::class, 'priceTrend']);
+
+    // Grid Spasial Kumbung 3D & Heatmap
+    Route::get('/slots', [SlotController::class, 'index']);
+    Route::get('/slots/heatmap', [SlotController::class, 'heatmap']);
+    Route::get('/slots/{code}', [SlotController::class, 'show']);
+
+    // Ledger Mutasi Afkir Baglog (Culls)
+    Route::get('/baglog-culls', [BaglogCullController::class, 'index']);
+    Route::post('/baglog-culls', [BaglogCullController::class, 'store']); // worker & admin bisa input
+
+    // HPP & Margin Kontribusi
+    Route::get('/baglogs/hpp-summary', [BaglogBatchController::class, 'hppSummary']);
+    Route::get('/baglogs/{id}/hpp', [BaglogBatchController::class, 'hpp']);
+
+    // Biaya Operasional (Read)
+    Route::get('/operational-expenses', [OperationalExpenseController::class, 'index']);
+
+    // Device Interruption Control (Failsafe Timer Mode Panen)
+    Route::post('/device/pause', [DeviceControlController::class, 'pause']);
+    Route::post('/device/resume', [DeviceControlController::class, 'resume']);
 
     // HANYA ADMIN
     Route::middleware('role:admin')->group(function () {
@@ -72,6 +99,15 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Admin only baglog actions
         Route::post('/baglogs', [BaglogBatchController::class, 'store']);
+
+        // Alokasi Batch ke Slot Rak (WMS)
+        Route::post('/batch-slot-assignments', [BatchSlotAssignmentController::class, 'store']);
+        Route::patch('/batch-slot-assignments/{id}/status', [BatchSlotAssignmentController::class, 'updateStatus']);
+        Route::delete('/batch-slot-assignments/{id}', [BatchSlotAssignmentController::class, 'destroy']);
+
+        // Operasional Expenses (Admin create & delete)
+        Route::post('/operational-expenses', [OperationalExpenseController::class, 'store']);
+        Route::delete('/operational-expenses/{id}', [OperationalExpenseController::class, 'destroy']);
 
         // Admin only sales actions (POST only — no duplikat dengan GET di atas)
         Route::post('/sales', [SaleController::class, 'store']);
