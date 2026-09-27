@@ -12,18 +12,19 @@
 - **Autentikasi & RBAC:** Laravel Sanctum (Token-based SPA Auth) dengan peran `admin` dan `worker`
 - **Presisi Moneter & Lingkungan:** Penggunaan tipe data `DECIMAL` (bukan `FLOAT`) dan fungsi `bcmul()` untuk mencegah *floating-point error*
 - **Query Optimization:** Repository pattern dengan **SQL Time-Bucket Downsampling** adaptif di [SensorDataRepository.php](file:///d:/DevTools/Antigravity/Projects/TA_vio/backend/app/Repositories/SensorDataRepository.php) (latensi query turun dari ~400ms ke 14ms, payload berkurang 98.8%)
-- **Automated Testing:** 115 automated tests PHPUnit dengan 299 assertions lulus 100%
+- **Automated Testing:** 133 automated tests PHPUnit dengan 418 assertions lulus 100% (mencakup pengujian fungsional Fase 2 s.d. Fase 5)
 
 ### 2. Frontend (Dashboard User Interface)
 - **Framework:** React 18 + TypeScript + Vite
 - **UI & Styling:** TailwindCSS dengan tema **Harmonious Modern Sage Green & Dark Mode** (desain *clean*, *rounded-3xl*, token warna netral soft, ramah mata)
+- **Mobile-First Ergonomics:** Formasi kartu KPI Grid 2x2 responsif di smartphone, kolom tier sticky solid anti-tembus pandang, dan form settings minimalis side-by-side
 - **State Management:** Zustand (Auth & UI Theme Store) + TanStack Query (Server State Cache & Polling)
 - **Micro-Animations & Visual Excellence:**
   - `LiveClock`: Jam digital mandiri terisolasi (mencegah *re-render tsunami* pada grafik)
   - `AnimatedNumber`: Animasi *count-up* halus berbasis `requestAnimationFrame` + kurva `easeOutCubic`
   - `SemiCircleGauge`: Jarum spidometer analog terakselerasi GPU (`transform: rotate` CSS transition)
   - `AnimatedProgressBar`: Bar persentase kapasitas meluncur mulus
-- **Pagination Konsisten:** Pagination per 10 baris di ketiga modul tabel data (*Baglog*, *Harvest*, dan *Sales*)
+- **Pagination Konsisten:** Pagination per 10 baris di seluruh modul tabel data (*Baglog*, *Harvest*, *Sales*, dan *Ledger Culls*)
 
 ### 3. IoT Edge Device & Simulasi (Firmware v3.5)
 - **Mikrokontroler:** ESP32 (Dual Core 240MHz, Wi-Fi 802.11 b/g/n)
@@ -36,6 +37,7 @@
   - *Dynamic Hysteresis Misting* dengan kurva landai (target stop ~90% RH)
   - *Universal Guard*: Cooldown kipas malam 30 menit & sinkronisasi timer otomatis (*Over-Humidity Purge* vs *Periodic CO2 Flush*)
   - *Safety Override*: Suhu kritis (> 34°C) mem-bypass semua jeda untuk menyalakan fan darurat
+  - *Fluid Dynamics Guard & Mode Panen*: Mematikan fan dan misting seketika saat pekerja membuka pintu kumbung untuk panen
 - **Simulator IoT:** Engine termodinamika [iot_simulator.py](file:///d:/DevTools/Antigravity/Projects/TA_vio/iot_simulator.py) v3.5 dengan model cuaca stokastik rantai Markov
 
 ---
@@ -48,24 +50,32 @@
    - Monitoring status aktuator live (*Misting*, *Fan Homogenisasi*, *Fan Pendinginan*, *Night Purge*).
    - Banner peringatan dini (*Early Warning System*) otomatis saat iklim keluar dari batas optimal.
 
-2. **Manajemen Siklus Baglog (Lifecycle):**
-   - Pencatatan batch tanam baru dengan format kode otomatis `BL-YYYYMMDD-XXX`.
-   - Klasifikasi otomatis umur media tanam (< 30 hari Inkubasi, 30–90 hari Produktif, > 90 hari Rawan Afkir).
-   - Tabel batch lengkap dengan filter status (*Active*, *Contaminated*, *Disposed*), pencarian, dan pagination per 10 batch.
+2. **Denah Spasial 3D (WMS Kumbung Grid) & Peta Panen:**
+   - Master denah fisik 300 slot kamar (Rak A, B, C; Kolom 01–10; Tingkat T-01..T-10) kapasitas 3.000 baglog.
+   - Kolom tier sticky solid 100% opaque yang memblokir tembus pandang slot saat digeser horizontal.
+   - Mode beralih seketika antara **Grid Fisik** (status alokasi & umur) dan **Peta Panen Heatmap** (akumulasi berat panen per kamar).
+   - Dialog alokasi cepat dan modal detail riwayat slot.
 
-3. **Rekapitulasi & Analitik Panen (Harvest Management):**
-   - Input timbangan panen harian per batch baglog asal.
+3. **Manajemen Siklus Baglog & Ledger Afkir (Culls):**
+   - Pencatatan batch tanam baru dengan format kode otomatis `BL-YYYYMMDD-XXX` dan modal awal per biji (`price_per_baglog`).
+   - Jurnal mutasi pengurangan baglog mati (*culls ledger*) untuk audit biosekuriti (*Trichoderma*, busuk basah, hama) dan klaim garansi vendor bibit.
+   - Perhitungan kapasitas aktif dinamis per slot (`initial_quantity - SUM(culls)`).
+   - Tabel batch lengkap dengan filter status, pencarian, dan pagination per 10 batch.
+
+4. **Rekapitulasi & Analitik Panen (Harvest Management):**
+   - Input timbangan panen harian terhubung ke kode slot kamar dan nomor siklus petik (`flush_number` 1–7).
    - Visualisasi tren panen 14 hari terakhir terhadap target harian kumbung.
    - Tabel riwayat panen terpaginasi per 10 baris.
 
-4. **Manajemen Rantai Pasok Penjualan (Sales & SCM):**
-   - Pencatatan nota penjualan ke mitra pedagang pasar, toko sayur, resto, dan pengepul.
-   - Analisis omzet bulanan, rata-rata harga jual per Kg, dan neraca cadangan stok panen (*SCM buffer*).
-   - Tabel riwayat transaksi terpaginasi per 10 baris dengan filter waktu dan pembeli.
+5. **Manajemen Rantai Pasok Penjualan & HPP Dinamis:**
+   - Pencatatan nota penjualan ke mitra pedagang pasar, toko sayur, resto, dan pengepul via `bcmul()`.
+   - Pembukuan beban biaya operasional kumbung (listrik PLN, air misting, tenaga kerja).
+   - Kartu Analisis HPP & Margin Kontribusi manajerial per batch baglog.
+   - Tabel riwayat transaksi terpaginasi per 10 baris.
 
-5. **Pengaturan Threshold Fleksibel:**
-   - Konfigurasi batas atas/bawah suhu dan kelembaban langsung dari dashboard web.
-   - ESP32 mengambil threshold terbaru secara dinamis via endpoint `GET /api/thresholds/active`.
+6. **Pengaturan Threshold & Mode Jeda Panen Interaktif:**
+   - Konfigurasi batas atas/bawah suhu dan kelembaban minimalis berdampingan (side-by-side) serta carousel preset fase.
+   - Widget Jeda Panen di dashboard dengan failsafe countdown timer (2h, 4h, 6h, 8h) dan tombol resume instan ke mode AUTO.
 
 ---
 

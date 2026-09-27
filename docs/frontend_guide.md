@@ -1,6 +1,6 @@
 # 🍄 Smart Shroom — Frontend Design & Development Guidelines
 
-Dokumen panduan standar pengembangan antarmuka pengguna (*Frontend*) untuk sistem **Smart Shroom SCM**. Seluruh komponen UI mengacu pada spesifikasi **Harmonious Modern Sage Green Design System** yang mendukung tema terang (*Light Mode*) dan tema gelap (*Dark Mode*).
+Dokumen panduan standar pengembangan antarmuka pengguna (*Frontend*) untuk sistem **Smart Shroom SCM**. Seluruh komponen UI mengacu pada spesifikasi **Harmonious Modern Sage Green Design System** yang mendukung tema terang (*Light Mode*) dan tema gelap (*Dark Mode*), serta tata letak responsif (*Mobile-First Ergonomics*).
 
 ---
 
@@ -18,7 +18,7 @@ Dokumen panduan standar pengembangan antarmuka pengguna (*Frontend*) untuk siste
 
 ## 🎨 Prinsip Desain: Harmonious Modern Sage Green & Dark Mode
 
-Sistem meninggalkan gaya Neubrutalism kaku dan beralih ke desain modern yang estetik, ramah mata (*ergonomic*), dan terasa premium ala SaaS kelas atas:
+Sistem menerapkan prinsip desain modern yang estetik, ramah mata (*ergonomic*), dan terasa premium ala SaaS kelas atas:
 
 ### 1. Palet Warna Utama (Design Tokens)
 
@@ -33,10 +33,13 @@ Sistem meninggalkan gaya Neubrutalism kaku dan beralih ke desain modern yang est
 | **Status Hijau (Optimal)** | `#15803d` / `#2e7d52` | `#4ade80` / `#86efac` | Nilai iklim normal, badge aktif |
 | **Status Bahaya (Alert)** | `#e05345` / `#b91c1c` | `#f87171` | Indikator suhu/kelembaban kritis |
 
-### 2. Bentuk & Sudut Elemen
-- **Card Utama:** Menggunakan `rounded-3xl` (radius 24px) dengan padding lega (`p-5` atau `p-6`).
-- **Button & Input:** Menggunakan `rounded-xl` atau `rounded-2xl` dengan transisi hover yang halus (`transition-all`).
-- **Pills & Badge:** Menggunakan `rounded-full` atau `rounded-lg` dengan border tipis 1px.
+### 2. Standar Responsivitas Mobile (2x2 Grid KPI)
+Untuk menghindari scrolling vertikal yang terlalu jauh pada layar smartphone, seluruh modul utama (*HPP Analysis*, *Harvest Management*, *Baglog Management*, dan *Sales Management*) menerapkan formasi kartu KPI **Grid 2x2**:
+```tsx
+<div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+  {/* 4 Kartu KPI Ringkas & Padat */}
+</div>
+```
 
 ---
 
@@ -44,8 +47,6 @@ Sistem meninggalkan gaya Neubrutalism kaku dan beralih ke desain modern yang est
 
 ### 1. `AnimatedNumber` ([components/AnimatedNumber.tsx](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/components/AnimatedNumber.tsx))
 Komponen penghitung angka beranimasi (*count-up*) yang sangat ringan berbasis `requestAnimationFrame` + `easeOutCubic`:
-- **Saat mount:** Angka berputar mulus dari 0 ke nilai target (misal: 0 $\rightarrow$ 690 Baglog).
-- **Saat polling live data:** Bertransisi halus dari nilai lama ke nilai baru (tidak reset ke 0).
 ```tsx
 <AnimatedNumber
   value={tempVal}
@@ -56,40 +57,52 @@ Komponen penghitung angka beranimasi (*count-up*) yang sangat ringan berbasis `r
 
 ### 2. `SemiCircleGauge` ([components/SemiCircleGauge.tsx](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/components/SemiCircleGauge.tsx))
 Indikator spidometer analog semi-lingkaran yang diakselerasi langsung oleh GPU browser:
-- Jarum spidometer berputar dari $-90^\circ$ (ujung kiri) ke sudut target via CSS `transform: rotate(...)` dan `transform-origin: 50px 44px`.
+- Jarum spidometer berputar dari $-90^\circ$ (ujung kiri) ke sudut target via CSS `transform: rotate(...)`.
 - Menggunakan timing curve `cubic-bezier(0.16, 1, 0.3, 1)` berdurasi 1.000ms.
 ```tsx
 <SemiCircleGauge value={tempVal} min={15} max={35} color={isTempOptimal ? '#499b70' : '#e05345'} />
 ```
 
-### 3. `AnimatedProgressBar` ([components/AnimatedProgressBar.tsx](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/components/AnimatedProgressBar.tsx))
-Bar kapasitas persentase meluncur mulus dari 0% ke persentase target saat pertama kali dimuat.
-```tsx
-<AnimatedProgressBar percentage={metrics.capacityPercentage} />
-```
+### 3. `HarvestPauseWidget` ([components/HarvestPauseWidget.tsx](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/components/HarvestPauseWidget.tsx))
+Widget kontrol jeda panen di Dashboard utama yang memungkinkan pengguna mengaktifkan mode panen (failsafe timer 2h, 4h, 6h, 8h) dan mengakhiri jeda seketika untuk kembali ke mode AUTO.
 
-### 4. `LiveClock` ([pages/Dashboard.tsx](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/pages/Dashboard.tsx))
-Jam digital mandiri terisolasi di pojok header. Detik yang berganti tiap 1.000ms hanya me-render teks kecil tersebut tanpa memicu re-render pada grafik atau kartu dashboard.
+### 4. `HppAnalysisCard` ([components/HppAnalysisCard.tsx](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/components/HppAnalysisCard.tsx))
+Kartu 4 metrik analisis biaya manajerial (Modal Pengadaan Baglog, Beban Operasional, Total Omzet, dan Margin Kontribusi) yang tersusun dalam grid 2x2 di ponsel.
+
+---
+
+## 🗺️ Desain Spasial: WMS Kumbung Grid (`KumbungGrid.tsx`)
+
+Visualisasi denah rak 3D kamar kumbung jamur menerapkan standar:
+1. **Header Rak & Alokasi Kompak:** Pemilih rak A/B/C dan tombol `+ Alokasikan Baglog` berada di satu baris atas yang ringkas tanpa melebarkan kontainer secara berlebihan.
+2. **Sticky Tier Column Solid (T-01 s.d. T-10):**
+   - Kolom nomor tingkat vertikal memiliki latar belakang solid 100% opaque (`#0f1712`), tinggi seragam (86px), dan bayangan batas (`shadow-[4px_0_10px_rgba(0,0,0,0.5)]`).
+   - Slot kamar di belakangnya **tidak tembus pandang** saat digeser horizontal pada layar sempit.
+3. **Mode Tampilan Ganda:**
+   - **Grid Fisik:** Menampilkan kode slot, status alokasi, umur baglog, dan sisa kapasitas aktif.
+   - **Peta Panen (Heatmap):** Menampilkan akumulasi total berat panen per kamar rak dengan gradasi warna hijau.
 
 ---
 
 ## 📋 Aturan Pagination & Penanganan Tabel Data
 
-Seluruh modul tabel data (*Baglog*, *Harvest*, dan *Sales*) wajib menerapkan standar pagination konsisten:
+Seluruh modul tabel data (*Baglog*, *Harvest*, *Sales*, dan *Ledger Culls*) wajib menerapkan standar pagination konsisten:
 1. **Ukuran Halaman:** Standar **10 baris data per halaman** (`pageSize = 10`).
 2. **Auto-Reset Filter:** Setiap kali pengguna mengubah filter status, rentang waktu, atau kata kunci pencarian, nomor halaman wajib di-reset otomatis ke Halaman 1 (`setCurrentPage(1)`).
-3. **Kontrol Navigasi:**
-   - Tombol Previous (`<`) dan Next (`>`) dengan proteksi `disabled` saat berada di batas halaman.
-   - Tombol nomor halaman bernomor aktif berlatar belakang `#244b37` (atau `#1f3a2b` di dark mode).
-   - Teks info rentang: `Menampilkan {startIndex + 1}–{endIndex} dari {totalItems} total data`.
+3. **Kontrol Navigasi:** Tombol Previous (`<`), Next (`>`), dan indikator rentang data aktif.
 
 ---
 
-## 🧠 Aturan Logika & State Management
+## ⚙️ Halaman Settings Minimalis (`Settings.tsx`)
+1. **Preset Fase Snap Carousel:** Di ponsel, pilihan preset fase pertumbuhan (Inkubasi, Primordia, Fruiting) dapat di-*swipe* horizontal secara mulus.
+2. **Side-by-Side Threshold Inputs:** Input Suhu Min & Max serta Kelembapan Min & Max disusun berdampingan 2 kolom dengan helper text di bawahnya.
+3. **Zero Visualizer Clutter:** Menghilangkan bar spektrum warna-warni yang redundan untuk meminimalkan scrolling dan mempercepat proses konfigurasi.
 
-1. **Server State (TanStack Query):** Seluruh pengambilan data dari backend wajib menggunakan `useQuery` dengan *queryKey* terstruktur (misal: `['sales']`, `['baglogs']`, `['dashboardStats']`).
-2. **Mutasi Data:** Gunakan `useMutation` dengan callback `onSuccess` yang memanggil `queryClient.invalidateQueries()` untuk memastikan sinkronisasi data seketika.
-3. **Pemisahan Logika:** Logika perhitungan agregasi berat, grouping, atau kalkulasi finansial utama berada di Backend/API Laravel, bukan dihitung manual yang membebani client.
-4. **Format Uang & Tanggal:**
-   - Angka moneter diformat ke Rupiah (`formatCurrency()` atau `toLocaleString('id-ID')`).
-   - Tanggal diformat lokal Indonesia (misal: `Sen, 7 Sep 2026`).
+---
+
+## 🌐 Layanan API Frontend (`services/`)
+
+- [`slotService.ts`](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/services/slotService.ts): Mengambil master slot, heatmap panen, dan mutasi alokasi batch WMS.
+- [`cullService.ts`](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/services/cullService.ts): Mengambil riwayat dan mencatat mutasi afkir baglog.
+- [`hppService.ts`](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/services/hppService.ts): Mengambil ringkasan HPP, margin kontribusi, dan mutasi biaya operasional.
+- [`deviceControlService.ts`](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/services/deviceControlService.ts): Mengirim perintah jeda panen (`pause`) dan resume ke mode AUTO.

@@ -7,8 +7,8 @@ Dokumen teknis ini menjelaskan spesifikasi perangkat keras (hardware) dan arsite
 Sistem IoT ini berpusat pada mikrokontroler yang terhubung ke jaringan internet dan bertugas membaca beberapa sensor iklim secara real-time.
 
 ### 1.1 Mikrokontroler
-*   **Komponen:** ESP32 (NodeMCU / Wemos D1 Mini)
-*   **Fungsi:** Bertindak sebagai otak utama (edge device) yang membaca data dari seluruh sensor, memformatnya menjadi JSON, dan mengirimkannya ke server backend via HTTP POST. ESP32 dipilih karena memiliki modul Wi-Fi terintegrasi.
+*   **Komponen:** ESP32 (NodeMCU / Wemos D1 Mini / DevKit V1)
+*   **Fungsi:** Bertindak sebagai otak utama (edge device) yang membaca data dari seluruh sensor, memformatnya menjadi JSON, dan mengirimkannya ke server backend via HTTP POST. ESP32 dipilih karena memiliki prosesor Dual-Core 240MHz dan modul Wi-Fi terintegrasi.
 
 ### 1.2 Sensor Suhu & Kelembapan (3 Unit — Segitiga Diagonal)
 *   **Komponen:** 3x DHT22
@@ -20,76 +20,77 @@ Sistem IoT ini berpusat pada mikrokontroler yang terhubung ke jaringan internet 
     $$T_{\text{avg}} = 0.35 \cdot T_A + 0.40 \cdot T_B + 0.25 \cdot T_C$$
     $$RH_{\text{avg}} = 0.35 \cdot RH_A + 0.40 \cdot RH_B + 0.25 \cdot RH_C$$
     Jika salah satu sensor mengalami kegagalan baca (NaN), firmware secara otomatis menormalisasi ulang bobot dari sensor yang masih valid.
-*   **Fungsi:** Mengukur suhu ruangan (°C) dan kelembapan relatif (%). DHT22 dipilih karena jangkauan bacaan yang lebih luas dan presisi yang lebih tinggi dibanding DHT11, sangat krusial untuk pertumbuhan miselium jamur kuping (suhu optimal 24-32°C, kelembaban 80-95%).
+*   **Fungsi:** Mengukur suhu ruangan (°C) dan kelembapan relatif (%). DHT22 dipilih karena jangkauan bacaan yang lebih luas dan presisi yang lebih tinggi dibanding DHT11, sangat krusial untuk pertumbuhan miselium jamur kuping (suhu optimal 24-32°C, kelembaban 85-95%).
 *   **Referensi:** Lihat `docs/penempatan_sensor.md` dan `docs/logika_aktuator.md` untuk detail komprehensif.
 
-### 1.3 Sensor Kadar CO2
-*   **Komponen:** MQ-135 (General Air Quality) atau MH-Z19 (NDIR CO2 Sensor)
-*   **Fungsi:** Mengukur konsentrasi karbon dioksida di dalam kumbung dalam satuan ppm (parts per million). Jamur bernapas dengan menghirup O2 dan mengeluarkan CO2. Kadar CO2 yang berlebihan akan menyebabkan batang jamur panjang namun payungnya kerdil.
+### 1.3 Sensor Kadar CO2 & Intensitas Cahaya
+*   **Komponen CO2:** MQ-135 (General Air Quality) atau MH-Z19 (NDIR CO2 Sensor).
+*   **Komponen Cahaya:** BH1750 (Digital Light Sensor) atau modul LDR (Light Dependent Resistor).
 
-### 1.4 Sensor Intensitas Cahaya
-*   **Komponen:** BH1750 (Digital Light Sensor) atau modul LDR (Light Dependent Resistor)
-*   **Fungsi:** Mengukur intensitas paparan cahaya di dalam kumbung (dalam satuan Lux). Cahaya yang berlebihan dapat menghambat pertumbuhan jamur kuping, sehingga data ini diperlukan untuk menjaga kumbung tetap teduh.
-
-### 1.5 Aktuator Pengendali Mikroklimat
-*   **Pompa Misting High-Pressure 12V DC:** Disambungkan ke nozzle pengabut 0.15mm untuk menaikkan kelembapan dan evaporative cooling tanpa membanjiri baglog.
+### 1.4 Aktuator Pengendali Mikroklimat
+*   **Pompa Misting High-Pressure 12V DC:** Disambungkan ke nozzle pengabut 0.15mm untuk menaikkan kelembapan dan pendinginan evaporatif tanpa membasahi lantai secara berlebihan.
 *   **Exhaust Fan 12V / 220V AC:** Membuang akumulasi gas CO2 di lantai dan menarik udara segar dari luar.
-*   **Relay Modul 2-Channel:** Driver saklar berisolasi optocoupler untuk mencegah spike induktif motor mengganggu ESP32.
+*   **Relay Modul 3-Channel:** Driver saklar berisolasi optocoupler untuk pompa misting, solenoid valve, dan exhaust fan.
 
 ---
 
 ## 2. Arsitektur Komunikasi & Alur Data
 
-Sistem tidak menggunakan protokol MQTT, melainkan memanfaatkan protokol HTTP/HTTPS berbasis **REST API** (*stateless*). Pendekatan ini menyederhanakan arsitektur karena tidak memerlukan *Message Broker* tambahan.
+Sistem memanfaatkan protokol HTTP/HTTPS berbasis **REST API** (*stateless*). Pendekatan ini menyederhanakan arsitektur karena tidak memerlukan *Message Broker* tambahan.
 
 ### 2.1 Skema Aliran Data
-1.  **Multi-Sensor Reading (Pembacaan 3 Sensor):** ESP32 secara periodik membaca nilai dari ketiga sensor DHT22 di zona Atas, Tengah, dan Bawah (setiap 5 detik).
-2.  **Weighted Sensor Fusion:** ESP32 menghitung nilai rata-rata tertimbang (A=35%, B=40%, C=25%). Sensor yang error (NaN) otomatis diabaikan dan bobot dinormalisasi ulang.
+1.  **Multi-Sensor Reading:** ESP32 secara periodik membaca nilai dari ketiga sensor DHT22 (setiap 5 detik).
+2.  **Weighted Sensor Fusion:** ESP32 menghitung nilai rata-rata tertimbang (A=35%, B=40%, C=25%). Sensor error otomatis diabaikan.
 3.  **Local Closed-Loop Decision Engine:** Firmware v3.5 mengevaluasi histeresis misting/fan, Universal Guard, interlock keselamatan, dan cooldown sebelum memutuskan aktivasi relay.
-4.  **Serialization:** ESP32 merakit data hasil fusi dan pembacaan optik/gas menjadi struktur JSON tunggal.
-5.  **Transmission:** ESP32 melakukan request `HTTP POST` ke endpoint publik server: `POST /api/sensor-data`.
-6.  **Validation:** Laravel Backend menerima payload dan memvalidasinya menggunakan `StoreSensorDataRequest`.
-7.  **Storage & Feedback:** Backend menyimpan data secara *immutable* ke dalam database (`DECIMAL(5,2)`), mengecek ambang batas threshold, dan mengembalikan status alert jika terjadi anomali iklim.
+4.  **Transmission:** ESP32 melakukan request `HTTP POST` ke endpoint publik server: `POST /api/sensor-data`.
+5.  **Validation:** Laravel Backend menerima payload dan memvalidasinya menggunakan `StoreSensorDataRequest`.
+6.  **Storage:** Backend menyimpan data secara *immutable* ke dalam database (`DECIMAL(5,2)`).
 
-### 2.2 Format Payload (JSON)
-
-ESP32 wajib mengirimkan body request dalam format `application/json` seperti berikut:
-
+### 2.2 Format Payload Sensor (JSON)
 ```json
 {
   "device_id": "ESP32-KUMBUNG-01",
   "temperature": 27.50,
-  "humidity": 82.00,
+  "humidity": 88.00,
   "co2_level": 450.50,
   "light_intensity": 120.50,
-  "recorded_at": "2026-08-17T09:00:00Z"
+  "recorded_at": "2026-09-27T09:00:00Z"
 }
 ```
 
-*Catatan Tipe Data:*
-*   `device_id`: String (Max 50 karakter). Digunakan untuk identifikasi multi-kumbung.
-*   `temperature`, `humidity`, `co2_level`, `light_intensity`: Float/Decimal.
-*   `recorded_at`: String (Format ISO 8601 Timestamp). (Opsional, jika kosong server akan memakai waktu request diterima).
+### 2.3 Sinkronisasi Konfigurasi & Perintah Jeda Panen
+ESP32 melakukan polling berkala (tiap 30 detik) ke `GET /api/thresholds/active` untuk mengambil ambang batas dan perintah interupsi:
+```json
+{
+  "success": true,
+  "data": {
+    "temp_min": "24.00",
+    "temp_max": "32.00",
+    "humidity_min": "85.00",
+    "humidity_max": "95.00",
+    "phase_mode": "fruiting",
+    "device_command": {
+      "command": "PAUSE",
+      "is_paused": true,
+      "duration_seconds": 7200,
+      "remaining_seconds": 7150,
+      "reason": "Panen Raya Lorong B"
+    }
+  }
+}
+```
+*   Jika `command == "PAUSE"`, ESP32 mengaktifkan mode jeda (Misting & Fan mati seketika).
+*   Jika `command == "AUTO"` atau `remaining_seconds <= 0`, ESP32 mengakhiri masa jeda dan seketika melakukan *instant-read* sensor untuk menstabilkan iklim.
 
 ---
 
 ## 3. Keamanan & Penanganan Eror (Security & Error Handling)
 
 ### 3.1 Rate Limiting (Anti-DDoS)
-Endpoint IoT bersifat publik (tidak menggunakan Authentication Token agar meringankan kerja mikrokontroler). Untuk mencegah serangan *DDoS* atau *spamming* akibat malfungsi sensor, backend menerapkan middleware **Throttle**.
-*   **Limit:** Maksimal 20 request per 1 menit per `device_id` (IP Address).
-*   **Response:** Jika melebihi batas, server akan menolak request dengan HTTP Status `429 Too Many Requests`.
+Endpoint IoT publik dilindungi middleware **Throttle** (maksimal 20 request per 1 menit per IP). Melebihi batas akan menerima respons HTTP `429 Too Many Requests`.
 
 ### 3.2 Data Integrity
-Sistem memegang prinsip *Immutability*. Data sensor yang telah masuk ke database tidak akan pernah diubah (`UPDATED_AT` dinonaktifkan). Jika terdapat anomali data, perbaikan dilakukan di sisi algoritma filter, bukan dengan memanipulasi *raw data* di database.
+Sistem memegang prinsip *Immutability*. Data sensor yang telah masuk ke database tidak memiliki `updated_at`.
 
 ### 3.3 Mekanisme Fail-Safe & Caching Lokal (Network Outage)
-Mengingat lokasi kumbung jamur seringkali berada di area dengan koneksi Wi-Fi yang tidak stabil, ESP32 dilengkapi dengan mekanisme *fail-safe* (toleransi kegagalan) menggunakan metode **Local Caching**.
-
-*   **Skenario Normal:** ESP32 membaca data → NTP Sync Waktu → Kirim HTTP POST → Server menerima (Status 201).
-*   **Skenario Disconnect (Wi-Fi Mati):** 
-    1. Jika request HTTP gagal (Timeout/Error), ESP32 tidak membuang data tersebut.
-    2. Data di-serialize menjadi JSON yang dilengkapi dengan `recorded_at` (berdasarkan RTC internal ESP32 yang sebelumnya sudah sinkron dengan NTP).
-    3. Payload JSON disimpan ke dalam *buffer lokal*. Dalam implementasi TA ini, digunakan **Ring Buffer (FIFO) di RAM ESP32** yang sanggup menampung hingga 24 payload terakhir (setara dengan 2 jam *offline* jika interval baca 5 menit). Jika ingin lebih permanen, bisa menggunakan **SPIFFS (SPI Flash File System)**.
-    4. Saat modul Wi-Fi berhasil melakukan *reconnect*, ESP32 akan melakukan iterasi (looping) pada antrean buffer tersebut dan mengirim ulang (resend) semua data *cached* ke server secara sekuensial.
-    5. Server menerima data *cached* tersebut dan menyimpannya berdasarkan timestamp asli (`recorded_at`), sehingga grafik visualisasi di Dashboard tetap berurutan dan tidak melompat.
+Jika koneksi Wi-Fi terputus, ESP32 menyimpan data ke **Ring Buffer (FIFO) di RAM** (kapasitas 24 record atau setara 2 jam) dengan timestamp RTC internal. Saat koneksi pulih, antrean data dikirim ulang secara sekuensial (*bulk upload*) ke server.

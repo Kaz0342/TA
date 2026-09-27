@@ -1,7 +1,7 @@
 # Logika Otomatisasi Aktuator (Misting & Fan) — Firmware v3.5
 **Smart Shroom SCM — Tugas Akhir Sistem Informasi**
 
-Dokumen ini menjelaskan alur logika kendali (*control logic*) bagaimana mikrokontroler ESP32 memutuskan kapan harus mengaktifkan dan menonaktifkan Pompa Air (Misting Nozzle), Solenoid Valve, dan Exhaust Fan. Sistem mengimplementasikan kendali umpan-balik tertutup (*closed-loop feedback control*) berbasis **Histeresis Dinamis (Dynamic Hysteresis)** dan **Safety Multi-Tier Protection** untuk mencegah aktuator menyala-mati terlalu sering (*short-cycling / flickering*) yang dapat merusak relay serta membuat fluktuasi mikroklimat tidak stabil.
+Dokumen ini menjelaskan alur logika kendali (*control logic*) bagaimana mikrokontroler ESP32 memutuskan kapan harus mengaktifkan dan menonaktifkan Pompa Air (Misting Nozzle), Solenoid Valve, dan Exhaust Fan. Sistem mengimplementasikan kendali umpan-balik tertutup (*closed-loop feedback control*) berbasis **Histeresis Dinamis (Dynamic Hysteresis)**, **Safety Multi-Tier Protection**, dan **Fluid Dynamics Failsafe Guard** untuk menjamin kestabilan mikroklimat jamur kuping (*Auricularia auricula-judae*).
 
 ---
 
@@ -27,7 +27,7 @@ Threshold diambil secara berkala (tiap 30 detik) dari Web Dashboard via endpoint
 - `humMax`: Batas atas kelembaban relatif (%) — *Default Fase Fruiting: 95.0%*
 
 ### Histeresis Misting Stop (Solusi Anti-Lancip)
-Pada versi awal, target stop misting dipatok terlalu dekat dengan `humMin` ($+2\%$), menyebabkan pompa menyala sebentar lalu mati dalam 25 detik, menghasilkan grafik gerigi lancip (*sawtooth wave*). Pada v3.5, sistem menerapkan formula histeresis kurva landai:
+Target stop misting dirancang dengan kurva histeresis landai:
 $$\text{rhTriggerLow} = \text{humMin}$$
 $$\text{rhTriggerHigh} = \min(\text{humMax} - 4.0, \, \text{humMin} + 5.0)$$
 
@@ -63,7 +63,7 @@ Exhaust Fan berfungsi membuang udara panas, meratakan stratifikasi udara (homoge
 1. **Tier 1 — Pendinginan Siang:**
    - **START:** $T_{\text{avg}} > \text{tempMax}$ (misal $> 32.0^\circ\text{C}$).
    - **STOP:** $T_{\text{avg}} \le \text{tempMax} - 1.5^\circ\text{C}$ (Histeresis pendinginan $30.5^\circ\text{C}$).
-   - **Safety Timeout:** Maksimal 180 detik (3 menit) menyala terus-menerus, dengan *anti-chattering cooldown* 60 detik agar tidak menguras kelembaban kumbung.
+   - **Safety Timeout:** Maksimal 180 detik (3 menit) menyala terus-menerus, dengan *anti-chattering cooldown* 60 detik.
 2. **Tier 2 — Safety Override Suhu Kritis:**
    - Jika $\max(T) > \text{tempMax} + 2.0^\circ\text{C}$ (misal $> 34.0^\circ\text{C}$ di rak atas dekat atap seng), fan **DIPAKSA ON** mem-bypass seluruh timer cooldown. Misting yang sedang berjalan akan langsung dipotong.
 3. **Tier 3 — Homogenisasi Sirkulasi Vertikal:**
@@ -71,13 +71,9 @@ Exhaust Fan berfungsi membuang udara panas, meratakan stratifikasi udara (homoge
    - Dilengkapi *cooldown* 15 menit (900 detik) agar tidak mengganggu ketenangan udara kumbung.
 
 ### B. Mode Malam Hari (17:00 - 06:00 WIB)
-Pada malam hari, jamur bernapas mengeluarkan gas $\text{CO}_2$ berat yang mengendap di lantai (zona sensor C), sementara kelembaban udara naik mendekati titik jenuh ($> 95\%$). Kipas beroperasi dengan durasi presisi **45 detik**:
-1. **Pemicu 1 — Over-Humidity Purge ($RH \ge 96.0\%$):**
-   - Mencegah kondensasi air menetes langsung ke tubuh buah jamur. Cooldown 30 menit.
-2. **Pemicu 2 — Periodic $\text{CO}_2$ Flush (Tiap 60 Menit):**
-   - Membuang akumulasi gas $\text{CO}_2$ di atas lantai agar sirkulasi $\text{O}_2$ segar terjaga.
-3. **Sinkronisasi Timer (Interlock):**
-   - Saat Over-Humidity Purge terjadi, timer Periodic $\text{CO}_2$ Flush otomatis di-reset ke 60 menit ke depan, karena aliran udara 45 detik saat purge sudah sekaligus membuang gas $\text{CO}_2$. Hal ini mencegah fan menyala bertubi-tubi dalam 1 jam yang sama.
+1. **Pemicu 1 — Over-Humidity Purge ($RH \ge 96.0\%$):** Mencegah kondensasi air menetes langsung ke jamur. Durasi 45 detik, cooldown 30 menit.
+2. **Pemicu 2 — Periodic $\text{CO}_2$ Flush (Tiap 60 Menit):** Membuang akumulasi gas $\text{CO}_2$ di atas lantai agar sirkulasi $\text{O}_2$ segar terjaga.
+3. **Sinkronisasi Timer (Interlock):** Saat Over-Humidity Purge terjadi, timer Periodic $\text{CO}_2$ Flush otomatis di-reset ke 60 menit ke depan, mencegah fan menyala bertubi-tubi dalam 1 jam yang sama.
 
 ### C. Settling Delay Guard (60 detik)
 Setelah misting mati, fan dilarang menyala selama 60 detik untuk memberi kesempatan kabut mikro mengendap pada permukaan baglog dan tidak terbuang percuma keluar ventilasi.
@@ -104,4 +100,18 @@ Setelah misting mati, fan dilarang menyala selama 60 detik untuk memberi kesempa
 | **Fan** | Night $\text{CO}_2$ Flush | 3600 detik (60 mnt) | Siklus berkala pembuangan endapan $\text{CO}_2$ lantai |
 
 ---
-*Dokumen ini merupakan spesifikasi resmi algoritma kendali firmware ESP32 (`esp32_firmware.ino`) dan model simulasi IoT (`iot_simulator.py`) Smart Shroom SCM.*
+
+## 6. Logika Failsafe Interupsi Panen (Harvest Pause Mode & Fluid Dynamics Guard)
+
+### A. Alasan Penggunaan Failsafe Timer (`millis()`)
+Kontrol jarak jauh untuk mematikan pompa misting dan kipas secara manual **wajib menggunakan timer interupsi berbasis waktu**, bukan tombol switch on/off manual biasa. Hal ini untuk mencegah *human error* fatal di mana petani lupa menyalakan kembali sistem otomasi setelah keluar kumbung, yang dapat menyebabkan ribuan baglog mati kekeringan.
+
+### B. Fluid Dynamics Guard (Proteksi Sirkulasi Kipas)
+Ketika mode jeda panen diaktifkan (mengindikasikan pintu kumbung utama dibuka untuk mobilitas pemetikan keranjang jamur):
+- **Exhaust Fan WAJIB MATI SEKETIKA**: Berdasarkan prinsip dinamika fluida, menyalakan kipas saat pintu depan terbuka hanya akan menghasilkan fenomena *Short-Circuiting Aliran Udara*—udara luar yang ditarik masuk langsung mengalir lurus ke kipas pembuangan mengikuti jalur hambatan terendah (*path of least resistance*), tanpa menyapu lorong-lorong rak baglog.
+- **Pompa Misting WAJIB MATI**: Menghindarkan pekerja tersiram semprotan air kabut bertekanan tinggi saat memetik jamur.
+
+### C. Alur Pemulihan (Resume & Instant-Read)
+1. Pekerja menekan tombol **"Akhiri Jeda & Balik ke AUTO"** di dashboard (atau timer durasi habis secara alami).
+2. Backend mengirimkan status command `AUTO` pada respons polling `GET /api/thresholds/active`.
+3. ESP32 mengakhiri mode jeda dan seketika melakukan **Instant-Read** pada ketiga sensor DHT22 untuk mengevaluasi mikroklimat terkini dan menstabilkan kelembaban kumbung tanpa jeda waktu siklus 5 detik.

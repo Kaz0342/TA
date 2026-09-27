@@ -5,7 +5,7 @@
 **Konteks:** Tugas Akhir Program Studi Sistem Informasi  
 **Penyusun:** Benedictus Vio  
 **Database Engine:** SQLite (Development / Testing) & PostgreSQL / Supabase (Production)  
-**Terakhir Diperbarui:** September 2026  
+**Terakhir Diperbarui:** September 2026 (Sinkronisasi Fase 2–5: Spasial WMS, Ledger Afkir, HPP Dinamis, & IoT Rule Engine)  
 
 ---
 
@@ -15,12 +15,14 @@ Perancangan basis data **Smart Shroom SCM** menerapkan prinsip **Database First*
 
 ### Prinsip Utama yang Diterapkan:
 1. **Presisi Finansial & Pengukuran (No Floating-Point Error):**
-   - Seluruh kolom moneter (`price_per_kg`, `total_revenue`) dan metrik lingkungan (`temperature`, `humidity`, `weight_kg`) menggunakan tipe data `DECIMAL`, **bukan `FLOAT` atau `DOUBLE`**, guna mencegah *rounding error* pada saat agregasi pendapatan dan analisis mikroklimat.
-2. **Immutabilitas Data Sensor (Audit-Proof Time Series):**
-   - Tabel `sensor_data` bersifat *append-only* (tidak memiliki kolom `updated_at`). Sekali data telemetri tercatat dari ESP32, data tersebut menjadi rekaman historis permanen yang tidak dapat dimanipulasi.
-3. **Strategi Pengindeksan (Query Optimization):**
-   - Menerapkan *Single-Column Index* dan *Composite Index* pada foreign key (`user_id`), kolom penanggalan (`entry_date`, `harvest_date`, `sale_date`), serta timestamp sensor (`recorded_at`, `[device_id, recorded_at]`) untuk menjamin latensi query dashboard tetap di bawah 100ms.
-4. **Normalisasi Penuh (3NF):**
+   - Seluruh kolom moneter (`price_per_kg`, `price_per_baglog`, `total_revenue`, `amount`) dan metrik lingkungan (`temperature`, `humidity`, `weight_kg`) menggunakan tipe data `DECIMAL`, **bukan `FLOAT` atau `DOUBLE`**, guna mencegah *rounding error* pada saat agregasi pendapatan, perhitungan HPP, dan analisis mikroklimat.
+2. **Pemisahan Entitas Fisik vs Dinamis (Warehouse Management System):**
+   - **Slot / Rak** adalah entitas statis permanen (`slots`), sedangkan **Batch Baglog** adalah entitas dinamis yang menempati slot melalui tabel pivot alokasi (`batch_slot_assignments`). Mutasi antar rak dilarang demi ketertelusuran biosekuriti.
+3. **Pencatatan Berbasis Ledger Imutabel (Event Sourcing & Auditing):**
+   - Pengurangan populasi jamur tidak dilakukan dengan mengedit angka total secara manual, melainkan dicatat melalui jurnal mutasi afkir (`baglog_culls`). Data sensor telemetri (`sensor_data`) bersifat *append-only* tanpa kolom `updated_at`.
+4. **Strategi Pengindeksan (Query Optimization):**
+   - Menerapkan *Single-Column Index* dan *Composite Index* pada foreign key (`user_id`, `baglog_batch_id`), kolom penanggalan (`entry_date`, `harvest_date`, `sale_date`, `cull_date`, `expense_date`), koordinat slot (`slot_code`), serta timestamp sensor (`recorded_at`, `[device_id, recorded_at]`) untuk menjamin latensi query dashboard tetap sub-100ms.
+5. **Normalisasi Penuh (3NF):**
    - Struktur database telah memenuhi kaidah Bentuk Normal Ketiga (3NF) guna mengeliminasi anomali penyisipan (*insertion*), pembaruan (*update*), dan penghapusan (*deletion*).
 
 ---
@@ -33,7 +35,18 @@ erDiagram
     USERS ||--o{ HARVESTS : "mencatat (1:N)"
     USERS ||--o{ SALES : "mencatat (1:N)"
     USERS ||--o{ THRESHOLD_SETTINGS : "mengonfigurasi (1:N)"
+    USERS ||--o{ OPERATIONAL_EXPENSES : "membukukan (1:N)"
+
+    BAGLOG_BATCHES ||--o{ BATCH_SLOT_ASSIGNMENTS : "dialokasikan ke (1:N)"
+    SLOTS ||--o{ BATCH_SLOT_ASSIGNMENTS : "ditempati oleh (1:N)"
+
+    BAGLOG_BATCHES ||--o{ BAGLOG_CULLS : "mengalami mutasi afkir (1:N)"
+    SLOTS ||--o{ BAGLOG_CULLS : "lokasi afkir (1:N)"
+
     BAGLOG_BATCHES ||--o{ HARVESTS : "menghasilkan (1:N)"
+    SLOTS ||--o{ HARVESTS : "asal pemetikan (1:N)"
+
+    BAGLOG_BATCHES ||--o{ SALES : "sumber stok penjualan (1:N)"
 
     USERS {
         bigint id PK
@@ -47,15 +60,52 @@ erDiagram
         timestamp updated_at
     }
 
+    SLOTS {
+        bigint id PK
+        varchar_10 slot_code UK "Format: Row-Bay-Tier, misal B-05-03"
+        varchar_5 row_code "A | B | C"
+        int bay_number "1 s.d. 10 (Kolom horizontal)"
+        int tier_number "1 s.d. 10 (Tingkat vertikal)"
+        int max_capacity "Default 10 baglog"
+        boolean is_active "Default true"
+        timestamp created_at
+        timestamp updated_at
+    }
+
     BAGLOG_BATCHES {
         bigint id PK
         bigint user_id FK "users.id (Cascade)"
         varchar_30 batch_code UK "Format: BL-YYYYMMDD-XXX"
         date entry_date "Indexed"
         int_unsigned quantity
+        decimal_10_2 price_per_baglog "Modal pengadaan per baglog (IDR)"
         varchar_100 supplier
-        enum_status status "active | contaminated | disposed (Indexed)"
+        enum_status status "active | completed | contaminated | disposed"
         text notes "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    BATCH_SLOT_ASSIGNMENTS {
+        bigint id PK
+        bigint baglog_batch_id FK "baglog_batches.id (Cascade)"
+        varchar_10 slot_code FK "slots.slot_code (Cascade)"
+        int initial_quantity "Kapasitas awal diisi (default 10)"
+        varchar_30 initial_mycelium_stage "LEVEL_1 | LEVEL_2 | LEVEL_3"
+        varchar_30 current_status "INCUBATION | FRUITING | COMPLETED"
+        date assigned_at "Indexed"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    BAGLOG_CULLS {
+        bigint id PK
+        bigint baglog_batch_id FK "baglog_batches.id (Cascade)"
+        varchar_10 slot_code FK "slots.slot_code (Cascade)"
+        date cull_date "Indexed"
+        int quantity "Jumlah baglog yang dibuang"
+        enum_reason reason "TRICHODERMA | BUSUK_BASAH | HAMA | KERING | LAINNYA"
+        text notes "nullable (alasan spesifik/audit garansi vendor)"
         timestamp created_at
         timestamp updated_at
     }
@@ -64,8 +114,10 @@ erDiagram
         bigint id PK
         bigint user_id FK "users.id (Cascade)"
         bigint baglog_batch_id FK "baglog_batches.id (Set Null, nullable)"
+        varchar_10 slot_code FK "slots.slot_code (Set Null, nullable)"
+        int flush_number "Siklus panen ke-berapa (1 s.d. 7, nullable)"
         date harvest_date "Indexed"
-        decimal_8_2 weight_kg "Kilogram"
+        decimal_8_2 weight_kg "Kilogram (Presisi 2 desimal)"
         text notes "nullable"
         timestamp created_at
         timestamp updated_at
@@ -74,6 +126,7 @@ erDiagram
     SALES {
         bigint id PK
         bigint user_id FK "users.id (Cascade)"
+        bigint baglog_batch_id FK "baglog_batches.id (Set Null, nullable)"
         date sale_date "Indexed"
         decimal_8_2 quantity_kg "Kilogram"
         decimal_10_2 price_per_kg "IDR"
@@ -84,14 +137,25 @@ erDiagram
         timestamp updated_at
     }
 
+    OPERATIONAL_EXPENSES {
+        bigint id PK
+        bigint user_id FK "users.id (Cascade)"
+        date expense_date "Indexed"
+        varchar_50 category "electricity | water_misting | labor | maintenance | logistics | other"
+        decimal_12_2 amount "Biaya pengeluaran (IDR)"
+        text notes "nullable (Keterangan bukti/nota)"
+        timestamp created_at
+        timestamp updated_at
+    }
+
     THRESHOLD_SETTINGS {
         bigint id PK
         bigint user_id FK "users.id (Cascade)"
-        decimal_5_2 temp_min "Celsius, Default 20.00"
-        decimal_5_2 temp_max "Celsius, Default 30.00"
-        decimal_5_2 humidity_min "Persen, Default 70.00"
-        decimal_5_2 humidity_max "Persen, Default 90.00"
-        varchar_30 phase_mode "incubation|primordia|fruiting|custom"
+        decimal_5_2 temp_min "Celsius, Default 24.00"
+        decimal_5_2 temp_max "Celsius, Default 32.00"
+        decimal_5_2 humidity_min "Persen, Default 85.00"
+        decimal_5_2 humidity_max "Persen, Default 95.00"
+        varchar_30 phase_mode "incubation | primordia | fruiting | custom"
         boolean is_active "Default true"
         timestamp created_at
         timestamp updated_at
@@ -111,7 +175,7 @@ erDiagram
     SPRINKLER_LOGS {
         bigint id PK
         varchar_50 device_id "Indexed"
-        varchar_50 actuator "misting | fan"
+        varchar_50 actuator "misting | fan | system"
         timestamp started_at "Indexed"
         int_unsigned duration_seconds
         varchar_255 trigger_reason
@@ -124,8 +188,6 @@ erDiagram
 ---
 
 ## 3. Kamus Data Rinci (Data Dictionary)
-
-Berikut rincian spesifikasi struktur tabel, tipe data, *constraints*, dan indeks:
 
 ### 3.1 Tabel `users`
 Menyimpan identitas dan hak akses akun pengelola kumbung (Admin) dan buruh tani (Worker).
@@ -144,79 +206,148 @@ Menyimpan identitas dan hak akses akun pengelola kumbung (Admin) dan buruh tani 
 
 ---
 
-### 3.2 Tabel `baglog_batches`
-Mencatat kelompok media tanam (*baglog*) jamur kuping yang didatangkan dari supplier beserta siklus hidupnya.
+### 3.2 Tabel `slots` (Master Koordinat Spasial WMS)
+Menyimpan denah ruang fisik kumbung 3D berbasis koordinat Kartesius: **Row-Bay-Tier**.
+
+| Nama Kolom | Tipe Data | Nullable | Default | Constraints / Index | Keterangan |
+|---|---|:---:|:---:|:---:|---|
+| `id` | `BIGINT UNSIGNED` | ❌ | Auto Increment | **Primary Key** | Identifier unik slot fisik. |
+| `slot_code` | `VARCHAR(10)` | ❌ | — | **Unique**, **Index** | Kode koordinat baku (misal: `B-05-03`). |
+| `row_code` | `VARCHAR(5)` | ❌ | — | **Index** | Lorong/Rak: `A`, `B`, atau `C`. |
+| `bay_number` | `INT` | ❌ | — | — | Kolom horizontal seksi rak (1 s.d. 10). |
+| `tier_number` | `INT` | ❌ | — | — | Tingkat rak vertikal (1 di dasar s.d. 10 di atap). |
+| `max_capacity` | `INT` | ❌ | `10` | — | Kapasitas fisik slot (standar 10 baglog). |
+| `is_active` | `BOOLEAN` | ❌ | `true` | — | Status rak layak pakai/rusak. |
+| `created_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu slot didaftarkan. |
+| `updated_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu pembaruan data slot. |
+
+* **Total Kapasitas Fisik Kumbung:** 3 Baris × 10 Kolom × 10 Tingkat = **300 Slot** = **3.000 Baglog**.
+
+---
+
+### 3.3 Tabel `baglog_batches`
+Mencatat kelompok pengadaan media tanam (*baglog*) beserta modal awal per biji dan siklus hidupnya.
 
 | Nama Kolom | Tipe Data | Nullable | Default | Constraints / Index | Keterangan |
 |---|---|:---:|:---:|:---:|---|
 | `id` | `BIGINT UNSIGNED` | ❌ | Auto Increment | **Primary Key** | Identifier unik batch baglog. |
 | `user_id` | `BIGINT UNSIGNED` | ❌ | — | **Foreign Key** → `users(id)` (Cascade), **Index** | Admin yang mencatat batch. |
-| `batch_code` | `VARCHAR(30)` | ❌ | — | **Unique** | Kode batch auto-generated (`BL-YYYYMMDD-XXX`). |
+| `batch_code` | `VARCHAR(30)` | ❌ | — | **Unique** | Kode batch unik (`BL-YYYYMMDD-XXX`). |
 | `entry_date` | `DATE` | ❌ | — | **Index** | Tanggal baglog masuk kumbung (basis hitung umur). |
 | `quantity` | `INT UNSIGNED` | ❌ | — | — | Jumlah kantong baglog dalam batch. |
+| `price_per_baglog` | `DECIMAL(10,2)` | ❌ | `0.00` | — | Modal awal per biji baglog (basis kalkulasi HPP). |
 | `supplier` | `VARCHAR(100)` | ❌ | — | — | Nama pemasok media tanam. |
-| `status` | `ENUM('active','contaminated','disposed')` | ❌ | `'active'` | **Index** | Status siklus hidup media tanam. |
+| `status` | `ENUM(...)` | ❌ | `'active'` | **Index** | Status: `active`, `completed`, `contaminated`, `disposed`. |
 | `notes` | `TEXT` | ✅ | `NULL` | — | Catatan kondisi fisik media tanam. |
 | `created_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu pencatatan batch. |
-| `updated_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu status batch terakhir diubah. |
-
-* **Composite Index:** `[user_id, status]` untuk query cepat filter batch aktif milik admin tertentu.
-* *Catatan:* Umur baglog (`age_days`) dihitung secara dinamis melalui Eloquent Model Accessor `diffInDays(now())` dari `entry_date`, bukan kolom tersimpan (mencegah *stale data*).
+| `updated_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu modifikasi batch. |
 
 ---
 
-### 3.3 Tabel `harvests`
-Mencatat hasil panen harian komoditas jamur kuping basah.
+### 3.4 Tabel `batch_slot_assignments` (Pivot Alokasi WMS)
+Menghubungkan batch baglog ke koordinat slot kamar fisik kumbung.
 
 | Nama Kolom | Tipe Data | Nullable | Default | Constraints / Index | Keterangan |
 |---|---|:---:|:---:|:---:|---|
-| `id` | `BIGINT UNSIGNED` | ❌ | Auto Increment | **Primary Key** | Identifier unik pencatatan panen. |
-| `user_id` | `BIGINT UNSIGNED` | ❌ | — | **Foreign Key** → `users(id)` (Cascade), **Index** | Pekerja/Admin yang menginput data. |
-| `baglog_batch_id` | `BIGINT UNSIGNED` | ✅ | `NULL` | **Foreign Key** → `baglog_batches(id)` (Set Null) | Batch baglog sumber panen (opsional). |
+| `id` | `BIGINT UNSIGNED` | ❌ | Auto Increment | **Primary Key** | Identifier unik alokasi slot. |
+| `baglog_batch_id` | `BIGINT UNSIGNED` | ❌ | — | **Foreign Key** → `baglog_batches(id)` (Cascade) | Batch yang menempati slot. |
+| `slot_code` | `VARCHAR(10)` | ❌ | — | **Foreign Key** → `slots(slot_code)` (Cascade) | Koordinat rak yang ditempati. |
+| `initial_quantity` | `INT` | ❌ | `10` | — | Jumlah baglog yang diletakkan saat awal alokasi. |
+| `initial_mycelium_stage`| `VARCHAR(30)` | ❌ | `'LEVEL_2'` | — | Tahap miselium awal (`LEVEL_1`, `LEVEL_2`, `LEVEL_3`). |
+| `current_status` | `VARCHAR(30)` | ❌ | `'INCUBATION'`| — | Status kamar: `INCUBATION`, `FRUITING`, `COMPLETED`. |
+| `assigned_at` | `DATE` | ❌ | — | **Index** | Tanggal baglog dimasukkan ke rak. |
+| `created_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu rekaman alokasi dibuat. |
+| `updated_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu status alokasi diperbarui. |
+
+* **Formula Kapasitas Aktif Slot (Runtime Accessor):**
+  $$\text{Kapasitas Aktif Slot} = \text{initial\_quantity} - \sum (\text{baglog\_culls.quantity})$$
+
+---
+
+### 3.5 Tabel `baglog_culls` (Ledger Pengurangan / Kematian Baglog)
+Jurnal audit pengurangan kapasitas baglog akibat kontaminasi atau kematian fisik media tanam.
+
+| Nama Kolom | Tipe Data | Nullable | Default | Constraints / Index | Keterangan |
+|---|---|:---:|:---:|:---:|---|
+| `id` | `BIGINT UNSIGNED` | ❌ | Auto Increment | **Primary Key** | Identifier unik rekaman afkir. |
+| `baglog_batch_id` | `BIGINT UNSIGNED` | ❌ | — | **Foreign Key** → `baglog_batches(id)` (Cascade) | Batch baglog asal. |
+| `slot_code` | `VARCHAR(10)` | ❌ | — | **Foreign Key** → `slots(slot_code)` (Cascade) | Koordinat rak asal baglog busuk. |
+| `cull_date` | `DATE` | ❌ | — | **Index** | Tanggal penemuan & pembuangan afkir. |
+| `quantity` | `INT` | ❌ | — | — | Jumlah baglog afkir yang dibuang. |
+| `reason` | `ENUM(...)` | ❌ | — | — | Alasan: `TRICHODERMA`, `BUSUK_BASAH`, `HAMA`, `KERING`, `LAINNYA`. |
+| `notes` | `TEXT` | ✅ | `NULL` | — | Keterangan tambahan untuk klaim garansi vendor. |
+| `created_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu entri dicatat. |
+| `updated_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu pembaruan entri. |
+
+---
+
+### 3.6 Tabel `harvests`
+Mencatat hasil panen harian, dilengkapi nomor flush siklus panen dan koordinat slot asal pemetikan (Heatmap Produktivitas).
+
+| Nama Kolom | Tipe Data | Nullable | Default | Constraints / Index | Keterangan |
+|---|---|:---:|:---:|:---:|---|
+| `id` | `BIGINT UNSIGNED` | ❌ | Auto Increment | **Primary Key** | Identifier unik panen. |
+| `user_id` | `BIGINT UNSIGNED` | ❌ | — | **Foreign Key** → `users(id)` (Cascade), **Index** | Pekerja/Admin pencatat panen. |
+| `baglog_batch_id` | `BIGINT UNSIGNED` | ✅ | `NULL` | **Foreign Key** → `baglog_batches(id)` (Set Null) | Batch baglog sumber panen. |
+| `slot_code` | `VARCHAR(10)` | ✅ | `NULL` | **Foreign Key** → `slots(slot_code)` (Set Null) | Koordinat slot asal pemetikan. |
+| `flush_number` | `INT` | ✅ | `1` | — | Siklus petik ke-berapa (1 s.d. 7). |
 | `harvest_date` | `DATE` | ❌ | — | **Index** | Tanggal pemetikan panen dilakukan. |
 | `weight_kg` | `DECIMAL(8,2)` | ❌ | — | — | Berat hasil panen dalam Kilogram (Presisi 2 desimal). |
 | `notes` | `TEXT` | ✅ | `NULL` | — | Catatan kualitas panen / cuaca. |
-| `created_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu rekaman panen disimpan. |
-| `updated_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu modifikasi rekaman panen. |
-
-* **Composite Indexes:**
-  - `[user_id, harvest_date]`: Query agregasi total panen harian per pengguna.
-  - `[baglog_batch_id, harvest_date]`: Evaluasi tren produktivitas panen per batch baglog.
+| `created_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu pencatatan disimpan. |
+| `updated_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu modifikasi panen. |
 
 ---
 
-### 3.4 Tabel `sales`
-Mencatat data transaksi penjualan jamur kuping kepada tengkulak atau pembeli pasar.
+### 3.7 Tabel `sales`
+Mencatat data transaksi penjualan jamur kuping basah kepada pembeli pasar/tengkulak, terhubung ke batch asal untuk pelacakan omzet per batch.
 
 | Nama Kolom | Tipe Data | Nullable | Default | Constraints / Index | Keterangan |
 |---|---|:---:|:---:|:---:|---|
-| `id` | `BIGINT UNSIGNED` | ❌ | Auto Increment | **Primary Key** | Identifier unik transaksi penjualan. |
-| `user_id` | `BIGINT UNSIGNED` | ❌ | — | **Foreign Key** → `users(id)` (Cascade), **Index** | Admin yang mencatat transaksi. |
+| `id` | `BIGINT UNSIGNED` | ❌ | Auto Increment | **Primary Key** | Identifier unik transaksi. |
+| `user_id` | `BIGINT UNSIGNED` | ❌ | — | **Foreign Key** → `users(id)` (Cascade), **Index** | Admin pencatat transaksi. |
+| `baglog_batch_id` | `BIGINT UNSIGNED` | ✅ | `NULL` | **Foreign Key** → `baglog_batches(id)` (Set Null) | Batch sumber panen yang dijual (opsional). |
 | `sale_date` | `DATE` | ❌ | — | **Index** | Tanggal transaksi penjualan. |
 | `quantity_kg` | `DECIMAL(8,2)` | ❌ | — | — | Kuantitas jamur terjual dalam Kilogram. |
-| `price_per_kg` | `DECIMAL(10,2)`| ❌ | — | — | Harga satuan per Kilogram dalam Rupiah (IDR). |
-| `total_revenue` | `DECIMAL(12,2)`| ❌ | — | — | Total pendapatan kotor (IDR), dihitung di backend. |
-| `buyer_name` | `VARCHAR(100)` | ❌ | — | — | Nama tengkulak atau pihak pembeli. |
+| `price_per_kg` | `DECIMAL(10,2)`| ❌ | — | — | Harga satuan per Kilogram (IDR). |
+| `total_revenue` | `DECIMAL(12,2)`| ❌ | — | — | Total pendapatan kotor (IDR), dihitung via `bcmul()`. |
+| `buyer_name` | `VARCHAR(100)` | ❌ | — | — | Nama mitra pembeli. |
 | `notes` | `TEXT` | ✅ | `NULL` | — | Catatan tambahan transaksi. |
 | `created_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu transaksi dibuat. |
 | `updated_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu transaksi diubah. |
 
-* **Composite Index:** `[user_id, sale_date]` untuk filtrasi performa omset bulanan/mingguan.
-* **Kaidah Bisnis Backend:** `total_revenue` dihitung wajib melalui `bcmul($quantity_kg, $price_per_kg, 2)` di Service Layer untuk menghindari floating arithmetic inaccuracy.
+---
+
+### 3.8 Tabel `operational_expenses` (Biaya Operasional Kumbung)
+Mencatat beban operasional harian/bulanan kumbung guna komputasi Harga Pokok Produksi (HPP) dan Margin Kontribusi.
+
+| Nama Kolom | Tipe Data | Nullable | Default | Constraints / Index | Keterangan |
+|---|---|:---:|:---:|:---:|---|
+| `id` | `BIGINT UNSIGNED` | ❌ | Auto Increment | **Primary Key** | Identifier unik pengeluaran. |
+| `user_id` | `BIGINT UNSIGNED` | ❌ | — | **Foreign Key** → `users(id)` (Cascade), **Index** | Admin pembukuan biaya. |
+| `expense_date` | `DATE` | ❌ | — | **Index** | Tanggal transaksi pengeluaran. |
+| `category` | `VARCHAR(50)` | ❌ | — | **Index** | Kategori: `electricity`, `water_misting`, `labor`, `maintenance`, `logistics`, `other`. |
+| `amount` | `DECIMAL(12,2)`| ❌ | — | — | Nominal pengeluaran dalam Rupiah (IDR). |
+| `notes` | `TEXT` | ✅ | `NULL` | — | Deskripsi rincian biaya / nomor nota. |
+| `created_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu pencatatan pengeluaran. |
+| `updated_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu pembaruan rekaman. |
+
+* **Formula Margin Kontribusi (HPP Dinamis):**
+  $$\text{Margin Kontribusi} = \text{Total Omzet} - (\text{Modal Pengadaan Baglog} + \text{Total Biaya Operasional Variabel})$$
 
 ---
 
-### 3.5 Tabel `threshold_settings`
+### 3.9 Tabel `threshold_settings`
 Menyimpan konfigurasi batas ambang keamanan iklim mikro kumbung jamur kuping.
 
 | Nama Kolom | Tipe Data | Nullable | Default | Constraints / Index | Keterangan |
 |---|---|:---:|:---:|:---:|---|
 | `id` | `BIGINT UNSIGNED` | ❌ | Auto Increment | **Primary Key** | Identifier unik konfigurasi threshold. |
 | `user_id` | `BIGINT UNSIGNED` | ❌ | — | **Foreign Key** → `users(id)` (Cascade), **Index** | Admin pemilik konfigurasi. |
-| `temp_min` | `DECIMAL(5,2)` | ❌ | `20.00` | — | Batas bawah suhu aman (°C). |
-| `temp_max` | `DECIMAL(5,2)` | ❌ | `30.00` | — | Batas atas suhu aman (°C). |
-| `humidity_min`| `DECIMAL(5,2)` | ❌ | `70.00` | — | Batas bawah kelembapan aman (%). |
-| `humidity_max`| `DECIMAL(5,2)` | ❌ | `90.00` | — | Batas atas kelembapan aman (%). |
+| `temp_min` | `DECIMAL(5,2)` | ❌ | `24.00` | — | Batas bawah suhu aman (°C). |
+| `temp_max` | `DECIMAL(5,2)` | ❌ | `32.00` | — | Batas atas suhu aman (°C). |
+| `humidity_min`| `DECIMAL(5,2)` | ❌ | `85.00` | — | Batas bawah kelembapan aman (%). |
+| `humidity_max`| `DECIMAL(5,2)` | ❌ | `95.00` | — | Batas atas kelembapan aman (%). |
 | `phase_mode` | `VARCHAR(30)` | ❌ | `'fruiting'` | — | Fase pertumbuhan: `incubation`, `primordia`, `fruiting`, `custom`. |
 | `is_active` | `BOOLEAN` | ❌ | `true` | — | Penanda threshold aktif (hanya 1 aktif). |
 | `created_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu pembuatan pengaturan. |
@@ -224,37 +355,37 @@ Menyimpan konfigurasi batas ambang keamanan iklim mikro kumbung jamur kuping.
 
 ---
 
-### 3.6 Tabel `sensor_data`
+### 3.10 Tabel `sensor_data`
 Menyimpan payload data telemetri iklim mikro deret waktu (*time-series*) yang dikirimkan oleh ESP32.
 
 | Nama Kolom | Tipe Data | Nullable | Default | Constraints / Index | Keterangan |
 |---|---|:---:|:---:|:---:|---|
 | `id` | `BIGINT UNSIGNED` | ❌ | Auto Increment | **Primary Key** | Identifier unik log sensor. |
-| `temperature` | `DECIMAL(5,2)` | ❌ | — | — | Pembacaan suhu aktual (°C) dari DHT22. |
-| `humidity` | `DECIMAL(5,2)` | ❌ | — | — | Pembacaan kelembapan aktual (%) dari DHT22. |
+| `temperature` | `DECIMAL(5,2)` | ❌ | — | — | Pembacaan suhu aktual rata-rata tertimbang (°C). |
+| `humidity` | `DECIMAL(5,2)` | ❌ | — | — | Pembacaan kelembapan aktual rata-rata tertimbang (%). |
 | `co2_level` | `DECIMAL(6,2)` | ✅ | `NULL` | — | Konsentrasi CO2 aktual (ppm) jika terpasang. |
-| `light_intensity`|`DECIMAL(7,2)`| ✅ | `NULL` | — | Intensitas cahaya aktual (Lux) dari BH1750. |
-| `device_id` | `VARCHAR(50)` | ❌ | — | **Index** | Identifier mikrokontroler (misal: `ESP32-KUMBUNG-01`). |
-| `recorded_at` | `TIMESTAMP` | ❌ | — | **Index** | Cap waktu pembacaan fisik sensor dari RTC DS3231. |
+| `light_intensity`|`DECIMAL(7,2)`| ✅ | `NULL` | — | Intensitas cahaya aktual (Lux). |
+| `device_id` | `VARCHAR(50)` | ❌ | — | **Index** | Identifier mikrokontroler (`ESP32-KUMBUNG-01`). |
+| `recorded_at` | `TIMESTAMP` | ❌ | — | **Index** | Cap waktu pembacaan fisik sensor. |
 | `created_at` | `TIMESTAMP` | ❌ | `CURRENT_TIMESTAMP` | — | Waktu paket data diterima server. |
 
-* **Composite Index:** `[device_id, recorded_at]` untuk query rentang grafik 24 jam terakhir.
-* **Immutabilitas Data:** Tabel ini **tidak memiliki `updated_at`**. Setiap record baru bersifat *read-only* setelah disimpan.
+* **Composite Index:** `[device_id, recorded_at]` untuk query grafik downsampled adaptif (5m, 10m, 15m, 60m).
+* **Immutabilitas Data:** Tabel ini **tidak memiliki `updated_at`**. Setiap record baru bersifat *read-only*.
 
 ---
 
-### 3.7 Tabel `sprinkler_logs`
-Mencatat histori durasi dan alasan pemicuan aktuator penyiraman kabut (*misting pump*) atau kipas (*fan*) oleh ESP32.
+### 3.11 Tabel `sprinkler_logs`
+Mencatat histori durasi dan pemicu aktivasi aktuator (Pompa Misting, Exhaust Fan, atau Event Sistem Jeda Panen).
 
 | Nama Kolom | Tipe Data | Nullable | Default | Constraints / Index | Keterangan |
 |---|---|:---:|:---:|:---:|---|
 | `id` | `BIGINT UNSIGNED` | ❌ | Auto Increment | **Primary Key** | Identifier unik log aktuator. |
 | `device_id` | `VARCHAR(50)` | ❌ | — | **Index** | ID mikrokontroler pengirim log. |
-| `actuator` | `VARCHAR(50)` | ❌ | `'misting'` | — | Jenis aktuator: `misting`, `fan`. |
-| `started_at` | `TIMESTAMP` | ❌ | — | **Index** | Waktu aktuator mulai diaktifkan. |
-| `duration_seconds`|`INT UNSIGNED`| ❌ | — | — | Lama aktuator bekerja (dalam detik). |
-| `trigger_reason`| `VARCHAR(255)` | ❌ | — | — | Alasan pemicuan (misal: *"Kelembapan 62% < Min 70%"*). |
-| `stop_reason` | `VARCHAR(255)` | ✅ | `NULL` | — | Kondisi pematian (misal: *"Target tercapai"*, *"Safety timeout"*). |
+| `actuator` | `VARCHAR(50)` | ❌ | `'misting'` | — | Jenis aktuator: `misting`, `fan`, `system`. |
+| `started_at` | `TIMESTAMP` | ❌ | — | **Index** | Waktu aktuator mulai bekerja. |
+| `duration_seconds`|`INT UNSIGNED`| ❌ | — | — | Lama aktuator bekerja (detik). |
+| `trigger_reason`| `VARCHAR(255)` | ❌ | — | — | Alasan pemicuan (misal: *"RH Rendah (82.1% < 85.0%)"*). |
+| `stop_reason` | `VARCHAR(255)` | ✅ | `NULL` | — | Kondisi pematian (misal: *"Target tercapai"*, *"Mode Panen"*). |
 | `created_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu log tersimpan di server. |
 | `updated_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu modifikasi status log. |
 
@@ -262,23 +393,12 @@ Mencatat histori durasi dan alasan pemicuan aktuator penyiraman kabut (*misting 
 
 ## 4. Bukti Normalisasi Database (1NF s/d 3NF)
 
-Sistem basis data ini dirancang mengikuti tahapan normalisasi relational formal:
-
-### 1. Bentuk Normal Pertama (1NF)
-- Seluruh tabel tidak memiliki atribut bernilai ganda (*repeating groups* / *multivalued attributes*).
-- Setiap atribut menyimpan nilai yang bersifat atomik (contoh: berat panen, suhu, kuantitas baglog tersimpan secara mandiri).
-- Setiap tabel telah memiliki Primary Key unik (`id`).
-
-### 2. Bentuk Normal Kedua (2NF)
-- Telah memenuhi kriteria 1NF.
-- Seluruh Primary Key berstatus kunci tunggal (`id`), sehingga tidak ada ketergantungan parsial (*partial functional dependency*). Semua atribut non-kunci bergantung penuh pada Primary Key masing-masing.
-
-### 3. Bentuk Normal Ketiga (3NF)
-- Telah memenuhi kriteria 2NF.
-- Tidak terdapat ketergantungan transitif (*transitive functional dependency*).
-  - Umur baglog (`age_days`) **tidak dibuatkan kolom fisik** di database melainkan dikomputasi saat runtime melalui `entry_date` ke tanggal saat ini.
-  - Sisa stok jamur mingguan **tidak disimpan statis**, melainkan diagregasikan secara dinamis dari `SUM(harvests.weight_kg) - SUM(sales.quantity_kg)`.
-  - Data batch baglog tidak mencatat data profil admin secara redundan, melainkan merujuk ke foreign key `user_id`.
+1. **Bentuk Normal Pertama (1NF):** Seluruh atribut menyimpan nilai skalar atomik. Koordinat rak dipecah menjadi komponen eksplisit (`row_code`, `bay_number`, `tier_number`) dengan format kode terstandarisasi `Row-Bay-Tier`.
+2. **Bentuk Normal Kedua (2NF):** Seluruh Primary Key berstatus kunci tunggal (`id`), sehingga tidak ada ketergantungan parsial (*partial functional dependency*). Seluruh atribut non-kunci bergantung penuh pada Primary Key tabel masing-masing.
+3. **Bentuk Normal Ketiga (3NF):** Tidak ada atribut turunan yang disimpan statis yang menimbulkan *transitive dependency*:
+   - Umur baglog (`age_days`) dihitung on-the-fly melalui Accessor `diffInDays(now())` dari `entry_date`.
+   - Kapasitas aktif slot dihitung dinamis dari `initial_quantity - SUM(culls)`.
+   - Margin kontribusi dihitung dari agregasi `total_revenue - (modal_baglog + operasional)`.
 
 ---
 
@@ -286,7 +406,7 @@ Sistem basis data ini dirancang mengikuti tahapan normalisasi relational formal:
 
 | Pertanyaan Dosen Penguji | Argumen Teknis & Jawaban Akademis |
 |---|---|
-| *"Kenapa tabel `sensor_data` dan `sprinkler_logs` tidak punya Foreign Key ke tabel `users`?"* | Perangkat IoT ESP32 adalah *Edge Device* otonom tanpa identitas user sesi web. Mengaitkan data sensor langsung ke `users` melanggar prinsip *Decoupling Architecture*. Data sensor diidentifikasi oleh `device_id` yang merepresentasikan fisik kumbung, bukan akun personal. |
-| *"Kenapa tidak menggunakan tipe data FLOAT untuk menghemat kapasitas storage?"* | Standar IEEE 754 pada tipe `FLOAT` menghasilkan *binary representation error* (contoh: `0.1 + 0.2 = 0.30000000000000004`). Dalam sistem akuntansi rantai pasok dan kontrol mikroklimat jamur kuping, ketidakakuratan ini dapat merusak rekonsiliasi kas dan pemicuan aktuator. Tipe `DECIMAL` memberikan kepastian *fixed-point precision*. |
-| *"Mengapa `baglog_batch_id` di tabel `harvests` dibuat Nullable?"* | Untuk mengakomodasi skenario operasional lapangan (*edge cases*): buruh tani yang memanen kadang mencampur hasil panen dari beberapa rak kumbung tanpa mencatat nomor batch asal. Sistem tetap harus mampu membukukan total berat panen tanpa membatalkan transaksi. |
-| *"Kenapa tabel `sensor_data` tidak memiliki kolom `updated_at`?"* | Data pembacaan fisik lingkungan bersifat *Immutable Event Stream*. Membuka peluang modifikasi terhadap raw sensor data membuka celah manipulasi data audit iklim kumbung. |
+| *"Kenapa tabel `slots` dan `batch_slot_assignments` dipisah, tidak langsung simpan koordinat di tabel `baglog_batches`?"* | Memisahkan entitas fisik (kamar rak statis) dengan entitas dinamis (batch baglog) mengadopsi standar **Warehouse Management System (WMS)**. Satu batch pengadaan (1.500 baglog) menempati 150 slot berbeda di kumbung. Menyimpan koordinat di tabel batch melanggar 1NF (*repeating groups*) dan membuat pelacakan denah 3D menjadi tidak mungkin. |
+| *"Kenapa pengurangan baglog rusak/mati dibuat tabel terpisah `baglog_culls`, bukan langsung kurangi field `quantity` di tabel batch?"* | Prinsip **Accounting Ledger & Biosecurity Audit Trail**. Dalam budidaya jamur, kematian akibat *Trichoderma* (jamur hijau) harus dapat dilacak kapan dan di koordinat mana titik mulanya terjadi. Selain itu, catatan ini menjadi bukti audit klaim garansi retur ke vendor bibit. |
+| *"Kenapa `laba_bersih_real` dianalisis sebagai Margin Kontribusi pada modul HPP?"* | Secara teori akuntansi biaya manajerial, pengeluaran operasional yang dimasukkan adalah biaya variabel (listrik, misting, tenaga kerja harian). Karena belum mencakup depresiasi aset tetap (struktur bangunan kumbung & hardware mikrokontroler), penyebutan **Margin Kontribusi** jauh lebih jujur dan akurat secara ilmiah dibandingkan laba bersih absolut. |
+| *"Bagaimana data sensor tetap akurat jika salah satu DHT22 rusak?"* | Firmware v3.5 dan API menerapkan **Weighted Sensor Fusion dengan Dynamic Normalization**. Bobot standar 35% Atas, 40% Tengah, 25% Bawah otomatis dinormalisasi ulang hanya pada sensor yang mengembalikan nilai valid (`!isnan`), sehingga sistem tidak freeze (*fail-soft*). |
