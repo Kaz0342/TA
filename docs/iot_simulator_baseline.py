@@ -683,10 +683,6 @@ def control_misting(state: KumbungState):
         if state.is_fan_active:
             return
 
-        # [F-10b] Jangan mulai misting saat kondisi kritis (override fan akan langsung memotongnya)
-        if state.get_max_temp() > state.temp_max + CRITICAL_TEMP_OFFSET:
-            return
-
         # 0. NIGHT LOCKOUT (17:00 - 06:00 WIB): Misting DILARANG nyala agar jamur tidak tidur basah kuyup
         if is_night:
             # Pengecualian darurat ekstrem: hanya boleh nyala jika terjadi dehidrasi parah (RH rata-rata < 70% atau sensor < 65%)
@@ -851,17 +847,6 @@ def control_fan(state: KumbungState):
             return
         return  # Masih berjalan di malam hari (< 45s), tahan agar tidak dievaluasi logika siang
 
-    # [F-10a] Histeresis stop Safety Override berlaku 24 jam (siang DAN malam)
-    if state.is_fan_active and getattr(state, 'is_critical_override', False):
-        if max_temp <= (critical_threshold - 1.0) and temp <= state.temp_max:
-            state.is_fan_active = False
-            state.is_critical_override = False
-            state.fan_cooling_last_stop_time = time.time()
-            duration = int(time.time() - (state.fan_start_time or time.time()))
-            stop_reason = f"Suhu kritis teratasi (Max {max_temp}C <= {critical_threshold - 1.0}C)"
-            send_actuator_log(max(1, duration), state.fan_trigger_reason, stop_reason, "fan")
-        return
-
     if is_night:
         # Failsafe 2: Jika ada fan siang yang masih aktif saat transisi jam 17:00, matikan segera!
         if state.is_fan_active and not getattr(state, 'is_night_fan', False):
@@ -964,8 +949,8 @@ def control_fan(state: KumbungState):
             send_actuator_log(max(1, duration), state.fan_trigger_reason, stop_reason, "fan")
             return
 
-    # Safety Watchdog Fan Siang (Timeout 180s cegah dehidrasi kumbung — tidak berlaku untuk Safety Override)
-    if state.is_fan_active and not is_homo and not getattr(state, 'is_night_fan', False) and not getattr(state, 'is_critical_override', False):
+    # Safety Watchdog Fan Siang (Timeout 180s cegah dehidrasi kumbung)
+    if state.is_fan_active and not is_homo and not getattr(state, 'is_night_fan', False):
         elapsed = time.time() - (state.fan_start_time or time.time())
         if elapsed >= MAX_FAN_COOLING_DURATION:
             state.is_fan_active = False

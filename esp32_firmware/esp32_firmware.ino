@@ -484,9 +484,10 @@ void loop() {
     }
   }
 
-  // ── G. WATCHDOG: FAN PENDINGINAN SIANG / SAFETY OVERRIDE (180s) ────
+  // ── G. WATCHDOG: FAN PENDINGINAN SIANG / BIASA (180s) ────
   // Cegah exhaust fan running tanpa henti jika suhu luar ruangan panas.
-  if (isFanActive && !isHomogenizing && !isNightFan) {
+  // Safety override suhu kritis TIDAK dipotong 180s (berjalan sampai suhu pulih).
+  if (isFanActive && !isHomogenizing && !isNightFan && !isCriticalOverride) {
     unsigned long elapsed = now - fanStartTime;
     if (elapsed >= MAX_FAN_COOLING_DURATION_MS) {
       Serial.println("[SAFETY] 🛑 Fan pendinginan siang TIMEOUT (180s)! Mematikan fan cegah dehidrasi.");
@@ -524,6 +525,11 @@ void controlMisting(float temp, float hum, float minHum) {
     // Jika Exhaust Fan sedang aktif, Misting DILARANG nyala!
     // Mencegah kabut mikro disedot langsung keluar dan terbuang sia-sia.
     if (isFanActive) {
+      return;
+    }
+
+    // [F-10b] Jangan mulai misting saat kondisi kritis (override fan akan langsung memotongnya)
+    if (maxSensorTemp > tempMax + CRITICAL_TEMP_OFFSET) {
       return;
     }
 
@@ -646,6 +652,14 @@ void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum)
                     maxTemp, criticalThreshold);
     }
     return;  // Tahan fan ON selama ada zona kritis
+  }
+
+  // [F-10a] Histeresis stop Safety Override berlaku 24 jam (siang DAN malam)
+  if (isFanActive && isCriticalOverride) {
+    if (maxTemp <= (criticalThreshold - 1.0) && avgTemp <= tempMax) {
+      stopFan("Suhu kritis teratasi (Max " + String(maxTemp, 1) + "C <= " + String(criticalThreshold - 1.0, 1) + "C)");
+    }
+    return;  // Belum teratasi: jangan biarkan logika siang/malam mematikan fan ini
   }
 
   // 2. SETTLING DELAY GUARD: Fan dilarang nyala jika misting baru mati < 60 detik lalu
