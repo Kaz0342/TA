@@ -220,12 +220,22 @@ void fetchThresholds();
 void sendSensorData(float temp, float hum);
 int postSprinklerLog(const PendingLog& e);
 
+bool timeWarned = false;
+
 int getCurrentHourWIB() {
   struct tm timeinfo;
-  if (getLocalTime(&timeinfo, 200)) {
+  if (getLocalTime(&timeinfo, 0)) {
     return timeinfo.tm_hour;
   }
-  return 12; // Fallback jika WiFi/NTP belum sync
+  if (!timeWarned) {
+    Serial.println("[TIME] ⚠️ Jam NTP belum sinkron! Fallback: aturan malam dinonaktifkan sementara.");
+    timeWarned = true;
+  }
+  return -1; // -1 = waktu belum valid (NTP belum sinkron)
+}
+
+inline bool isNightHour(int h) {
+  return (h >= 0) && (h >= NIGHT_START_HOUR || h < NIGHT_END_HOUR);
 }
 
 // ============================================================
@@ -464,8 +474,7 @@ void loop() {
   // Timer night fan independen + failsafe transisi pagi agar flag isNightFan tidak nyangkut.
   if (isFanActive && isNightFan && !isHomogenizing) {
     unsigned long elapsed = now - fanStartTime;
-    int currentHour = getCurrentHourWIB();
-    bool isStillNight = (currentHour >= NIGHT_START_HOUR || currentHour < NIGHT_END_HOUR);
+    bool isStillNight = isNightHour(getCurrentHourWIB());
     if (elapsed >= NIGHT_FAN_DURATION_MS || !isStillNight) {
       String reason = (!isStillNight && elapsed < NIGHT_FAN_DURATION_MS)
         ? "Transisi ke Pagi Hari (06:00 WIB)"
@@ -508,8 +517,7 @@ void controlMisting(float temp, float hum, float minHum) {
 
   unsigned long now = millis();
   float criticalLowRh = 75.0; // Batas darurat dehidrasi rak tunggal (75.0%), membiarkan Tier 1 mengontrol rata-rata dengan stabil
-  int currentHour = getCurrentHourWIB();
-  bool isNight = (currentHour >= NIGHT_START_HOUR || currentHour < NIGHT_END_HOUR);
+  bool isNight = isNightHour(getCurrentHourWIB());
 
   if (!isMistingActive) {
     // MUTUAL EXCLUSION (INTERLOCK):
@@ -624,8 +632,7 @@ void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum)
 
   unsigned long now = millis();
   float criticalThreshold = tempMax + CRITICAL_TEMP_OFFSET;
-  int currentHour = getCurrentHourWIB();
-  bool isNight = (currentHour >= NIGHT_START_HOUR || currentHour < NIGHT_END_HOUR);
+  bool isNight = isNightHour(getCurrentHourWIB());
 
   // 1. TIER 2: Safety Override Suhu Kritis (BYPASS SEMUA DELAY & COOLDOWN!)
   if (maxTemp > criticalThreshold) {
