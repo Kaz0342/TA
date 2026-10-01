@@ -99,6 +99,7 @@ if ($hours <= 6) {
 
 $since = now()->subHours($hours);
 $driver = DB::connection()->getDriverName();
+$deviceFilterSql = ($deviceId !== null && $deviceId !== '') ? ' AND device_id = ?' : '';
 
 if ($driver === 'sqlite') {
     $timeExpr = "strftime('%Y-%m-%d %H:', recorded_at) || printf('%02d:00', (cast(strftime('%M', recorded_at) as integer) / {$minuteStep}) * {$minuteStep})";
@@ -111,10 +112,25 @@ if ($driver === 'sqlite') {
             ROUND(AVG(light_intensity), 2) as light_intensity,
             {$timeExpr} as bucket_time
         FROM sensor_data
-        WHERE recorded_at >= ?
+        WHERE recorded_at >= ?{$deviceFilterSql}
         GROUP BY bucket_time
         ORDER BY bucket_time ASC
-    ", [$since->toDateTimeString()]);
+    ", $bindings);
+} elseif ($driver === 'pgsql') {
+    // Dukungan Native PostgreSQL (Supabase / Production) - F-06
+    $stepSeconds = $minuteStep * 60;
+    $results = DB::select("
+        SELECT 
+            ROUND(AVG(temperature)::numeric, 2) as temperature,
+            ROUND(AVG(humidity)::numeric, 2) as humidity,
+            ROUND(AVG(co2_level)::numeric, 2) as co2_level,
+            ROUND(AVG(light_intensity)::numeric, 2) as light_intensity,
+            to_char(to_timestamp(floor(extract(epoch from recorded_at) / {$stepSeconds}) * {$stepSeconds}), 'YYYY-MM-DD HH24:MI:SS') as bucket_time
+        FROM sensor_data
+        WHERE recorded_at >= ?{$deviceFilterSql}
+        GROUP BY bucket_time
+        ORDER BY bucket_time ASC
+    ", $bindings);
 }
 ```
 

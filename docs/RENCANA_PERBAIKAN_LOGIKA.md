@@ -26,26 +26,26 @@ Setiap klaim diberi tingkat bukti:
 
 ## 1. Ringkasan dan urutan kerja
 
-| ☐ | Fase | ID | Masalah | Prioritas | Effort | Bukti | Temuan lama |
+| Status | Fase | ID | Masalah | Prioritas | Effort | Bukti | Status Pelaksanaan |
 |---|---|---|---|---|---|---|---|
-| ☐ | 0 | – | Baseline sebelum mengubah apa pun | – | 30–45 mnt | – | – |
-| ☐ | 1 | F-01 | `/migrate-db` publik dengan secret default (2 tempat) | P0 | 20 mnt | CODE, ENV | #3 |
-| ☐ | 1 | F-02 | `/register` publik → token worker untuk siapa pun | P0 | 30 mnt | CODE | #3 |
-| ☐ | 1 | F-03 | Durasi pause maks 24 jam (seharusnya 8 jam) | P1 | 15 mnt | CODE | #3 |
-| ☐ | 2 | F-04 | `CACHE_STORE=array` → PAUSE/RESUME dan rate limiter tidak berfungsi di Vercel | P0 | 45 mnt | CODE, ENV | #1 |
-| ☐ | 2 | F-05 | Validator log aktuator `max:600` menolak log panjang | P1 | 10 mnt | RUN, CODE | #6 |
-| ☐ | 2 | F-06 | Query grafik tidak punya cabang PostgreSQL | P1 | 45 mnt | CODE, ENV | **baru** |
-| ☐ | 3 | F-07 | `loop()` dan `setup()` bergantung WiFi → kontrol dan watchdog mati saat offline | P0 | 1–1,5 jam | CODE | #2 |
-| ☐ | 3 | F-08 | HTTP blocking di dalam `stop*()`, log hilang, data sensor basi terkirim | P1 | 1,5–2 jam | CODE | #2 |
-| ☐ | 3 | F-09 | Jam tidak valid (NTP) → aturan malam mati diam-diam | P1 | 30 mnt | CODE | #2 |
-| ☐ | 4 | F-10 | Safety Override: histeresis stop hanya di jalur siang → chatter relay | P1 | 1 jam | RUN | #6 |
-| ☐ | 4 | F-11 | Ambang darurat misting hard-coded (75/70/65) tidak ikut preset | P1 | 30 mnt | RUN | **baru** |
-| ☐ | 4 | F-12 | Timeout 60 s menjadi pengontrol misting sebenarnya (deadband) | P1 | 1 jam | RUN | #4 |
-| ☐ | 4 | F-13 | Sim mengevaluasi kontrol tiap 1 s, firmware tiap 5 s | P2 | 20 mnt | RUN | #6 |
-| ☐ | 4 | F-14 | Latensi PAUSE ±30–40 s vs persyaratan "seketika" | P2 | 45 mnt | CODE | **baru** |
-| ☐ | 4 | F-15 | Minor logika (validator RH, timer malam, pin strapping, boot relay) | P3 | 1 jam | CODE | minor |
-| ☐ | 5 | F-16 | Data simulator tercampur data ESP32 di grafik; workflow reset tiap jam | P3 | 30 mnt | CODE | minor |
-| ☐ | 5 | – | Regresi dan pengumpulan bukti | – | 2 jam | – | – |
+| ☑ | 0 | – | Baseline sebelum mengubah apa pun | – | 30–45 mnt | – | **SELESAI (`f6591a9`)** |
+| ☑ | 1 | F-01 | `/migrate-db` publik dengan secret default (2 tempat) | P0 | 20 mnt | CODE, ENV | **SELESAI (`cccec8c`)** |
+| ☑ | 1 | F-02 | `/register` publik → token worker untuk siapa pun | P0 | 30 mnt | CODE | **SELESAI (`2a09740`)** |
+| ☑ | 1 | F-03 | Durasi pause maks 24 jam (seharusnya 8 jam) | P1 | 15 mnt | CODE | **SELESAI (`e99f072`)** |
+| ☑ | 2 | F-04 | `CACHE_STORE=array` → PAUSE/RESUME dan rate limiter tidak berfungsi di Vercel | P0 | 45 mnt | CODE, ENV | **SELESAI (`4375252`)** |
+| ☑ | 2 | F-05 | Validator log aktuator `max:600` menolak log panjang | P1 | 10 mnt | RUN, CODE | **SELESAI (`c3375e7`)** |
+| ☑ | 2 | F-06 | Query grafik tidak punya cabang PostgreSQL | P1 | 45 mnt | CODE, ENV | **SELESAI (`ede4458`)** |
+| ☑ | 3 | F-07 | `loop()` dan `setup()` bergantung WiFi → kontrol dan watchdog mati saat offline | P0 | 1–1,5 jam | CODE | **SELESAI (`b14a747`)** |
+| ☑ | 3 | F-08 | HTTP blocking di dalam `stop*()`, log hilang, data sensor basi terkirim | P1 | 1,5–2 jam | CODE | **SELESAI (`cc9d41e`)** |
+| ☑ | 3 | F-09 | Jam tidak valid (NTP) → aturan malam mati diam-diam | P1 | 30 mnt | CODE | **SELESAI (`6cbf419`)** |
+| ☑ | 4 | F-10 | Safety Override: histeresis stop hanya di jalur siang → chatter relay | P1 | 1 jam | RUN | **SELESAI (`f8799db`)** |
+| ☑ | 4 | F-11 | Ambang darurat misting hard-coded (75/70/65) tidak ikut preset | P1 | 30 mnt | RUN | **SELESAI (`f3fafd2`)** |
+| ☑ | 4 | F-12 | Timeout 60 s menjadi pengontrol misting sebenarnya (deadband) | P1 | 1 jam | RUN | **SELESAI (`4dceb03`)** |
+| ☑ | 4 | F-13 | Sim mengevaluasi kontrol tiap 1 s, firmware tiap 5 s | P2 | 20 mnt | RUN | **SELESAI (`db20d55`)** |
+| ☑ | 4 | F-14 | Latensi PAUSE ±30–40 s vs persyaratan "seketika" | P2 | 45 mnt | CODE | **SELESAI (`b56955e`)** |
+| ☑ | 4 | F-15 | Minor logika (validator RH, timer malam, pin strapping, boot relay) | P3 | 1 jam | CODE | **SELESAI (`3d1e547`)** |
+| ☑ | 5 | F-16 | Data simulator tercampur data ESP32 di grafik; workflow reset tiap jam | P3 | 30 mnt | CODE | **SELESAI (`40be92a`)** |
+| ☑ | 5 | – | Regresi dan pengumpulan bukti | – | 2 jam | – | **SELESAI (`556b978`)** |
 
 **Estimasi total:** ±1,5–2,5 hari kerja.
 

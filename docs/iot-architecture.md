@@ -59,23 +59,18 @@ Sistem memanfaatkan protokol HTTP/HTTPS berbasis **REST API** (*stateless*). Pen
 ```
 
 ### 2.3 Sinkronisasi Konfigurasi & Perintah Jeda Panen
-ESP32 melakukan polling berkala (tiap 30 detik) ke `GET /api/thresholds/active` untuk mengambil ambang batas dan perintah interupsi:
+Sistem memisahkan jalur polling konfigurasi dengan jalur eksekusi perintah darurat:
+1. **Konfigurasi Ambang Batas (Tiap 30 Detik):** ESP32 melakukan request `GET /api/thresholds/active` untuk menyinkronkan batas suhu, kelembaban, dan mode fase pertumbuhan.
+2. **Polling Cepat Perintah Jeda Panen (Tiap 8 Detik — F-14):** ESP32 memanggil `GET /api/device/command` dengan timeout 4 detik untuk mereduksi latensi interupsi panen dari 30s ke $<8$ detik.
 ```json
 {
   "success": true,
   "data": {
-    "temp_min": "24.00",
-    "temp_max": "32.00",
-    "humidity_min": "85.00",
-    "humidity_max": "95.00",
-    "phase_mode": "fruiting",
-    "device_command": {
-      "command": "PAUSE",
-      "is_paused": true,
-      "duration_seconds": 7200,
-      "remaining_seconds": 7150,
-      "reason": "Panen Raya Lorong B"
-    }
+    "command": "PAUSE",
+    "is_paused": true,
+    "duration_seconds": 7200,
+    "remaining_seconds": 7150,
+    "reason": "Panen Raya Lorong B"
   }
 }
 ```
@@ -87,10 +82,14 @@ ESP32 melakukan polling berkala (tiap 30 detik) ke `GET /api/thresholds/active` 
 ## 3. Keamanan & Penanganan Eror (Security & Error Handling)
 
 ### 3.1 Rate Limiting (Anti-DDoS)
-Endpoint IoT publik dilindungi middleware **Throttle** (maksimal 20 request per 1 menit per IP). Melebihi batas akan menerima respons HTTP `429 Too Many Requests`.
+Endpoint IoT publik dilindungi middleware **Throttle** (maksimal 20 request per 1 menit per IP/device). Melebihi batas akan menerima respons HTTP `429 Too Many Requests`.
 
 ### 3.2 Data Integrity
-Sistem memegang prinsip *Immutability*. Data sensor yang telah masuk ke database tidak memiliki `updated_at`.
+Sistem memegang prinsip *Immutability*. Data sensor yang telah masuk ke database tidak memiliki `updated_at`. Isolasi data per-device didukung via query `?device_id=...` (F-16).
 
-### 3.3 Mekanisme Fail-Safe & Caching Lokal (Network Outage)
-Jika koneksi Wi-Fi terputus, ESP32 menyimpan data ke **Ring Buffer (FIFO) di RAM** (kapasitas 24 record atau setara 2 jam) dengan timestamp RTC internal. Saat koneksi pulih, antrean data dikirim ulang secara sekuensial (*bulk upload*) ke server.
+### 3.3 Mekanisme Fail-Safe & Ketahanan Jaringan (Offline Resilience — F-07 & F-08)
+1. **Non-Blocking WiFi Loop:** Jika koneksi Wi-Fi putus, loop utama mikrokontroler tidak membeku (*freeze*). ESP32 mencoba reconnect tiap 15 detik secara asinkron tanpa menahan fungsi watchdog aktuator dan proteksi suhu.
+2. **Antrean Log RAM (10 Slot):** Riwayat durasi aktuator (misting/fan) saat offline disimpan ke ring buffer RAM (`PendingLog logQ[10]`) dan otomatis di-drain (1 log per 3 detik) begitu internet pulih.
+3. **Penyaringan Data Sensor Basi:** Data hanya ditransmisikan jika pembacaan sensor berhasil dalam 15 detik terakhir (`lastValidReadMs < 15000`), mencegah transmisi angka kadaluarsa saat sensor rusak.
+4. **Fallback Jam NTP (-1):** Jika sinkronisasi NTP belum berhasil, sistem mengembalikan `-1` dan menahan aturan malam untuk mencegah penyemprotan salah waktu.
+
