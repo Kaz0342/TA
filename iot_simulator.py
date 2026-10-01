@@ -60,6 +60,7 @@ CRITICAL_TEMP_OFFSET = 2.0      # Safety Override: jika SATU sensor > tempMax + 
 MAX_FAN_COOLING_DURATION = 180  # 180 detik (3 menit) timeout maksimal fan pendinginan siang (cegah dehidrasi)
 FAN_COOLING_COOLDOWN = 60       # 60 detik (1 menit) cooldown anti-chattering jeda fan pendinginan siang
 TEMP_HYSTERESIS = 1.5           # Histeresis stop fan pendinginan (temp_max - 1.5°C)
+CONTROL_INTERVAL_S = 5          # Cadence evaluasi kontrol (detik) — samakan dengan sensorInterval firmware 5000ms (F-13)
 
 # Konstanta Night Mode (Malam Hari: 17:00 - 06:00 WIB)
 NIGHT_START_HOUR = 17           # 17:00 WIB: Mulai mode malam (Misting lockout)
@@ -1172,9 +1173,10 @@ def main():
             # Simulasikan perubahan mikroklimat (interval 1 detik per tick)
             state.simulate_tick(dt_seconds=1.0)
 
-            # Jalankan logika kontrol aktuator (setiap tick, seperti firmware)
-            control_misting(state)
-            control_fan(state)
+            # Jalankan logika kontrol aktuator (tiap CONTROL_INTERVAL_S detik untuk paritas dengan sensorInterval firmware)
+            if tick_count % CONTROL_INTERVAL_S == 0:
+                control_misting(state)
+                control_fan(state)
 
             # Kirim data sensor ke API setiap send_interval detik
             if now - last_sensor_send >= send_interval:
