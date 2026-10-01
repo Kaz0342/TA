@@ -102,4 +102,34 @@ class Phase4DeviceControlTest extends TestCase
         $threshResponse->assertStatus(200)
             ->assertJsonPath('data.device_command.command', 'AUTO');
     }
+
+    /**
+     * Test validasi batas durasi pause: min 60s, max 28800s (8 jam).
+     */
+    public function test_pause_mode_duration_validation_boundaries(): void
+    {
+        Sanctum::actingAs($this->worker);
+
+        // 1. Kurang dari 60 detik -> 422
+        $resTooShort = $this->postJson('/api/device/pause', [
+            'duration_seconds' => 59,
+        ]);
+        $resTooShort->assertStatus(422)
+            ->assertJsonValidationErrors(['duration_seconds']);
+
+        // 2. Lebih dari 8 jam (28801 detik) -> 422
+        $resTooLong = $this->postJson('/api/device/pause', [
+            'duration_seconds' => 28801,
+        ]);
+        $resTooLong->assertStatus(422)
+            ->assertJsonValidationErrors(['duration_seconds']);
+
+        // 3. Tepat 8 jam (28800 detik) -> 200
+        $resExactMax = $this->postJson('/api/device/pause', [
+            'duration_seconds' => 28800,
+            'reason' => 'Maksimal 8 Jam',
+        ]);
+        $resExactMax->assertStatus(200)
+            ->assertJsonPath('data.duration_seconds', 28800);
+    }
 }

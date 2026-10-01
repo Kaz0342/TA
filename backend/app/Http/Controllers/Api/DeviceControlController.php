@@ -36,7 +36,7 @@ class DeviceControlController extends Controller
     public function pause(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'duration_seconds' => 'required|integer|min:60|max:86400',
+            'duration_seconds' => 'required|integer|min:60|max:28800',
             'reason' => 'nullable|string|max:200',
         ]);
 
