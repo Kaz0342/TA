@@ -138,6 +138,9 @@ const unsigned long apiSendInterval  = 60000;  // Kirim data ke API tiap 60 deti
 unsigned long lastThresholdFetch     = 0;
 const unsigned long thresholdInterval = 30000; // Fetch threshold tiap 30 detik
 
+unsigned long lastCommandFetch        = 0;
+const unsigned long commandInterval   = 8000;  // Polling perintah kontrol tiap 8 detik (reduksi latensi PAUSE) (F-14)
+
 // ============================================================
 // STATE AKTUATOR & COOLDOWN TRACKING
 // ============================================================
@@ -217,6 +220,8 @@ void controlMisting(float temp, float hum, float minHum);
 void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum);
 void updateLCD(float temp, float hum, bool misting, bool fan);
 void fetchThresholds();
+void fetchCommand();
+void applyDeviceCommand(JsonObject cmdObj);
 void sendSensorData(float temp, float hum);
 int postSprinklerLog(const PendingLog& e);
 
@@ -434,6 +439,12 @@ void loop() {
   if (wifiUp() && (now - lastThresholdFetch >= thresholdInterval)) {
     lastThresholdFetch = now;
     fetchThresholds();
+  }
+
+  // ── C2. FETCH PERINTAH CEPAT (Tiap 8 Detik, Reduksi Latensi PAUSE) ────
+  if (wifiUp() && (now - lastCommandFetch >= commandInterval)) {
+    lastCommandFetch = now;
+    fetchCommand();
   }
 
   // ── KONSUMEN ANTRIAN LOG AKTUATOR (Kirim 1 log tiap 3 detik saat online) ──
@@ -931,25 +942,60 @@ void fetchThresholds() {
 
       // ── BACA PERINTAH KONTROL JEDA PANEN (PRD Section 3.A) ──
       if (doc["data"].containsKey("device_command")) {
-        JsonObject cmdObj = doc["data"]["device_command"];
-        String cmd = cmdObj["command"].as<String>();
-        if (cmd == "PAUSE") {
-          unsigned long remSec = cmdObj["remaining_seconds"].as<unsigned long>();
-          if (remSec > 0 && !isPausedMode) {
-            String rsn = cmdObj.containsKey("reason") ? cmdObj["reason"].as<String>() : "Mode Panen (Dashboard)";
-            startPauseMode(remSec, rsn);
-          }
-        } else if (cmd == "AUTO" || cmd == "RESUME") {
-          if (isPausedMode) {
-            endPauseMode("Command " + cmd + " diterima dari Dashboard");
-          }
-        }
+        applyDeviceCommand(doc["data"]["device_command"]);
       }
     } else {
       Serial.println("[API] ⚠️ Gagal parse JSON threshold.");
     }
   } else {
     Serial.printf("[API] ⚠️ Gagal fetch threshold (HTTP %d)\n", httpCode);
+  }
+  http.end();
+}
+
+/**
+ * Eksekusi perintah kontrol aktuator dari Web Dashboard (PAUSE / AUTO / RESUME).
+ */
+void applyDeviceCommand(JsonObject cmdObj) {
+  String cmd = cmdObj["command"].as<String>();
+  if (cmd == "PAUSE") {
+    unsigned long remSec = cmdObj["remaining_seconds"].as<unsigned long>();
+    if (remSec > 0 && !isPausedMode) {
+      String rsn = cmdObj.containsKey("reason") ? cmdObj["reason"].as<String>() : "Mode Panen (Dashboard)";
+      startPauseMode(remSec, rsn);
+    }
+  } else if (cmd == "AUTO" || cmd == "RESUME") {
+    if (isPausedMode) {
+      endPauseMode("Command " + cmd + " diterima dari Dashboard");
+    }
+  }
+}
+
+/**
+ * Polling perintah kontrol aktuator cepat (tiap 8 detik).
+ * GET /api/device/command
+ */
+void fetchCommand() {
+  if (!wifiUp()) return;
+
+  WiFiClientSecure client;
+  client.setInsecure();
+
+  HTTPClient http;
+  http.begin(client, apiBaseUrl + "/device/command");
+  http.addHeader("ngrok-skip-browser-warning", "true");
+  http.addHeader("User-Agent", "ESP32-SmartShroom");
+  http.setTimeout(4000);
+  int httpCode = http.GET();
+
+  if (httpCode == 200) {
+    String payload = http.getString();
+    StaticJsonDocument<256> doc;
+    DeserializationError error = deserializeJson(doc, payload);
+    if (!error && doc["data"].is<JsonObject>()) {
+      JsonObject cmdObj = doc["data"];
+      applyDeviceCommand(cmdObj);
+    }
   }
   http.end();
 }
