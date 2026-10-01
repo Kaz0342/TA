@@ -660,7 +660,7 @@ def control_misting(state: KumbungState):
     """
     temp, hum = state.get_readings()
     min_hum = state.get_min_hum()
-    critical_low_rh = 75.0  # Batas darurat dehidrasi rak tunggal (75.0%), membiarkan Tier 1 mengontrol rata-rata dengan stabil
+    critical_low_rh = state.hum_min - 10.0  # Batas darurat dehidrasi rak tunggal proporsional terhadap hum_min (F-11)
 
     now_dt = get_wib_now()
     hour = now_dt.hour
@@ -689,8 +689,8 @@ def control_misting(state: KumbungState):
 
         # 0. NIGHT LOCKOUT (17:00 - 06:00 WIB): Misting DILARANG nyala agar jamur tidak tidur basah kuyup
         if is_night:
-            # Pengecualian darurat ekstrem: hanya boleh nyala jika terjadi dehidrasi parah (RH rata-rata < 70% atau sensor < 65%)
-            if hum >= 70.0 and min_hum >= 65.0:
+            # Pengecualian darurat ekstrem: hanya boleh nyala jika terjadi dehidrasi parah (relatif terhadap hum_min)
+            if hum >= state.hum_min - 15.0 and min_hum >= state.hum_min - 20.0:
                 return
 
         # Cooldown guard: cegah short-cycling sebelum kabut dari siklus sebelumnya evaporasi penuh
