@@ -111,6 +111,45 @@ class Phase5IotRuleEngineTest extends TestCase
     }
 
     /**
+     * Test validasi batas durasi log aktuator (min: 1s, max: 86400s) (F-05).
+     */
+    public function test_sprinkler_log_duration_validation_boundaries(): void
+    {
+        // 1. Durasi panjang yang valid (misal fan cooling panjang 7200 detik / 2 jam)
+        $validLongPayload = [
+            'device_id' => 'ESP32-KUMBUNG-01',
+            'actuator' => 'fan',
+            'duration_seconds' => 7200,
+            'trigger_reason' => 'Pendinginan panjang siang hari',
+            'stop_reason' => 'Suhu kembali normal',
+        ];
+        $resValid = $this->postJson('/api/sprinkler-logs', $validLongPayload);
+        $resValid->assertStatus(201);
+
+        // 2. Durasi melebihi 86400 detik (24 jam) -> 422
+        $tooLongPayload = [
+            'device_id' => 'ESP32-KUMBUNG-01',
+            'actuator' => 'fan',
+            'duration_seconds' => 86401,
+            'trigger_reason' => 'Durasi absurd melebihi 24 jam',
+        ];
+        $resTooLong = $this->postJson('/api/sprinkler-logs', $tooLongPayload);
+        $resTooLong->assertStatus(422)
+            ->assertJsonValidationErrors(['duration_seconds']);
+
+        // 3. Durasi 0 detik -> 422
+        $zeroPayload = [
+            'device_id' => 'ESP32-KUMBUNG-01',
+            'actuator' => 'misting',
+            'duration_seconds' => 0,
+            'trigger_reason' => 'Durasi nol',
+        ];
+        $resZero = $this->postJson('/api/sprinkler-logs', $zeroPayload);
+        $resZero->assertStatus(422)
+            ->assertJsonValidationErrors(['duration_seconds']);
+    }
+
+    /**
      * Test 3: Endpoint threshold aktif (GET /api/thresholds/active) sinkron dengan ESP32.
      */
     public function test_active_threshold_endpoint_structure(): void
