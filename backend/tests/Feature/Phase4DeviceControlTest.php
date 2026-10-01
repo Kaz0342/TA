@@ -132,4 +132,31 @@ class Phase4DeviceControlTest extends TestCase
         $resExactMax->assertStatus(200)
             ->assertJsonPath('data.duration_seconds', 28800);
     }
+
+    /**
+     * Test persistensi state pause saat menggunakan database cache driver (F-04).
+     */
+    public function test_pause_mode_persistence_with_database_cache_driver(): void
+    {
+        Sanctum::actingAs($this->worker);
+
+        config(['cache.default' => 'database']);
+
+        $response = $this->postJson('/api/device/pause', [
+            'duration_seconds' => 3600,
+            'reason' => 'Test Persistensi DB Cache',
+        ]);
+        $response->assertStatus(200);
+
+        // Pastikan key tersimpan di tabel cache database
+        $this->assertDatabaseHas('cache', [
+            'key' => config('cache.prefix') . \App\Services\DeviceControlService::CACHE_KEY,
+        ]);
+
+        // Pastikan endpoint thresholds/active bisa membaca state pause dari DB cache
+        $threshResponse = $this->getJson('/api/thresholds/active');
+        $threshResponse->assertStatus(200)
+            ->assertJsonPath('data.device_command.command', 'PAUSE')
+            ->assertJsonPath('data.device_command.is_paused', true);
+    }
 }
