@@ -48,9 +48,13 @@ class SensorDataRepository implements SensorDataRepositoryInterface
      *
      * @return Collection<int, SensorData>
      */
-    public function getLastHours(int $hours = 24): Collection
+    public function getLastHours(int $hours = 24, ?string $deviceId = null): Collection
     {
         $baseQuery = SensorData::lastHours($hours);
+
+        if ($deviceId !== null && $deviceId !== '') {
+            $baseQuery->where('device_id', $deviceId);
+        }
 
         // Jika data sedikit (misal testing atau baru running < 1 jam), kembalikan langsung
         $count = (clone $baseQuery)->count();
@@ -77,6 +81,7 @@ class SensorDataRepository implements SensorDataRepositoryInterface
         }
 
         $since = now()->subHours($hours);
+        $deviceFilterSql = ($deviceId !== null && $deviceId !== '') ? ' AND device_id = ?' : '';
 
         if ($driver === 'sqlite') {
             if ($minuteStep >= 60) {
@@ -90,6 +95,11 @@ class SensorDataRepository implements SensorDataRepositoryInterface
                 $timeExpr = "strftime('%Y-%m-%d %H:', recorded_at) || printf('%02d:00', (cast(strftime('%M', recorded_at) as integer) / {$minuteStep}) * {$minuteStep})";
             }
 
+            $bindings = [$since->toDateTimeString()];
+            if ($deviceId !== null && $deviceId !== '') {
+                $bindings[] = $deviceId;
+            }
+
             $results = \Illuminate\Support\Facades\DB::select("
                 SELECT 
                     ROUND(AVG(temperature), 2) as temperature,
@@ -98,11 +108,16 @@ class SensorDataRepository implements SensorDataRepositoryInterface
                     ROUND(AVG(light_intensity), 2) as light_intensity,
                     {$timeExpr} as bucket_time
                 FROM sensor_data
-                WHERE recorded_at >= ?
+                WHERE recorded_at >= ?{$deviceFilterSql}
                 GROUP BY bucket_time
                 ORDER BY bucket_time ASC
-            ", [$since->toDateTimeString()]);
+            ", $bindings);
         } elseif ($driver === 'mysql') {
+            $bindings = [$minuteStep, $minuteStep, $since->toDateTimeString()];
+            if ($deviceId !== null && $deviceId !== '') {
+                $bindings[] = $deviceId;
+            }
+
             $results = \Illuminate\Support\Facades\DB::select("
                 SELECT 
                     ROUND(AVG(temperature), 2) as temperature,
@@ -111,12 +126,17 @@ class SensorDataRepository implements SensorDataRepositoryInterface
                     ROUND(AVG(light_intensity), 2) as light_intensity,
                     FROM_UNIXTIME(FLOOR(UNIX_TIMESTAMP(recorded_at) / (? * 60)) * (? * 60)) as bucket_time
                 FROM sensor_data
-                WHERE recorded_at >= ?
+                WHERE recorded_at >= ?{$deviceFilterSql}
                 GROUP BY bucket_time
                 ORDER BY bucket_time ASC
-            ", [$minuteStep, $minuteStep, $since->toDateTimeString()]);
+            ", $bindings);
         } elseif ($driver === 'pgsql') {
             $stepSeconds = $minuteStep * 60;
+            $bindings = [$since->toDateTimeString()];
+            if ($deviceId !== null && $deviceId !== '') {
+                $bindings[] = $deviceId;
+            }
+
             $results = \Illuminate\Support\Facades\DB::select("
                 SELECT 
                     ROUND(AVG(temperature)::numeric, 2) as temperature,
@@ -125,10 +145,10 @@ class SensorDataRepository implements SensorDataRepositoryInterface
                     ROUND(AVG(light_intensity)::numeric, 2) as light_intensity,
                     to_char(to_timestamp(floor(extract(epoch from recorded_at) / {$stepSeconds}) * {$stepSeconds}), 'YYYY-MM-DD HH24:MI:SS') as bucket_time
                 FROM sensor_data
-                WHERE recorded_at >= ?
+                WHERE recorded_at >= ?{$deviceFilterSql}
                 GROUP BY bucket_time
                 ORDER BY bucket_time ASC
-            ", [$since->toDateTimeString()]);
+            ", $bindings);
         } else {
             // Fallback generic SQL jika database lain
             return $baseQuery->orderBy('recorded_at', 'asc')->limit(120)->get();

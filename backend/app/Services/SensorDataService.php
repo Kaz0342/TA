@@ -57,13 +57,13 @@ class SensorDataService
 
     /**
      * Ambil data sensor untuk chart (FR-1.2).
-     * Default 24 jam terakhir.
+     * Default 24 jam terakhir, opsional filter per-device.
      *
      * @return Collection<int, SensorData>
      */
-    public function getChartData(int $hours = 24): Collection
+    public function getChartData(int $hours = 24, ?string $deviceId = null): Collection
     {
-        return $this->repository->getLastHours($hours);
+        return $this->repository->getLastHours($hours, $deviceId);
     }
 
     /**

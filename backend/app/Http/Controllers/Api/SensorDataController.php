@@ -92,18 +92,21 @@ class SensorDataController extends Controller
     }
 
     /**
-     * GET /api/sensor-data/chart?hours=24
+     * GET /api/sensor-data/chart?hours=24&device_id=ESP32-KUMBUNG-01
      *
      * Ambil data sensor untuk line chart.
      * Dipakai oleh FR-1.2 (Climate Chart 24 jam).
      *
-     * Query param: hours (default 24, max 168 = 1 minggu)
+     * Query param:
+     * - hours (default 24, max 720)
+     * - device_id (opsional, untuk isolasi per-device / sim)
      */
     public function chart(Request $request): JsonResponse
     {
         $hours = min((int) $request->get('hours', 24), 720);
+        $deviceId = $request->query('device_id');
 
-        $chartData = $this->service->getChartData($hours);
+        $chartData = $this->service->getChartData($hours, $deviceId);
 
         // Format data untuk frontend chart library (Recharts/Chart.js)
         $formatted = $chartData->map(fn ($reading) => [
@@ -115,6 +118,7 @@ class SensorDataController extends Controller
 
         return $this->success($formatted, 'Chart data retrieved', 200, [
             'hours' => $hours,
+            'device_id' => $deviceId,
             'total_readings' => $chartData->count(),
         ]);
     }

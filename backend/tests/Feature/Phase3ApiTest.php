@@ -253,4 +253,48 @@ class Phase3ApiTest extends TestCase
         $this->assertArrayHasKey('recorded_at', $firstItem);
         $this->assertArrayHasKey('time_label', $firstItem);
     }
+
+    /**
+     * Test GET /api/sensor-data/chart dengan filter device_id (F-16).
+     */
+    public function test_sensor_data_chart_filter_by_device_id(): void
+    {
+        Sanctum::actingAs($this->worker);
+
+        $baseTime = now()->subHours(5);
+
+        // Buat 10 data untuk ESP32-KUMBUNG-01
+        for ($i = 0; $i < 10; $i++) {
+            \App\Models\SensorData::factory()->create([
+                'device_id' => 'ESP32-KUMBUNG-01',
+                'temperature' => 25.0,
+                'humidity' => 85.0,
+                'recorded_at' => (clone $baseTime)->addMinutes($i * 10),
+            ]);
+        }
+
+        // Buat 10 data untuk SIM-KUMBUNG-01
+        for ($i = 0; $i < 10; $i++) {
+            \App\Models\SensorData::factory()->create([
+                'device_id' => 'SIM-KUMBUNG-01',
+                'temperature' => 29.0,
+                'humidity' => 70.0,
+                'recorded_at' => (clone $baseTime)->addMinutes($i * 10),
+            ]);
+        }
+
+        // Request chart khusus SIM-KUMBUNG-01
+        $res = $this->getJson('/api/sensor-data/chart?hours=6&device_id=SIM-KUMBUNG-01');
+        $res->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('meta.device_id', 'SIM-KUMBUNG-01')
+            ->assertJsonPath('meta.total_readings', 10);
+
+        $data = $res->json('data');
+        $this->assertCount(10, $data);
+        foreach ($data as $item) {
+            $this->assertEquals(29.0, $item['temperature']);
+        }
+    }
 }
+

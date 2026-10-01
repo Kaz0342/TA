@@ -46,7 +46,7 @@ if sys.platform == 'win32':
 # KONFIGURASI
 # ============================================================
 API_BASE_URL = "https://tugasakhir-lime.vercel.app/api"
-DEVICE_ID = "ESP32-KUMBUNG-01"
+DEVICE_ID = os.getenv("DEVICE_ID", "SIM-KUMBUNG-01")
 
 # Interval pengiriman data (detik)
 SENSOR_SEND_INTERVAL = 60       # Kirim data sensor tiap 60 detik (1 menit)

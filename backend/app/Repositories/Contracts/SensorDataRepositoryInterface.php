@@ -27,11 +27,11 @@ interface SensorDataRepositoryInterface
     public function getLatest(): ?SensorData;
 
     /**
-     * Ambil data sensor dalam X jam terakhir.
+     * Ambil data sensor dalam X jam terakhir (opsional filter per device_id).
      *
      * @return Collection<int, SensorData>
      */
-    public function getLastHours(int $hours = 24): Collection;
+    public function getLastHours(int $hours = 24, ?string $deviceId = null): Collection;
 
     /**
      * Ambil data sensor terbaru per device.
