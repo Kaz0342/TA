@@ -57,6 +57,11 @@ const char* password = "";              // Ganti sesuai password WiFi
 String apiBaseUrl = "https://tugasakhir-lime.vercel.app/api";
 String deviceId   = "ESP32-KUMBUNG-01";
 
+#define DEBUG_FORCE_OFFLINE 0            // 1 = simulasi WiFi mati (untuk testing offline Wokwi)
+unsigned long lastWifiRetry = 0;
+bool ntpStarted = false;
+inline bool wifiUp() { return !DEBUG_FORCE_OFFLINE && WiFi.status() == WL_CONNECTED; }
+
 // ============================================================
 // PIN ASSIGNMENT
 // ============================================================
@@ -226,47 +231,64 @@ void setup() {
   digitalWrite(PIN_RELAY_SOLENOID, RELAY_OFF);
   digitalWrite(PIN_RELAY_FAN, RELAY_OFF);
 
-  // Koneksi WiFi
+  // Koneksi WiFi (Non-blocking timeout 15 detik)
   lcd.setCursor(0, 0);
   lcd.print("Connecting WiFi.");
   Serial.print("[WIFI] Menghubungkan ke ");
-  Serial.print(ssid);
+  Serial.println(ssid);
   WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
+
+  unsigned long t0 = millis();
+  while (!wifiUp() && millis() - t0 < 15000) {
     delay(500);
     Serial.print(".");
     lcd.print(".");
   }
-  Serial.println("\n[WIFI] Terhubung! IP: " + WiFi.localIP().toString());
 
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("WiFi Connected! ");
-  lcd.setCursor(0, 1);
-  lcd.print(WiFi.localIP());
-  delay(1500);
-  lcd.clear();
+  if (wifiUp()) {
+    Serial.println("\n[WIFI] Terhubung! IP: " + WiFi.localIP().toString());
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("WiFi Connected! ");
+    lcd.setCursor(0, 1);
+    lcd.print(WiFi.localIP());
+    delay(1000);
+    lcd.clear();
 
-  // Sinkronisasi Waktu NTP (WIB = UTC+7) untuk Jam Operasional Malam
-  configTime(7 * 3600, 0, "pool.ntp.org", "time.nist.gov");
-  Serial.println("[NTP] Menyelaraskan jam operasional WIB...");
+    // Sinkronisasi Waktu NTP (WIB = UTC+7)
+    configTime(7 * 3600, 0, "pool.ntp.org", "time.nist.gov");
+    ntpStarted = true;
+    Serial.println("[NTP] Menyelaraskan jam operasional WIB...");
 
-  // Fetch threshold pertama kali saat boot
-  fetchThresholds();
+    // Fetch threshold pertama kali saat boot
+    fetchThresholds();
+  } else {
+    Serial.println("\n[WIFI] ⚠️ Gagal konek 15 dtk -> lanjut OFFLINE dengan threshold default");
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("WiFi Offline!   ");
+    lcd.setCursor(0, 1);
+    lcd.print("Default Thresh  ");
+    delay(1500);
+    lcd.clear();
+  }
 }
 
 // ============================================================
 // LOOP UTAMA (NON-BLOCKING)
 // ============================================================
 void loop() {
-  // Guard: Cek koneksi WiFi
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("[WARN] WiFi terputus! Mencoba rekoneksi...");
-    lcd.setCursor(0, 1);
-    lcd.print("WiFi Disconn... ");
+  // Guard non-blocking: coba rekoneksi WiFi berkala tiap 15 detik tanpa menghentikan kontrol
+  if (!wifiUp() && millis() - lastWifiRetry >= 15000) {
+    lastWifiRetry = millis();
+    Serial.println("[WARN] WiFi terputus! Mencoba rekoneksi di background...");
     WiFi.reconnect();
-    delay(1000);
-    return;
+  }
+
+  if (wifiUp() && !ntpStarted) {
+    configTime(7 * 3600, 0, "pool.ntp.org", "time.nist.gov");
+    ntpStarted = true;
+    Serial.println("[NTP] WiFi tersambung kembali, sinkronisasi NTP...");
   }
 
   unsigned long now = millis();
@@ -357,7 +379,7 @@ void loop() {
   }
 
   // ── B. KIRIM DATA KE LARAVEL API (Tiap 60 Detik) ────────────
-  if (now - lastApiSendTime >= apiSendInterval) {
+  if (wifiUp() && (now - lastApiSendTime >= apiSendInterval)) {
     lastApiSendTime = now;
     if (lastTemp > 0) {
       sendSensorData(lastTemp, lastHum);
@@ -365,7 +387,7 @@ void loop() {
   }
 
   // ── C. FETCH THRESHOLD DARI WEB (Tiap 30 Detik) ────────────
-  if (now - lastThresholdFetch >= thresholdInterval) {
+  if (wifiUp() && (now - lastThresholdFetch >= thresholdInterval)) {
     lastThresholdFetch = now;
     fetchThresholds();
   }
@@ -808,7 +830,7 @@ void updateLCD(float temp, float hum, bool misting, bool fan) {
  * GET /api/thresholds/active
  */
 void fetchThresholds() {
-  if (WiFi.status() != WL_CONNECTED) return;
+  if (!wifiUp()) return;
 
   WiFiClientSecure client;
   client.setInsecure(); // Bypass SSL verification untuk testing
@@ -869,7 +891,7 @@ void fetchThresholds() {
  * POST /api/sensor-data
  */
 void sendSensorData(float temp, float hum) {
-  if (WiFi.status() != WL_CONNECTED) return;
+  if (!wifiUp()) return;
 
   WiFiClientSecure client;
   client.setInsecure();
@@ -904,7 +926,7 @@ void sendSensorData(float temp, float hum) {
  * POST /api/sprinkler-logs
  */
 void sendSprinklerLog(unsigned long durationSec, String triggerReason, String stopReason, String actuator) {
-  if (WiFi.status() != WL_CONNECTED) return;
+  if (!wifiUp()) return;
 
   WiFiClientSecure client;
   client.setInsecure();
