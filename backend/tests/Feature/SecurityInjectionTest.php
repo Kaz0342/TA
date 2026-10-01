@@ -423,4 +423,37 @@ class SecurityInjectionTest extends TestCase
 
         $response->assertStatus(422);
     }
+
+    /**
+     * PUT /api/thresholds menolak rentang kelembaban dengan selisih < 4% (F-15a).
+     */
+    public function test_put_thresholds_rejects_humidity_spread_less_than_4_percent(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        // 1. Selisih 2% (85% ke 87%) -> 422
+        $response = $this->actingAs($admin, 'sanctum')
+            ->putJson('/api/thresholds', [
+                'temp_min' => 24.00,
+                'temp_max' => 32.00,
+                'humidity_min' => 85.00,
+                'humidity_max' => 87.00,
+                'phase_mode' => 'custom',
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['humidity_max']);
+
+        // 2. Selisih tepat 4% (85% ke 89%) -> 200
+        $resValid = $this->actingAs($admin, 'sanctum')
+            ->putJson('/api/thresholds', [
+                'temp_min' => 24.00,
+                'temp_max' => 32.00,
+                'humidity_min' => 85.00,
+                'humidity_max' => 89.00,
+                'phase_mode' => 'custom',
+            ]);
+
+        $resValid->assertStatus(200);
+    }
 }

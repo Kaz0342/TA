@@ -33,6 +33,21 @@ class UpdateThresholdRequest extends FormRequest
         ];
     }
 
+    /**
+     * Validasi lanjutan: selisih rentang kelembaban minimal 4% agar histeresis aktuator bekerja (F-15a).
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function ($v) {
+            $data = $this->all();
+            if (isset($data['humidity_min'], $data['humidity_max']) && is_numeric($data['humidity_min']) && is_numeric($data['humidity_max'])) {
+                if (((float) $data['humidity_max'] - (float) $data['humidity_min']) < 4.0) {
+                    $v->errors()->add('humidity_max', 'Selisih rentang kelembaban minimal 4% agar histeresis aktuator bekerja.');
+                }
+            }
+        });
+    }
+
     protected function failedValidation(Validator $validator): void
     {
         throw new HttpResponseException(response()->json([

@@ -269,13 +269,13 @@ void setup() {
   dhtB.begin();
   dhtC.begin();
 
-  // Inisialisasi Relay (Semua OFF saat cold start)
-  pinMode(PIN_RELAY_PUMP, OUTPUT);
-  pinMode(PIN_RELAY_SOLENOID, OUTPUT);
-  pinMode(PIN_RELAY_FAN, OUTPUT);
+  // Inisialisasi Relay (Semua OFF saat cold start — precharge latch HIGH sebelum OUTPUT cegah LOW spike) (F-15d)
   digitalWrite(PIN_RELAY_PUMP, RELAY_OFF);
   digitalWrite(PIN_RELAY_SOLENOID, RELAY_OFF);
   digitalWrite(PIN_RELAY_FAN, RELAY_OFF);
+  pinMode(PIN_RELAY_PUMP, OUTPUT);
+  pinMode(PIN_RELAY_SOLENOID, OUTPUT);
+  pinMode(PIN_RELAY_FAN, OUTPUT);
 
   // Koneksi WiFi (Non-blocking timeout 15 detik)
   lcd.setCursor(0, 0);
@@ -650,6 +650,14 @@ void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum)
   unsigned long now = millis();
   float criticalThreshold = tempMax + CRITICAL_TEMP_OFFSET;
   bool isNight = isNightHour(getCurrentHourWIB());
+
+  // Reset timer malam saat transisi siang -> malam agar fan tidak langsung menyala di jam 17:00 (F-15b)
+  static bool wasNight = false;
+  if (isNight && !wasNight) {
+    lastNightPeriodicFanTime = now;
+    lastNightPurgeFanTime = now;
+  }
+  wasNight = isNight;
 
   // 1. TIER 2: Safety Override Suhu Kritis (BYPASS SEMUA DELAY & COOLDOWN!)
   if (maxTemp > criticalThreshold) {
