@@ -172,6 +172,37 @@ float lastHum        = 85.0;
 float maxSensorTemp  = 27.5;
 float minSensorHum   = 85.0;
 float humDisparity   = 0.0;
+unsigned long lastValidReadMs = 0; // Timestamp pembacaan sensor valid terakhir
+
+// ============================================================
+// STRUKTUR ANTRIAN LOG AKTUATOR (RAM RING BUFFER TAHAN OFFLINE)
+// ============================================================
+struct PendingLog {
+  uint32_t dur;
+  time_t startEpoch;
+  char act[16];
+  char trig[96];
+  char stop[96];
+};
+const uint8_t LOGQ_N = 10;
+PendingLog logQ[LOGQ_N];
+uint8_t qHead  = 0;
+uint8_t qCount = 0;
+
+void enqueueLog(unsigned long dur, const String& trig, const String& stop, const char* act) {
+  if (qCount == LOGQ_N) {
+    qHead = (qHead + 1) % LOGQ_N; // Jika antrian penuh, geser head & buang yang tertua
+    qCount--;
+  }
+  PendingLog& e = logQ[(qHead + qCount) % LOGQ_N];
+  time_t nowT = time(nullptr);
+  e.dur = dur;
+  e.startEpoch = (nowT > 1600000000) ? (nowT - dur) : 0; // 0 jika jam belum tersinkronisasi NTP
+  strlcpy(e.act, act, sizeof(e.act));
+  strlcpy(e.trig, trig.c_str(), sizeof(e.trig));
+  strlcpy(e.stop, stop.c_str(), sizeof(e.stop));
+  qCount++;
+}
 
 // ============================================================
 // FORWARD DECLARATIONS & TIME HELPER
@@ -187,7 +218,7 @@ void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum)
 void updateLCD(float temp, float hum, bool misting, bool fan);
 void fetchThresholds();
 void sendSensorData(float temp, float hum);
-void sendSprinklerLog(unsigned long durationSec, String triggerReason, String stopReason, String actuator);
+int postSprinklerLog(const PendingLog& e);
 
 int getCurrentHourWIB() {
   struct tm timeinfo;
@@ -351,6 +382,7 @@ void loop() {
     if (totalWeight > 0.0) {
       lastTemp = weightedT / totalWeight;
       lastHum  = weightedH / totalWeight;
+      lastValidReadMs = now; // Catat waktu pembacaan valid terbaru
 
       // Disparitas kelembaban vertikal (|A - C|)
       if (validA && validC) {
@@ -361,28 +393,30 @@ void loop() {
 
       Serial.printf("[FUSION] Rata-rata Tertimbang: T=%.1f°C | RH=%.1f%% | Disparitas RH=%.1f%%\n", 
                     lastTemp, lastHum, humDisparity);
+
+      // ── EVALUASI KONTROL MISTING & FAN ────────────────────────
+      controlMisting(lastTemp, lastHum, minSensorHum);
+      controlFan(lastTemp, maxSensorTemp, humDisparity, lastHum);
+      updateLCD(lastTemp, lastHum, isMistingActive, isFanActive);
     } else {
-      Serial.println("[FATAL] SEMUA sensor DHT22 gagal membaca! Periksa wiring GPIO.");
+      Serial.println("[FATAL] SEMUA sensor DHT22 gagal membaca! Matikan misting cegah kebanjiran.");
+      if (isMistingActive) {
+        stopMisting("Safety: Semua sensor DHT22 gagal membaca");
+      }
       lcd.setCursor(0, 0);
       lcd.print("ALL SENSOR ERR! ");
       lcd.setCursor(0, 1);
       lcd.print("Check Wiring    ");
-      return;
     }
-
-    // ── EVALUASI KONTROL MISTING & FAN ────────────────────────
-    controlMisting(lastTemp, lastHum, minSensorHum);
-    controlFan(lastTemp, maxSensorTemp, humDisparity, lastHum);
-
-    // ── UPDATE TAMPILAN LCD ───────────────────────────────────
-    updateLCD(lastTemp, lastHum, isMistingActive, isFanActive);
   }
 
-  // ── B. KIRIM DATA KE LARAVEL API (Tiap 60 Detik) ────────────
+  // ── B. KIRIM DATA KE LARAVEL API (Tiap 60 Detik, Cegah Data Basi) ────────────
   if (wifiUp() && (now - lastApiSendTime >= apiSendInterval)) {
     lastApiSendTime = now;
-    if (lastTemp > 0) {
+    if (lastValidReadMs > 0 && (now - lastValidReadMs < 15000)) {
       sendSensorData(lastTemp, lastHum);
+    } else {
+      Serial.println("[WARN] Data sensor basi (>15s tidak terbaca). Pengiriman API ditahan.");
     }
   }
 
@@ -390,6 +424,19 @@ void loop() {
   if (wifiUp() && (now - lastThresholdFetch >= thresholdInterval)) {
     lastThresholdFetch = now;
     fetchThresholds();
+  }
+
+  // ── KONSUMEN ANTRIAN LOG AKTUATOR (Kirim 1 log tiap 3 detik saat online) ──
+  static unsigned long lastLogTry = 0;
+  if (wifiUp() && qCount > 0 && (now - lastLogTry >= 3000)) {
+    lastLogTry = now;
+    PendingLog& e = logQ[qHead];
+    int code = postSprinklerLog(e);
+    bool permanentReject = (code >= 400 && code < 500 && code != 429);
+    if (code == 201 || permanentReject) {
+      qHead = (qHead + 1) % LOGQ_N;
+      qCount--;
+    }
   }
 
   // ── D. SAFETY WATCHDOG: MISTING TIMEOUT (60s / 30s) ────────
@@ -558,8 +605,8 @@ void stopMisting(String stopReason) {
 
   Serial.printf("   🛑 [MISTING OFF] Durasi: %lu detik — %s\n", duration, stopReason.c_str());
 
-  // Kirim riwayat aktivasi ke Laravel API
-  sendSprinklerLog(duration, mistingTriggerReason, stopReason, "misting");
+  // Enqueue riwayat aktivasi ke antrian log aktuator
+  enqueueLog(duration, mistingTriggerReason, stopReason, "misting");
 }
 
 // ============================================================
@@ -737,8 +784,8 @@ void stopFan(String stopReason) {
 
   Serial.printf("   🌀 [FAN OFF] Durasi: %lu detik — %s\n", duration, stopReason.c_str());
 
-  // Kirim riwayat aktivasi ke Laravel API
-  sendSprinklerLog(max((unsigned long)1, duration), fanTriggerReason, stopReason, "fan");
+  // Enqueue riwayat aktivasi ke antrian log aktuator
+  enqueueLog(max((unsigned long)1, duration), fanTriggerReason, stopReason, "fan");
 }
 
 // ============================================================
@@ -839,7 +886,7 @@ void fetchThresholds() {
   http.begin(client, apiBaseUrl + "/thresholds/active");
   http.addHeader("ngrok-skip-browser-warning", "true");
   http.addHeader("User-Agent", "ESP32-SmartShroom");
-  http.setTimeout(10000);
+  http.setTimeout(4000);
   int httpCode = http.GET();
 
   if (httpCode == 200) {
@@ -901,7 +948,7 @@ void sendSensorData(float temp, float hum) {
   http.addHeader("Content-Type", "application/json");
   http.addHeader("ngrok-skip-browser-warning", "true");
   http.addHeader("User-Agent", "ESP32-SmartShroom");
-  http.setTimeout(10000);
+  http.setTimeout(4000);
 
   StaticJsonDocument<256> doc;
   doc["device_id"]    = deviceId;
@@ -922,11 +969,11 @@ void sendSensorData(float temp, float hum) {
 }
 
 /**
- * Kirim log aktivasi aktuator ke Laravel.
+ * Kirim log aktivasi aktuator dari antrian ke Laravel.
  * POST /api/sprinkler-logs
  */
-void sendSprinklerLog(unsigned long durationSec, String triggerReason, String stopReason, String actuator) {
-  if (!wifiUp()) return;
+int postSprinklerLog(const PendingLog& e) {
+  if (!wifiUp()) return -1;
 
   WiFiClientSecure client;
   client.setInsecure();
@@ -936,23 +983,32 @@ void sendSprinklerLog(unsigned long durationSec, String triggerReason, String st
   http.addHeader("Content-Type", "application/json");
   http.addHeader("ngrok-skip-browser-warning", "true");
   http.addHeader("User-Agent", "ESP32-SmartShroom");
-  http.setTimeout(10000);
+  http.setTimeout(4000);
 
-  StaticJsonDocument<384> doc;
+  StaticJsonDocument<512> doc;
   doc["device_id"]         = deviceId;
-  doc["actuator"]          = actuator;
-  doc["duration_seconds"]  = (int)durationSec;
-  doc["trigger_reason"]    = triggerReason;
-  doc["stop_reason"]       = stopReason;
+  doc["actuator"]          = e.act;
+  doc["duration_seconds"]  = (int)e.dur;
+  doc["trigger_reason"]    = e.trig;
+  doc["stop_reason"]       = e.stop;
+
+  if (e.startEpoch > 0) {
+    struct tm tmBuf;
+    gmtime_r(&e.startEpoch, &tmBuf);
+    char timeStr[25];
+    strftime(timeStr, sizeof(timeStr), "%Y-%m-%dT%H:%M:%SZ", &tmBuf);
+    doc["started_at"] = timeStr;
+  }
 
   String requestBody;
   serializeJson(doc, requestBody);
 
   int httpCode = http.POST(requestBody);
   if (httpCode == 201) {
-    Serial.println("[API] ✅ Log aktuator terkirim!");
+    Serial.println("[API] ✅ Log aktuator terkirim dari antrian!");
   } else {
     Serial.printf("[API] ❌ Gagal kirim log aktuator (HTTP %d)\n", httpCode);
   }
   http.end();
+  return httpCode;
 }
