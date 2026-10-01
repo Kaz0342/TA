@@ -24,7 +24,6 @@ use Illuminate\Support\Facades\Route;
 
 // Public Routes — Dilindungi rate limiter untuk mencegah Brute Force & DoS
 Route::middleware('throttle:15,1')->post('/login', [AuthController::class, 'login']);
-Route::middleware('throttle:5,1')->post('/register', [AuthController::class, 'register']);
 
 // NO AUTH — Device Endpoint (ESP32)
 // @see ECC rules/php/security.md → Rate limit semua endpoint publik
@@ -93,6 +92,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // HANYA ADMIN
     Route::middleware('role:admin')->group(function () {
+        // Registrasi Akun Pekerja / User Baru (Admin Only)
+        Route::post('/register', [AuthController::class, 'register']);
+
         // Threshold (Admin — bisa baca DAN update)
         Route::get('/thresholds', [ThresholdSettingController::class, 'index']);
         Route::put('/thresholds', [ThresholdSettingController::class, 'update']);

@@ -685,12 +685,21 @@ class EccComprehensiveTestSuiteTest extends TestCase
     public function test_chaos_admin_quota_privilege_escalation(): void
     {
         // Arrange: Sudah ada 1 Admin
-        User::factory()->admin()->create([
+        $admin = User::factory()->admin()->create([
             'email' => 'admin.pertama@smartshroom.test',
         ]);
 
-        // Act 1: Hacker mencoba register akun baru dengan menyisipkan role=admin
-        $response = $this->postJson('/api/register', [
+        // Act 0: Hacker (unauthenticated) mencoba akses /api/register -> ditolak 401
+        $resGuest = $this->postJson('/api/register', [
+            'name' => 'Hacker Tanpa Token',
+            'email' => 'hacker.guest@smartshroom.test',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+        $resGuest->assertStatus(401);
+
+        // Act 1: Admin meregister akun baru tapi menyisipkan role=admin
+        $response = $this->actingAs($admin)->postJson('/api/register', [
             'name' => 'Hacker Mau Jadi Admin',
             'email' => 'hacker@smartshroom.test',
             'password' => 'password123',
@@ -710,8 +719,8 @@ class EccComprehensiveTestSuiteTest extends TestCase
         // Act 2: Buat 4 worker lagi sehingga kuota worker (5) penuh
         User::factory()->count(4)->create(['role' => User::ROLE_WORKER]);
 
-        // Act 3: Coba daftar user ke-6 saat kuota penuh
-        $resFull = $this->postJson('/api/register', [
+        // Act 3: Admin coba daftar user ke-6 saat kuota penuh
+        $resFull = $this->actingAs($admin)->postJson('/api/register', [
             'name' => 'Worker Ke-6',
             'email' => 'worker6@smartshroom.test',
             'password' => 'password123',

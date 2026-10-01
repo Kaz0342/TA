@@ -234,15 +234,49 @@ class SecurityAuthTest extends TestCase
     }
 
     // ════════════════════════════════════════════════════════════
-    // SKENARIO 4: Kuota Pengguna (Maks 5 Worker & Enforce Role)
+    // SKENARIO 4: Kuota Pengguna & Proteksi Register (Admin Only & Maks 5 Worker)
     // ════════════════════════════════════════════════════════════
 
     /**
-     * Registrasi worker berhasil jika kuota belum penuh (< 5 worker).
+     * Guest (tanpa token) TIDAK BISA mengakses endpoint registrasi (401 Unauthorized).
+     */
+    public function test_guest_cannot_access_register_endpoint(): void
+    {
+        $response = $this->postJson('/api/register', [
+            'name' => 'Tamu Liar',
+            'email' => 'tamu@smartshroom.test',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response->assertStatus(401);
+    }
+
+    /**
+     * Non-admin (role: worker) TIDAK BISA mendaftarkan user baru (403 Forbidden).
+     */
+    public function test_worker_cannot_access_register_endpoint(): void
+    {
+        $worker = User::factory()->create(['role' => User::ROLE_WORKER]);
+
+        $response = $this->actingAs($worker)->postJson('/api/register', [
+            'name' => 'Worker Coba Buat Akun',
+            'email' => 'coba@smartshroom.test',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response->assertStatus(403);
+    }
+
+    /**
+     * Admin berhasil mendaftarkan worker jika kuota belum penuh (< 5 worker).
      */
     public function test_worker_registration_succeeds_when_under_quota(): void
     {
-        $response = $this->postJson('/api/register', [
+        $admin = User::factory()->admin()->create();
+
+        $response = $this->actingAs($admin)->postJson('/api/register', [
             'name' => 'Budi Worker Baru',
             'email' => 'budi.new@smartshroom.test',
             'password' => 'password123',
@@ -259,15 +293,17 @@ class SecurityAuthTest extends TestCase
     }
 
     /**
-     * Registrasi ditolak dengan 422 jika kuota 5 worker sudah tercapai.
+     * Registrasi oleh admin ditolak dengan 422 jika kuota 5 worker sudah tercapai.
      */
     public function test_worker_registration_fails_when_quota_full(): void
     {
+        $admin = User::factory()->admin()->create();
+
         // Buat 5 worker (memenuhi kuota maksimal)
         User::factory()->count(5)->create(['role' => User::ROLE_WORKER]);
 
         // Coba daftarkan worker ke-6
-        $response = $this->postJson('/api/register', [
+        $response = $this->actingAs($admin)->postJson('/api/register', [
             'name' => 'Worker Ke Enam',
             'email' => 'worker6@smartshroom.test',
             'password' => 'password123',
@@ -279,11 +315,13 @@ class SecurityAuthTest extends TestCase
     }
 
     /**
-     * Registrasi publik TIDAK BISA membuat akun admin (selalu dipaksa role worker).
+     * Registrasi TIDAK BISA membuat akun admin baru (selalu dipaksa role worker).
      */
     public function test_registration_always_assigns_worker_role_even_if_admin_requested(): void
     {
-        $response = $this->postJson('/api/register', [
+        $admin = User::factory()->admin()->create();
+
+        $response = $this->actingAs($admin)->postJson('/api/register', [
             'name' => 'Penyusup Admin',
             'email' => 'penyusup@smartshroom.test',
             'password' => 'password123',
