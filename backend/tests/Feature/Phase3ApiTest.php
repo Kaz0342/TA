@@ -224,4 +224,33 @@ class Phase3ApiTest extends TestCase
         $delRes = $this->deleteJson("/api/operational-expenses/{$expenseId}");
         $delRes->assertStatus(200);
     }
+
+    /**
+     * Test GET /api/sensor-data/chart & agregasi data sensor (F-06).
+     */
+    public function test_sensor_data_chart_endpoint_and_aggregation(): void
+    {
+        Sanctum::actingAs($this->worker);
+
+        // Buat 105 data sensor berkala dalam rentang 12 jam terakhir
+        $baseTime = now()->subHours(12);
+        for ($i = 0; $i < 105; $i++) {
+            \App\Models\SensorData::factory()->create([
+                'temperature' => 26.5 + ($i % 5) * 0.2,
+                'humidity' => 88.0 + ($i % 4) * 0.5,
+                'recorded_at' => (clone $baseTime)->addMinutes($i * 6),
+            ]);
+        }
+
+        $res = $this->getJson('/api/sensor-data/chart?hours=12');
+        $res->assertStatus(200)
+            ->assertJsonPath('success', true);
+
+        $this->assertNotEmpty($res->json('data'));
+        $firstItem = $res->json('data')[0];
+        $this->assertArrayHasKey('temperature', $firstItem);
+        $this->assertArrayHasKey('humidity', $firstItem);
+        $this->assertArrayHasKey('recorded_at', $firstItem);
+        $this->assertArrayHasKey('time_label', $firstItem);
+    }
 }

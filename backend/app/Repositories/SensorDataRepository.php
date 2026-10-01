@@ -115,6 +115,20 @@ class SensorDataRepository implements SensorDataRepositoryInterface
                 GROUP BY bucket_time
                 ORDER BY bucket_time ASC
             ", [$minuteStep, $minuteStep, $since->toDateTimeString()]);
+        } elseif ($driver === 'pgsql') {
+            $stepSeconds = $minuteStep * 60;
+            $results = \Illuminate\Support\Facades\DB::select("
+                SELECT 
+                    ROUND(AVG(temperature)::numeric, 2) as temperature,
+                    ROUND(AVG(humidity)::numeric, 2) as humidity,
+                    ROUND(AVG(co2_level)::numeric, 2) as co2_level,
+                    ROUND(AVG(light_intensity)::numeric, 2) as light_intensity,
+                    to_char(to_timestamp(floor(extract(epoch from recorded_at) / {$stepSeconds}) * {$stepSeconds}), 'YYYY-MM-DD HH24:MI:SS') as bucket_time
+                FROM sensor_data
+                WHERE recorded_at >= ?
+                GROUP BY bucket_time
+                ORDER BY bucket_time ASC
+            ", [$since->toDateTimeString()]);
         } else {
             // Fallback generic SQL jika database lain
             return $baseQuery->orderBy('recorded_at', 'asc')->limit(120)->get();
