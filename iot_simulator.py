@@ -51,7 +51,7 @@ DEVICE_ID = "ESP32-KUMBUNG-01"
 # Interval pengiriman data (detik)
 SENSOR_SEND_INTERVAL = 60       # Kirim data sensor tiap 60 detik (1 menit)
 THRESHOLD_FETCH_INTERVAL = 30   # Fetch threshold dari web tiap 30 detik
-MAX_MISTING_DURATION = 60       # Safety timeout misting (detik) — 60s maksimal agar baglog tidak tergenang/becek
+MAX_MISTING_DURATION = 90       # Safety timeout misting (detik) — 90s maksimal agar target tercapai tanpa banjir (F-12)
 MISTING_COOLDOWN = 150          # Jeda wajib setelah misting OFF (detik) — waktu evaporasi & difusi kabut
 POST_MISTING_FAN_DELAY = 60     # Jeda wajib setelah misting OFF sebelum fan boleh nyala (detik) — waktu kabut mengendap
 FAN_HOMOGENIZE_COOLDOWN = 900   # Jeda wajib setelah fan homogenisasi OFF (detik) — 15 menit relaksasi udara & sirkulasi
@@ -429,7 +429,7 @@ class KumbungState:
         self.hum_min = 80.0
         self.hum_max = 95.0
         self.rh_trigger_low = 80.0       # = hum_min
-        self.rh_trigger_high = 90.0      # Histeresis stop realistis (90.0% di siang hari menghasilkan kurva landai & mencegah short-cycling)
+        self.rh_trigger_high = self.hum_min + min(3.0, 0.5 * (self.hum_max - self.hum_min))  # Histeresis stop realistis (F-12)
 
     @staticmethod
     def _get_ambient_temp(now: datetime.datetime) -> float:
@@ -487,9 +487,9 @@ class KumbungState:
         self.hum_max = thresholds['humidity_max']
         self.phase_mode = thresholds.get('phase_mode', 'fruiting')
         self.rh_trigger_low = self.hum_min
-        # Histeresis stop realistis: deadband 5% (misal 85% ON -> 90% OFF) menghasilkan kurva melengkung landai (smooth wave).
-        # Mencegah short-cycling (osilasi cepat 2-3 menit yang membuat grafik lancip) sekaligus menjaga baglog tetap di zona aman.
-        self.rh_trigger_high = min(self.hum_max - 4.0, self.hum_min + 5.0)  # Misal 85 + 5 = 90.0%
+        # Histeresis stop realistis: deadband proporsional = hum_min + min(3.0, 0.5 * rentang) (F-12)
+        # Mencegah misting selalu mati karena safety timeout 90s, sehingga target stop benar-benar tercapai secara termodinamika.
+        self.rh_trigger_high = self.hum_min + min(3.0, 0.5 * (self.hum_max - self.hum_min))
 
         # Baca perintah kontrol perangkat (PRD Section 3.A)
         cmd_info = thresholds.get('device_command', {})

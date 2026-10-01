@@ -88,7 +88,7 @@ const float WEIGHT_SENSOR_C = 0.25;  // Zona Bawah (paling dingin & lembab)
 // ============================================================
 // KONSTANTA JEDA & SAFETY TIMEOUT (Anti Short-Cycling & Night Mode)
 // ============================================================
-const unsigned long MAX_MISTING_DURATION_MS     = 60000;   // 60 detik timeout darurat misting (cegah baglog menggenang/becek)
+const unsigned long MAX_MISTING_DURATION_MS     = 90000;   // 90 detik timeout darurat misting (cegah baglog menggenang/becek) (F-12)
 const unsigned long PULSE_MISTING_DURATION_MS   = 30000;   // 30 detik pulse misting sensor kering
 const unsigned long MISTING_COOLDOWN_MS         = 150000;  // 150 detik (2.5 menit) jeda evaporasi kabut
 const unsigned long POST_MISTING_FAN_DELAY_MS   = 60000;   // 60 detik jeda kabut mengendap sebelum fan boleh ON
@@ -124,7 +124,7 @@ float humMax   = 95.0;   // Batas atas RH (%)
 
 // Histeresis lokal
 float rhTriggerLow  = 80.0;  // = humMin
-float rhTriggerHigh = 90.0;  // Histeresis stop realistis (misal 85 + 5 = 90.0%, deadband 5% kurva landai)
+float rhTriggerHigh = 83.0;  // = humMin + min(3.0, 0.5 * (humMax - humMin)) (F-12)
 
 // ============================================================
 // TIMER NON-BLOCKING (millis)
@@ -456,8 +456,8 @@ void loop() {
       Serial.println("[SAFETY] 🛑 Pulse Misting selesai (30s). Mematikan pompa...");
       stopMisting("Pulse misting selesai (30s)");
     } else if (!isPulseMisting && elapsed >= MAX_MISTING_DURATION_MS) {
-      Serial.println("[SAFETY] 🛑 Misting TIMEOUT (60s)! Mematikan pompa secara paksa.");
-      stopMisting("Safety timeout (60 detik)");
+      Serial.println("[SAFETY] 🛑 Misting TIMEOUT (90s)! Mematikan pompa secara paksa.");
+      stopMisting("Safety timeout (90 detik)");
     }
   }
 
@@ -922,12 +922,12 @@ void fetchThresholds() {
       humMax  = doc["data"]["humidity_max"].as<float>();
 
       rhTriggerLow  = humMin;
-      // Histeresis stop realistis: deadband 5% (misal 85% ON -> 90% OFF) menghasilkan kurva melengkung landai.
-      // Mencegah short-cycling (osilasi cepat yang membuat grafik lancip) & menjaga kelembapan stabil di zona aman.
-      rhTriggerHigh = min(humMax - 4.0f, humMin + 5.0f);  // Misal 85 + 5 = 90.0%
+      // Histeresis stop realistis: deadband proporsional = humMin + min(3.0, 0.5 * rentang) (F-12)
+      // Mencegah misting selalu mati karena safety timeout 90s, sehingga target stop benar-benar tercapai secara termodinamika.
+      rhTriggerHigh = humMin + min(3.0f, 0.5f * (humMax - humMin));
 
-      Serial.printf("[API] Threshold Sinkron! T:%.1f-%.1f°C | RH:%.1f-%.1f%%\n",
-                    tempMin, tempMax, humMin, humMax);
+      Serial.printf("[API] Threshold Sinkron! T:%.1f-%.1f°C | RH:%.1f-%.1f%% | StopRH:%.1f%%\n",
+                    tempMin, tempMax, humMin, humMax, rhTriggerHigh);
 
       // ── BACA PERINTAH KONTROL JEDA PANEN (PRD Section 3.A) ──
       if (doc["data"].containsKey("device_command")) {
