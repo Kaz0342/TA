@@ -8,6 +8,7 @@ use App\Models\BatchSlotAssignment;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 /**
@@ -67,9 +68,9 @@ class BaglogCullController extends Controller
         $validator = Validator::make($request->all(), [
             'baglog_batch_id' => 'required|exists:baglog_batches,id',
             'slot_code' => 'required|string|exists:slots,slot_code',
-            'cull_date' => 'required|date',
+            'cull_date' => 'required|date|before_or_equal:today',
             'quantity' => 'required|integer|min:1',
-            'reason' => 'required|in:TRICHODERMA,BUSUK_BASAH,HAMA,KERING,LAINNYA',
+            'reason' => 'required|in:TRICHODERMA,BUSUK_BASAH,HAMA,KERING,LAINNYA,HABIS_PRODUKSI',
             'notes' => 'nullable|string',
         ]);
 
@@ -80,38 +81,127 @@ class BaglogCullController extends Controller
         $batchId = (int) $request->input('baglog_batch_id');
         $slotCode = strtoupper($request->input('slot_code'));
         $qty = (int) $request->input('quantity');
+        $cullDate = $request->input('cull_date');
 
-        // Cari active assignment untuk slot & batch ini
-        $assignment = BatchSlotAssignment::where('baglog_batch_id', $batchId)
-            ->where('slot_code', $slotCode)
-            ->whereIn('current_status', [BatchSlotAssignment::STATUS_INCUBATION, BatchSlotAssignment::STATUS_FRUITING])
-            ->first();
+        $result = DB::transaction(function () use ($batchId, $slotCode, $qty, $cullDate, $request) {
+            // Cari active assignment untuk slot & batch ini dengan lock
+            $assignment = BatchSlotAssignment::where('baglog_batch_id', $batchId)
+                ->where('slot_code', $slotCode)
+                ->whereIn('current_status', [BatchSlotAssignment::STATUS_INCUBATION, BatchSlotAssignment::STATUS_FRUITING])
+                ->lockForUpdate()
+                ->first();
 
-        if (! $assignment) {
-            return $this->error("Tidak ditemukan batch aktif di koordinat slot {$slotCode}.", 422);
+            if (! $assignment) {
+                return ['error' => "Tidak ditemukan batch aktif di koordinat slot {$slotCode}.", 'status' => 422];
+            }
+
+            // Invarian tanggal: cull_date >= assigned_at (W-11)
+            if (\Carbon\Carbon::parse($cullDate)->lt(\Carbon\Carbon::parse($assignment->assigned_at))) {
+                return [
+                    'error' => 'Tanggal afkir tidak boleh sebelum tanggal penempatan slot (' . \Carbon\Carbon::parse($assignment->assigned_at)->toDateString() . ').',
+                    'status' => 422,
+                ];
+            }
+
+            $sisaKapasitas = $assignment->kapasitasAktif();
+
+            if ($qty > $sisaKapasitas) {
+                return [
+                    'error' => "Jumlah afkir ({$qty} baglog) melebihi kapasitas aktif di slot {$slotCode} (sisa {$sisaKapasitas} baglog).",
+                    'status' => 422,
+                ];
+            }
+
+            $cull = BaglogCull::create([
+                'baglog_batch_id' => $batchId,
+                'slot_code' => $slotCode,
+                'cull_date' => $cullDate,
+                'quantity' => $qty,
+                'reason' => $request->input('reason'),
+                'notes' => $request->input('notes'),
+            ]);
+
+            $sisaSetelah = $assignment->kapasitasAktif();
+
+            // Bila baglog di slot habis (kapasitas aktif = 0), otomatis selesaikan siklus slot (W-02)
+            if ($sisaSetelah === 0) {
+                $assignment->update([
+                    'current_status' => BatchSlotAssignment::STATUS_COMPLETED,
+                    'completed_at' => $cullDate,
+                    'completed_reason' => 'EXHAUSTED',
+                ]);
+            }
+
+            return [
+                'cull' => $cull,
+                'remaining' => $sisaSetelah,
+            ];
+        });
+
+        if (isset($result['error'])) {
+            return $this->error($result['error'], $result['status']);
         }
-
-        $sisaKapasitas = $assignment->kapasitasAktif();
-
-        if ($qty > $sisaKapasitas) {
-            return $this->error(
-                "Jumlah afkir ({$qty} baglog) melebihi kapasitas aktif di slot {$slotCode} (sisa {$sisaKapasitas} baglog).",
-                422
-            );
-        }
-
-        $cull = BaglogCull::create([
-            'baglog_batch_id' => $batchId,
-            'slot_code' => $slotCode,
-            'cull_date' => $request->input('cull_date'),
-            'quantity' => $qty,
-            'reason' => $request->input('reason'),
-            'notes' => $request->input('notes'),
-        ]);
 
         return $this->created([
-            'cull' => $cull,
-            'slot_active_capacity_remaining' => $assignment->kapasitasAktif(),
+            'cull' => $result['cull'],
+            'slot_active_capacity_remaining' => $result['remaining'],
         ], 'Pencatatan afkir baglog berhasil disimpan');
+    }
+
+    /**
+     * POST /api/baglog-culls/{id}/void
+     * Batalkan data afkir yang salah input (W-09).
+     * Pulihkan kapasitas aktif slot, dan re-open slot jika sempat otomatis COMPLETED karena EXHAUSTED.
+     */
+    public function void(Request $request, int $id): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'reason' => 'required|string|min:5|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->error($validator->errors()->first(), 422);
+        }
+
+        return DB::transaction(function () use ($request, $id) {
+            $cull = BaglogCull::withVoided()->find($id);
+
+            if (! $cull) {
+                return $this->notFound('Data afkir baglog tidak ditemukan');
+            }
+
+            if ($cull->isVoided()) {
+                return $this->error('Data afkir baglog sudah dibatalkan (voided) sebelumnya', 422);
+            }
+
+            $cull->void($request->user()->id, $request->input('reason'));
+
+            // Pulihkan kapasitas aktif assignment jika sempat selesai (COMPLETED) karena EXHAUSTED
+            if ($cull->slot_code) {
+                $assignment = BatchSlotAssignment::where('baglog_batch_id', $cull->baglog_batch_id)
+                    ->where('slot_code', $cull->slot_code)
+                    ->latest('id')
+                    ->first();
+
+                if ($assignment && $assignment->current_status === BatchSlotAssignment::STATUS_COMPLETED && $assignment->completed_reason === 'EXHAUSTED') {
+                    // Cek apakah slot masih belum diisi batch lain
+                    $isOccupied = BatchSlotAssignment::where('slot_code', $cull->slot_code)
+                        ->where('id', '!=', $assignment->id)
+                        ->whereIn('current_status', [BatchSlotAssignment::STATUS_INCUBATION, BatchSlotAssignment::STATUS_FRUITING])
+                        ->exists();
+
+                    if (! $isOccupied) {
+                        $assignment->update([
+                            'current_status' => BatchSlotAssignment::STATUS_FRUITING,
+                            'completed_at' => null,
+                            'completed_reason' => null,
+                        ]);
+                        $assignment->baglogBatch?->refreshLifecycle();
+                    }
+                }
+            }
+
+            return $this->success($cull, 'Data afkir baglog berhasil di-void (dibatalkan)');
+        });
     }
 }

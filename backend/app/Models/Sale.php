@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HasVoid;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -33,12 +34,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $total_revenue
  * @property string $buyer_name
  * @property string|null $notes
+ * @property Carbon|null $voided_at
+ * @property int|null $voided_by
+ * @property string|null $void_reason
  * @property Carbon $created_at
  * @property Carbon $updated_at
  */
 class Sale extends Model
 {
-    use HasFactory;
+    use HasFactory, HasVoid;
 
     /**
      * @var list<string>
@@ -52,6 +56,9 @@ class Sale extends Model
         'total_revenue',
         'buyer_name',
         'notes',
+        'voided_at',
+        'voided_by',
+        'void_reason',
     ];
 
     /**
@@ -64,6 +71,7 @@ class Sale extends Model
             'quantity_kg' => 'decimal:2',
             'price_per_kg' => 'decimal:2',
             'total_revenue' => 'decimal:2',
+            'voided_at' => 'datetime',
         ];
     }
 

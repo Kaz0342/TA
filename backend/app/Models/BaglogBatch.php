@@ -51,6 +51,8 @@ class BaglogBatch extends Model
 
     public const STATUS_DISPOSED = 'disposed';
 
+    public const STATUS_COMPLETED = 'completed';
+
     /**
      * @var list<string>
      */
@@ -77,6 +79,16 @@ class BaglogBatch extends Model
         ];
     }
 
+    /**
+     * @var list<string>
+     */
+    protected $appends = [
+        'age_days',
+        'assigned_quantity',
+        'unassigned_quantity',
+        'assigned_slots_count',
+    ];
+
     // ─── Accessors ──────────────────────────────────────────────
 
     /**
@@ -88,6 +100,38 @@ class BaglogBatch extends Model
     public function getAgeDaysAttribute(): int
     {
         return (int) Carbon::parse($this->entry_date)->diffInDays(now());
+    }
+
+    /**
+     * Hitung total baglog yang sudah teralokasi ke slot rak kumbung.
+     */
+    public function getAssignedQuantityAttribute(): int
+    {
+        if (array_key_exists('assigned_quantity', $this->attributes)) {
+            return (int) ($this->attributes['assigned_quantity'] ?? 0);
+        }
+
+        return (int) $this->assignments()->sum('initial_quantity');
+    }
+
+    /**
+     * Hitung sisa baglog yang belum dialokasikan ke slot rak mana pun.
+     */
+    public function getUnassignedQuantityAttribute(): int
+    {
+        return max(0, $this->quantity - $this->assigned_quantity);
+    }
+
+    /**
+     * Hitung jumlah slot yang ditempati oleh batch ini.
+     */
+    public function getAssignedSlotsCountAttribute(): int
+    {
+        if (array_key_exists('assigned_slots_count', $this->attributes)) {
+            return (int) ($this->attributes['assigned_slots_count'] ?? 0);
+        }
+
+        return (int) $this->assignments()->count();
     }
 
     // ─── Relationships ──────────────────────────────────────────
@@ -203,6 +247,33 @@ class BaglogBatch extends Model
     }
 
     /**
+     * Cek apakah siklus hidup batch ini sudah selesai.
+     */
+    public function isCompleted(): bool
+    {
+        return $this->status === self::STATUS_COMPLETED;
+    }
+
+    /**
+     * Sinkronkan status lifecycle batch.
+     * Jika seluruh assignment slot sudah selesai (COMPLETED) dan tidak ada slot aktif,
+     * batch otomatis ditandai 'completed' (W-02).
+     */
+    public function refreshLifecycle(): void
+    {
+        if ($this->status !== self::STATUS_ACTIVE) {
+            return;
+        }
+
+        $placed = (int) $this->assignments()->sum('initial_quantity');
+        $hasActive = $this->assignments()->active()->exists();
+
+        if ($placed > 0 && ! $hasActive) {
+            $this->update(['status' => self::STATUS_COMPLETED]);
+        }
+    }
+
+    /**
      * Total panen (Kg) dari batch ini.
      * Dipakai untuk analisis produktivitas per batch.
      */
@@ -212,13 +283,13 @@ class BaglogBatch extends Model
     }
 
     /**
-     * Generate batch code otomatis.
-     * Format: BL-YYYYMMDD-XXX (3 digit sequential per hari).
+     * Generate batch code otomatis (W-12).
+     * Format: BL-YYYYMMDD-XXX (3 digit sequential per tanggal entry).
      */
-    public static function generateBatchCode(): string
+    public static function generateBatchCode(?string $entryDate = null): string
     {
-        $today = now()->format('Ymd');
-        $prefix = "BL-{$today}-";
+        $dateStr = $entryDate ? Carbon::parse($entryDate)->format('Ymd') : now()->format('Ymd');
+        $prefix = "BL-{$dateStr}-";
 
         $lastBatch = static::where('batch_code', 'like', "{$prefix}%")
             ->orderByDesc('batch_code')
@@ -268,8 +339,9 @@ class BaglogBatch extends Model
         $totalBiaya = bcadd($modalAwal, $biayaOps, 2);
         $margin = bcsub($omzetKotor, $totalBiaya, 2);
 
-        // Siklus hidup jamur kuping: ~120 hari (3.5 - 4 bulan)
-        $persenSiklus = min(100.0, round(($this->age_days / 120) * 100, 1));
+        // Siklus hidup jamur kuping (berdasarkan config baglog.cycle_days)
+        $cycleDays = (int) config('baglog.cycle_days', 120);
+        $persenSiklus = min(100.0, round(($this->age_days / $cycleDays) * 100, 1));
 
         $totalPanenKg = $this->totalHarvestKg();
         $totalCulls = (int) $this->culls()->sum('quantity');
@@ -289,7 +361,7 @@ class BaglogBatch extends Model
             'batch_code' => $this->batch_code,
             'entry_date' => $this->entry_date,
             'age_days' => $this->age_days,
-            'cycle_target_days' => 120,
+            'cycle_target_days' => $cycleDays,
             'cycle_progress_percent' => $persenSiklus,
             'persen_siklus' => $persenSiklus,
             'is_completed' => in_array($this->status, [self::STATUS_DISPOSED, 'completed']),
@@ -303,6 +375,7 @@ class BaglogBatch extends Model
             'mortality_rate_percent' => $mortalityRate,
 
             // Financial & Capital
+            'price_missing' => $this->price_per_baglog === null || (float) $this->price_per_baglog <= 0,
             'price_per_baglog' => (float) $this->price_per_baglog,
             'modal_baglog_awal' => (float) $modalAwal,
             'baglog_capital_cost' => (float) $modalAwal,

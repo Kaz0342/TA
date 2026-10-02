@@ -40,7 +40,12 @@ class BaglogBatchController extends Controller
     public function updateStatus(Request $request, int $id): JsonResponse
     {
         $request->validate([
-            'status' => 'required|in:'.implode(',', [BaglogBatch::STATUS_ACTIVE, BaglogBatch::STATUS_CONTAMINATED, BaglogBatch::STATUS_DISPOSED]),
+            'status' => 'required|in:'.implode(',', [
+                BaglogBatch::STATUS_ACTIVE,
+                BaglogBatch::STATUS_CONTAMINATED,
+                BaglogBatch::STATUS_DISPOSED,
+                BaglogBatch::STATUS_COMPLETED,
+            ]),
             'notes' => 'nullable|string',
         ]);
 

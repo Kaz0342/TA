@@ -10,7 +10,9 @@ class BaglogRepository implements BaglogRepositoryInterface
 {
     public function getAll(array $filters = []): Collection
     {
-        $query = BaglogBatch::query();
+        $query = BaglogBatch::query()
+            ->withSum('assignments as assigned_quantity', 'initial_quantity')
+            ->withCount('assignments as assigned_slots_count');
 
         if (isset($filters['status'])) {
             $query->withStatus($filters['status']);
@@ -26,9 +28,20 @@ class BaglogRepository implements BaglogRepositoryInterface
 
     public function store(array $data): BaglogBatch
     {
-        // Auto generate batch code if not provided
-        if (empty($data['batch_code'])) {
-            $data['batch_code'] = BaglogBatch::generateBatchCode();
+        $maxAttempts = 3;
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            try {
+                if (empty($data['batch_code'])) {
+                    $data['batch_code'] = BaglogBatch::generateBatchCode($data['entry_date'] ?? null);
+                }
+
+                return BaglogBatch::create($data);
+            } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+                if ($attempt === $maxAttempts) {
+                    throw $e;
+                }
+                unset($data['batch_code']);
+            }
         }
 
         return BaglogBatch::create($data);

@@ -14,11 +14,20 @@ class StoreHarvestRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('slot_code') && is_string($this->slot_code)) {
+            $this->merge([
+                'slot_code' => strtoupper($this->slot_code),
+            ]);
+        }
+    }
+
     public function rules(): array
     {
         return [
-            'harvest_date' => 'required|date',
-            'weight_kg' => 'required|numeric|min:0.1',
+            'harvest_date' => 'required|date|before_or_equal:today',
+            'weight_kg' => 'required|numeric|min:0.01',
             'baglog_batch_id' => 'nullable|exists:baglog_batches,id',
             'slot_code' => 'nullable|string|exists:slots,slot_code',
             'flush_number' => 'nullable|integer|min:1|max:10',

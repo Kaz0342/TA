@@ -39,9 +39,58 @@ class SlotController extends Controller
 
         $slots = $query->orderBy('row')->orderBy('bay')->orderBy('tier')->get();
 
-        $data = $slots->map(function (Slot $slot) {
+        // W-15: Pre-aggregate culls & harvests untuk mencegah N+1 query explosion
+        $activeBatchIds = $slots->pluck('activeAssignment.baglog_batch_id')->filter()->unique()->values();
+        $slotCodes = $slots->pluck('slot_code')->filter()->unique()->values();
+
+        $cullAggregates = collect();
+        $harvestAggregates = collect();
+
+        if ($activeBatchIds->isNotEmpty() && $slotCodes->isNotEmpty()) {
+            $cullAggregates = DB::table('baglog_culls')
+                ->select('baglog_batch_id', 'slot_code', DB::raw('SUM(quantity) as total_culls'))
+                ->whereNull('voided_at')
+                ->whereIn('baglog_batch_id', $activeBatchIds)
+                ->whereIn('slot_code', $slotCodes)
+                ->groupBy('baglog_batch_id', 'slot_code')
+                ->get()
+                ->keyBy(fn ($item) => "{$item->baglog_batch_id}_{$item->slot_code}");
+
+            $harvestAggregates = DB::table('harvests')
+                ->select(
+                    'baglog_batch_id',
+                    'slot_code',
+                    DB::raw('MAX(flush_number) as max_flush'),
+                    DB::raw('SUM(weight_kg) as total_kg')
+                )
+                ->whereNull('voided_at')
+                ->whereIn('baglog_batch_id', $activeBatchIds)
+                ->whereIn('slot_code', $slotCodes)
+                ->groupBy('baglog_batch_id', 'slot_code')
+                ->get()
+                ->keyBy(fn ($item) => "{$item->baglog_batch_id}_{$item->slot_code}");
+        }
+
+        $data = $slots->map(function (Slot $slot) use ($cullAggregates, $harvestAggregates) {
             $assignment = $slot->activeAssignment;
             $batch = $assignment?->baglogBatch;
+
+            $cullCount = 0;
+            $maxFlush = null;
+            $totalHarvestKg = 0.0;
+            $lastFlush = 0;
+
+            if ($assignment) {
+                $aggKey = "{$assignment->baglog_batch_id}_{$assignment->slot_code}";
+                if (isset($cullAggregates[$aggKey])) {
+                    $cullCount = (int) $cullAggregates[$aggKey]->total_culls;
+                }
+                if (isset($harvestAggregates[$aggKey])) {
+                    $maxFlush = (int) $harvestAggregates[$aggKey]->max_flush;
+                    $totalHarvestKg = (float) $harvestAggregates[$aggKey]->total_kg;
+                    $lastFlush = $maxFlush;
+                }
+            }
 
             return [
                 'slot_code' => $slot->slot_code,
@@ -59,11 +108,13 @@ class SlotController extends Controller
                 'assignment' => $assignment ? [
                     'id' => $assignment->id,
                     'initial_quantity' => $assignment->initial_quantity,
-                    'active_capacity' => $assignment->kapasitasAktif(),
+                    'active_capacity' => $assignment->kapasitasAktif($cullCount),
                     'initial_mycelium_stage' => $assignment->initial_mycelium_stage,
                     'current_status' => $assignment->current_status,
                     'assigned_at' => $assignment->assigned_at?->toDateString(),
-                    'badge' => $assignment->badgeStatus(),
+                    'badge' => $assignment->badgeStatus($maxFlush),
+                    'total_harvest_kg' => $totalHarvestKg,
+                    'last_flush' => $lastFlush,
                 ] : null,
             ];
         });
@@ -78,6 +129,7 @@ class SlotController extends Controller
     public function show(string $code): JsonResponse
     {
         $slot = Slot::with([
+            'activeAssignment.baglogBatch',
             'assignments.baglogBatch',
             'culls.baglogBatch',
             'harvests.baglogBatch',
@@ -88,6 +140,21 @@ class SlotController extends Controller
         }
 
         $active = $slot->activeAssignment;
+        $activeCulls = 0;
+        $activeMaxFlush = null;
+
+        if ($active) {
+            $activeCulls = (int) $slot->culls
+                ->where('baglog_batch_id', $active->baglog_batch_id)
+                ->sum('quantity');
+
+            $activeHarvests = $slot->harvests
+                ->where('baglog_batch_id', $active->baglog_batch_id);
+
+            $activeMaxFlush = $activeHarvests->isNotEmpty()
+                ? (int) $activeHarvests->max('flush_number')
+                : null;
+        }
 
         return $this->success([
             'slot_code' => $slot->slot_code,
@@ -101,14 +168,14 @@ class SlotController extends Controller
                 'batch_id' => $active->baglog_batch_id,
                 'batch_code' => $active->baglogBatch?->batch_code,
                 'initial_quantity' => $active->initial_quantity,
-                'active_capacity' => $active->kapasitasAktif(),
+                'active_capacity' => $active->kapasitasAktif($activeCulls),
                 'stage' => $active->initial_mycelium_stage,
                 'status' => $active->current_status,
                 'assigned_at' => $active->assigned_at?->toDateString(),
-                'badge' => $active->badgeStatus(),
+                'badge' => $active->badgeStatus($activeMaxFlush),
             ] : null,
-            'total_panen_kg' => (float) $slot->harvests()->sum('weight_kg'),
-            'total_culls_qty' => (int) $slot->culls()->sum('quantity'),
+            'total_panen_kg' => (float) $slot->harvests->sum('weight_kg'),
+            'total_culls_qty' => (int) $slot->culls->sum('quantity'),
             'culls_history' => $slot->culls->map(fn ($c) => [
                 'id' => $c->id,
                 'batch_code' => $c->baglogBatch?->batch_code,
@@ -138,6 +205,7 @@ class SlotController extends Controller
 
         $harvestQuery = DB::table('harvests')
             ->select('slot_code', DB::raw('SUM(weight_kg) as total_kg'), DB::raw('COUNT(id) as harvest_count'))
+            ->whereNull('voided_at')
             ->whereNotNull('slot_code')
             ->groupBy('slot_code');
 

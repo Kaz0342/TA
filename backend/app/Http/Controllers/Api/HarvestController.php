@@ -50,4 +50,29 @@ class HarvestController extends Controller
 
         return $this->success($chartData, 'Harvest chart data retrieved');
     }
+
+    /**
+     * POST /api/harvests/{id}/void
+     * Batalkan data panen yang salah input (W-09).
+     */
+    public function void(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'reason' => 'required|string|min:5|max:255',
+        ]);
+
+        $harvest = \App\Models\Harvest::withVoided()->find($id);
+
+        if (! $harvest) {
+            return $this->notFound('Data panen tidak ditemukan');
+        }
+
+        if ($harvest->isVoided()) {
+            return $this->error('Data panen sudah dibatalkan (voided) sebelumnya', 422);
+        }
+
+        $harvest->void($request->user()->id, $request->input('reason'));
+
+        return $this->success($harvest, 'Data panen berhasil di-void (dibatalkan)');
+    }
 }

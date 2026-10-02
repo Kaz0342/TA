@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\BaglogBatch;
+use App\Models\BaglogCull;
 use App\Models\Harvest;
 use App\Models\Sale;
 use App\Models\SprinklerLog;
@@ -27,8 +28,11 @@ class DashboardService
      */
     public function getQuickStats(): array
     {
-        // 1. Total Baglog Aktif
-        $activeBaglogs = BaglogBatch::active()->sum('quantity');
+        // 1. Total Baglog Aktif (W-03: Net surviving baglogs dari batch aktif)
+        $activeBatchIds = BaglogBatch::active()->select('id');
+        $initialQuantity = (int) BaglogBatch::active()->sum('quantity');
+        $culledQuantity = (int) BaglogCull::whereIn('baglog_batch_id', $activeBatchIds)->sum('quantity');
+        $activeBaglogs = max(0, $initialQuantity - $culledQuantity);
 
         // 2. Total Panen Hari Ini
         $todayHarvest = Harvest::today()->sum('weight_kg');

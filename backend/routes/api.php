@@ -61,6 +61,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Harvests (FR-3.x)
     Route::get('/harvests', [HarvestController::class, 'index']);
     Route::post('/harvests', [HarvestController::class, 'store']); // worker bisa input
+    Route::post('/harvests/{id}/void', [HarvestController::class, 'void']);
     Route::get('/harvests/today-total', [HarvestController::class, 'todayTotal']);
     Route::get('/harvests/chart', [HarvestController::class, 'chart']);
 
@@ -78,6 +79,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Ledger Mutasi Afkir Baglog (Culls)
     Route::get('/baglog-culls', [BaglogCullController::class, 'index']);
     Route::post('/baglog-culls', [BaglogCullController::class, 'store']); // worker & admin bisa input
+    Route::post('/baglog-culls/{id}/void', [BaglogCullController::class, 'void']);
 
     // HPP & Margin Kontribusi
     Route::get('/baglogs/hpp-summary', [BaglogBatchController::class, 'hppSummary']);
@@ -105,6 +107,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Alokasi Batch ke Slot Rak (WMS)
         Route::post('/batch-slot-assignments', [BatchSlotAssignmentController::class, 'store']);
         Route::patch('/batch-slot-assignments/{id}/status', [BatchSlotAssignmentController::class, 'updateStatus']);
+        Route::post('/batch-slot-assignments/{id}/complete', [BatchSlotAssignmentController::class, 'completeCycle']);
         Route::delete('/batch-slot-assignments/{id}', [BatchSlotAssignmentController::class, 'destroy']);
 
         // Operasional Expenses (Admin create & delete)
@@ -113,6 +116,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Admin only sales actions (POST only — no duplikat dengan GET di atas)
         Route::post('/sales', [SaleController::class, 'store']);
+        Route::post('/sales/{id}/void', [SaleController::class, 'void']);
     });
 });
 

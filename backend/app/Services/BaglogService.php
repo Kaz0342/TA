@@ -6,6 +6,8 @@ use App\Models\BaglogBatch;
 use App\Repositories\Contracts\BaglogRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
 
+use Illuminate\Support\Facades\DB;
+
 class BaglogService
 {
     public function __construct(
@@ -41,6 +43,18 @@ class BaglogService
             $data['notes'] = $notes;
         }
 
-        return $this->repository->update($batch, $data);
+        return DB::transaction(function () use ($batch, $data, $status) {
+            $updated = $this->repository->update($batch, $data);
+
+            // Kaskade penutupan siklus slot jika batch ditandai contaminated atau disposed (W-02/W-10)
+            if (in_array($status, [BaglogBatch::STATUS_CONTAMINATED, BaglogBatch::STATUS_DISPOSED])) {
+                $reason = $status === BaglogBatch::STATUS_CONTAMINATED ? 'CONTAMINATED' : 'DISPOSED';
+                foreach ($batch->assignments()->active()->get() as $assignment) {
+                    $assignment->complete($reason);
+                }
+            }
+
+            return $updated;
+        });
     }
 }

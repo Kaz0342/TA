@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HasVoid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,10 +20,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $quantity
  * @property string $reason
  * @property string|null $notes
+ * @property \Carbon\Carbon|null $voided_at
+ * @property int|null $voided_by
+ * @property string|null $void_reason
  */
 class BaglogCull extends Model
 {
-    use HasFactory;
+    use HasFactory, HasVoid;
 
     public const REASON_TRICHODERMA = 'TRICHODERMA';
     public const REASON_BUSUK_BASAH = 'BUSUK_BASAH';
@@ -40,6 +44,9 @@ class BaglogCull extends Model
         'quantity',
         'reason',
         'notes',
+        'voided_at',
+        'voided_by',
+        'void_reason',
     ];
 
     /**
@@ -50,6 +57,7 @@ class BaglogCull extends Model
         return [
             'cull_date' => 'date',
             'quantity' => 'integer',
+            'voided_at' => 'datetime',
         ];
     }
 

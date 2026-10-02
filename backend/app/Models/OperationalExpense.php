@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Model OperationalExpense — pencatatan biaya operasional nyata
- * (listrik, misting, alkohol sterilisasi, plastik packing, dll).
+ * (listrik, misting, plastik packing, dll).
  *
  * Digunakan dalam perhitungan HPP & Margin Kontribusi.
  *
@@ -26,7 +26,6 @@ class OperationalExpense extends Model
 
     public const CATEGORY_LISTRIK = 'LISTRIK';
     public const CATEGORY_MISTING = 'MISTING';
-    public const CATEGORY_ALKOHOL = 'ALKOHOL';
     public const CATEGORY_PLASTIK = 'PLASTIK';
     public const CATEGORY_LAINNYA = 'LAINNYA';
 

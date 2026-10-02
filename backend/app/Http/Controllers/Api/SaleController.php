@@ -64,18 +64,38 @@ class SaleController extends Controller
     public function priceTrend(): JsonResponse
     {
         $prices = \App\Models\Sale::select('price_per_kg')
-            ->distinct()
-            ->orderByDesc('id')
+            ->groupBy('price_per_kg')
+            ->orderByDesc(\Illuminate\Support\Facades\DB::raw('MAX(id)'))
             ->limit(5)
             ->pluck('price_per_kg')
             ->map(fn ($p) => (float) $p)
             ->values();
 
-        // Fallback default jika data penjualan belum banyak
-        if ($prices->isEmpty()) {
-            $prices = collect([20000, 22000, 25000, 28000, 30000]);
+        return $this->success($prices, 'Preset tren harga jual berhasil dimuat');
+    }
+
+    /**
+     * POST /api/sales/{id}/void
+     * Batalkan transaksi penjualan yang salah input (W-09).
+     */
+    public function void(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'reason' => 'required|string|min:5|max:255',
+        ]);
+
+        $sale = \App\Models\Sale::withVoided()->find($id);
+
+        if (! $sale) {
+            return $this->notFound('Data penjualan tidak ditemukan');
         }
 
-        return $this->success($prices, 'Preset tren harga jual berhasil dimuat');
+        if ($sale->isVoided()) {
+            return $this->error('Data penjualan sudah dibatalkan (voided) sebelumnya', 422);
+        }
+
+        $sale->void($request->user()->id, $request->input('reason'));
+
+        return $this->success($sale, 'Data penjualan berhasil di-void (dibatalkan)');
     }
 }

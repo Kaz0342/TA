@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HasVoid;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -27,12 +28,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $harvest_date
  * @property string $weight_kg
  * @property string|null $notes
+ * @property Carbon|null $voided_at
+ * @property int|null $voided_by
+ * @property string|null $void_reason
  * @property Carbon $created_at
  * @property Carbon $updated_at
  */
 class Harvest extends Model
 {
-    use HasFactory;
+    use HasFactory, HasVoid;
 
     /**
      * @var list<string>
@@ -46,6 +50,9 @@ class Harvest extends Model
         'flush_number',
         'quality_grade',
         'notes',
+        'voided_at',
+        'voided_by',
+        'void_reason',
     ];
 
     /**
@@ -57,6 +64,7 @@ class Harvest extends Model
             'harvest_date' => 'date',
             'weight_kg' => 'decimal:2',
             'flush_number' => 'integer',
+            'voided_at' => 'datetime',
         ];
     }
 
