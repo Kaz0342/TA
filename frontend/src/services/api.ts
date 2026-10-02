@@ -3,21 +3,19 @@ import { useAuthStore } from '../stores/authStore';
 
 const getBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_URL;
-  if (envUrl) {
-    // Jika dibuka dari HP lewat IP LAN (bukan localhost), sesuaikan host backend agar tidak request ke localhost HP
-    if (typeof window !== 'undefined' && window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      return envUrl.replace(/localhost|127\.0\.0\.1/, window.location.hostname);
-    }
+  // Jika VITE_API_URL diarahkan ke cloud publik HTTPS (misal Vercel / Railway), gunakan URL tersebut
+  if (envUrl && envUrl.startsWith('https://')) {
     return envUrl;
   }
-  if (typeof window !== 'undefined' && window.location.hostname) {
-    return `http://${window.location.hostname}:8000/api`;
-  }
-  return 'http://localhost:8000/api';
+  // Pada lingkungan lokal (baik diakses via localhost laptop maupun IP LAN dari HP),
+  // gunakan path relatif '/api' agar otomatis di-reverse-proxy oleh Vite (port 5173) ke port 8000.
+  // Ini mencegah request gantung akibat Windows Defender Firewall memblokir port 8000 dari HP.
+  return '/api';
 };
 
 const api = axios.create({
   baseURL: getBaseUrl(),
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
