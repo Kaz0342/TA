@@ -171,15 +171,15 @@ const LiveClock = memo(() => {
   }, []);
 
   return (
-    <div className="flex items-center gap-3 bg-white dark:bg-[#142219] border border-[#d6e9df] dark:border-[#1e382b] px-4 py-1.5 rounded-2xl shadow-2xs">
-      <div className="w-8 h-8 rounded-xl bg-[#e8f4ed] dark:bg-[#182c20] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
-        <CalendarDays className="w-4 h-4" />
+    <div className="flex items-center gap-2.5 sm:gap-3 bg-white dark:bg-[#142219] border border-[#d6e9df] dark:border-[#1e382b] px-3 sm:px-4 py-1.5 rounded-2xl shadow-2xs">
+      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#e8f4ed] dark:bg-[#182c20] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
+        <CalendarDays className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
       </div>
-      <div className="text-right">
-        <p className="text-xs font-bold text-[#192e22] dark:text-[#e4efe8] leading-tight capitalize">
-          {currentDateTime.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
+      <div className="text-left sm:text-right">
+        <p className="text-[11px] sm:text-xs font-bold text-[#192e22] dark:text-[#e4efe8] leading-tight capitalize">
+          {currentDateTime.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })}
         </p>
-        <p className="text-[11px] font-semibold text-[#3b6752] dark:text-[#86efac] leading-tight font-mono mt-0.5 flex items-center justify-end gap-1.5">
+        <p className="text-[10px] sm:text-[11px] font-semibold text-[#3b6752] dark:text-[#86efac] leading-tight font-mono mt-0.5 flex items-center justify-start sm:justify-end gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           {currentDateTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB
         </p>
