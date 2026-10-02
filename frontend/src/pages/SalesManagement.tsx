@@ -614,7 +614,7 @@ export default function SalesManagement() {
               </p>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-[#edf5f0] dark:bg-[#1a3324] text-[#1e5236] dark:text-[#86efac] border border-[#cbe5d7] dark:border-[#235839]">
                 <span className="w-2 h-2 rounded-full bg-[#244b37] dark:bg-[#4ade80]" />
                 Omzet (Rp)
@@ -1340,7 +1340,7 @@ export default function SalesManagement() {
       {/* Modal Konfirmasi Void Penjualan */}
       {voidTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-[#14241a] border border-rose-200 dark:border-rose-900/60 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4">
+          <div className="bg-white dark:bg-[#14241a] border border-rose-200 dark:border-rose-900/60 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
                 <Ban className="w-5 h-5" />

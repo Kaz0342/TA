@@ -892,7 +892,7 @@ export default function BaglogManagement() {
       {/* Modal: Tambah Batch Baglog Baru (Modern Glassmorphism) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-6 max-w-lg w-full shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-6 max-w-lg w-full shadow-2xl space-y-4 sm:space-y-5 animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] overflow-y-auto">
 
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-[#e4efe8] dark:border-[#1e382b] pb-4">
@@ -1077,7 +1077,7 @@ export default function BaglogManagement() {
       {/* Modal: Konfirmasi Ubah Status Batch */}
       {confirmModal.isOpen && (
         <div className="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-6 max-w-md w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-6 max-w-md w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
 
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${confirmModal.status === 'contaminated'

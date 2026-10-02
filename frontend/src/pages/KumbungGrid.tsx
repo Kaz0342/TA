@@ -502,8 +502,8 @@ export default function KumbungGrid() {
       {/* Assign Modal */}
       {isAssignModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#111c15] rounded-3xl shadow-2xl w-full max-w-md border border-[#d6e9df] dark:border-[#1e382b] overflow-hidden">
-            <div className="p-6 border-b border-[#edf5f0] dark:border-[#1e382b] flex justify-between items-center bg-[#f7faf8] dark:bg-[#142219]">
+          <div className="bg-white dark:bg-[#111c15] rounded-3xl shadow-2xl w-full max-w-md border border-[#d6e9df] dark:border-[#1e382b] overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-[#edf5f0] dark:border-[#1e382b] flex justify-between items-center bg-[#f7faf8] dark:bg-[#142219] shrink-0">
               <div>
                 <h3 className="text-lg font-bold text-[#192e22] dark:text-[#e4efe8]">Alokasi Batch ke Rak</h3>
                 <p className="text-xs text-[#759183] dark:text-[#a3c9b4] mt-1">Mengisi {selectedSlotCodes.size} slot dengan total {selectedSlotCodes.size * 10} baglog.</p>
@@ -516,7 +516,7 @@ export default function KumbungGrid() {
               </button>
             </div>
 
-            <div className="p-6 space-y-5">
+            <div className="p-6 space-y-5 overflow-y-auto flex-1">
               
               <div className="space-y-2">
                 <label className="text-[11px] font-bold text-[#486356] dark:text-[#a3c9b4] uppercase tracking-wider">

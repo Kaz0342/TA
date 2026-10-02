@@ -48,10 +48,10 @@ export default function SlotDetailModal({ isOpen, onClose, slot, onRecordCull }:
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-[#142219] w-full max-w-sm rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-[#142219] w-full max-w-sm rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
         
         {/* Header */}
-        <div className="px-6 py-5 border-b border-[#edf5f0] dark:border-[#1e382b] flex items-center justify-between bg-[#fbfdfc] dark:bg-[#0c140e]">
+        <div className="px-6 py-5 border-b border-[#edf5f0] dark:border-[#1e382b] flex items-center justify-between bg-[#fbfdfc] dark:bg-[#0c140e] shrink-0">
           <div>
             <h2 className="text-lg font-extrabold text-[#192e22] dark:text-[#e4efe8] flex items-center gap-2">
               <Box className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
@@ -70,7 +70,7 @@ export default function SlotDetailModal({ isOpen, onClose, slot, onRecordCull }:
         </div>
 
         {/* Body */}
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4 overflow-y-auto flex-1">
           {!slot.is_occupied || !slot.assignment ? (
             <div className="py-8 flex flex-col items-center justify-center text-center space-y-3">
               <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
