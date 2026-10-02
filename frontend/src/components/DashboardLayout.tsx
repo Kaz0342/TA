@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard,
   Sprout,
@@ -13,8 +13,7 @@ import {
   Moon,
   Grid as GridIcon,
   ChevronRight,
-  ShieldCheck,
-  MoreHorizontal
+  ShieldCheck
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
@@ -35,7 +34,6 @@ export default function DashboardLayout() {
   const { logout, user } = useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const location = useLocation();
 
   // 5 Modul Utama Tugas Akhir Smart Shroom SCM
   const navItems = [
@@ -47,16 +45,6 @@ export default function DashboardLayout() {
     ...(user?.role === 'admin' ? [{ name: 'Penjualan & Cuan', path: '/sales', icon: Banknote }] : []),
     { name: 'Pengaturan', path: '/settings', icon: Settings },
   ];
-
-  // Mobile Bottom Dock Items (4 modul inti + 1 tombol Menu/Drawer)
-  const mobileBottomItems = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Baglog', path: '/baglogs', icon: Sprout },
-    { name: 'Rak WMS', path: '/kumbung', icon: GridIcon },
-    { name: 'Panen', path: '/harvests', icon: Scale },
-  ];
-
-  const isMoreActive = location.pathname === '/sales' || location.pathname === '/settings';
 
   return (
     <div className="min-h-screen h-[100dvh] bg-[#edf5f0] dark:bg-[#0c140e] flex text-[#192e22] dark:text-[#e4efe8] antialiased transition-colors duration-200 overflow-hidden">
@@ -98,7 +86,7 @@ export default function DashboardLayout() {
             </button>
           </div>
 
-          {/* User Profile Card (Sangat informatif di mobile saat drawer dibuka) */}
+          {/* User Profile Card (Informatif di mobile saat drawer dibuka) */}
           <div className="p-4 mx-3.5 mt-3.5 rounded-2xl bg-white/70 dark:bg-[#142219]/90 border border-[#d2e8dc] dark:border-[#1e382b] shadow-2xs">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-[#244b37] text-white dark:bg-[#2e7d52] dark:text-[#e4efe8] flex items-center justify-center font-bold text-sm shadow-2xs">
@@ -182,8 +170,8 @@ export default function DashboardLayout() {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 h-[100dvh] overflow-hidden relative">
-        {/* Mobile Top App Bar (Sticky di paling atas HP) */}
-        <header className="lg:hidden shrink-0 flex items-center justify-between px-4 py-3 bg-[#e4f3eb]/95 dark:bg-[#111c15]/95 backdrop-blur-md border-b border-[#d2e8dc] dark:border-[#1e382b] z-30">
+        {/* Mobile Top App Bar (Satu-satunya Header Navigasi di Mobile) */}
+        <header className="lg:hidden shrink-0 flex items-center justify-between px-4 py-3 bg-[#e4f3eb] dark:bg-[#111c15] border-b border-[#d2e8dc] dark:border-[#1e382b] z-30">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-white dark:bg-[#182c20] border border-[#d2e8dc] dark:border-[#1e382b] flex items-center justify-center shadow-2xs">
               <MushroomLogo className="w-5 h-5 text-[#244b37] dark:text-[#86efac]" />
@@ -211,84 +199,22 @@ export default function DashboardLayout() {
 
             {/* Hamburger Drawer Toggle */}
             <button
-              className="p-2 rounded-xl bg-white dark:bg-[#182c20] text-[#192e22] dark:text-[#e4efe8] border border-[#d2e8dc] dark:border-[#1e382b] shadow-2xs active:scale-90 transition-transform cursor-pointer flex items-center gap-1.5"
+              className="px-3 py-2 rounded-xl bg-white dark:bg-[#182c20] text-[#192e22] dark:text-[#e4efe8] border border-[#d2e8dc] dark:border-[#1e382b] shadow-2xs active:scale-90 transition-transform cursor-pointer flex items-center gap-1.5"
               onClick={() => setIsSidebarOpen(true)}
               aria-label="Buka menu lengkap"
             >
               <Menu className="w-4 h-4" />
-              <span className="text-xs font-bold hidden sm:inline">Menu</span>
+              <span className="text-xs font-bold">Menu</span>
             </button>
           </div>
         </header>
 
-        {/* Scrollable Main Viewport (Diberi padding bottom pb-28 di mobile agar tidak tertutup Dock) */}
-        <div className="flex-1 overflow-y-auto px-3.5 sm:px-8 py-4 sm:py-8 pb-28 lg:pb-8 bg-[#edf5f0] dark:bg-[#0c140e] transition-colors duration-200">
+        {/* Scrollable Main Viewport */}
+        <div className="flex-1 overflow-y-auto px-3.5 sm:px-8 py-4 sm:py-8 pb-6 sm:pb-8 bg-[#edf5f0] dark:bg-[#0c140e] transition-colors duration-200">
           <div className="max-w-[1400px] mx-auto">
             <Outlet />
           </div>
         </div>
-
-        {/* Mobile Bottom Navigation Bar (Dock Bawah Khas Native App) */}
-        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-[#111c15]/95 backdrop-blur-lg border-t border-[#d2e8dc] dark:border-[#1e382b] shadow-[0_-4px_25px_rgba(0,0,0,0.06)] px-2 py-1.5 flex items-center justify-around">
-          {mobileBottomItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = location.pathname === item.path;
-
-            return (
-              <NavLink
-                key={item.name}
-                to={item.path}
-                className={cn(
-                  "flex flex-col items-center justify-center py-1 px-2.5 rounded-xl min-w-[56px] transition-all duration-150 active:scale-90",
-                  isActive
-                    ? "text-[#15803d] dark:text-[#86efac] font-bold"
-                    : "text-[#64748b] dark:text-[#8baaa0] hover:text-[#192e22] dark:hover:text-[#e4efe8]"
-                )}
-              >
-                <div className={cn(
-                  "p-1 rounded-xl transition-colors",
-                  isActive ? "bg-[#bde5d1]/60 dark:bg-[#1f3a2b]" : "bg-transparent"
-                )}>
-                  <Icon className="w-5 h-5 stroke-[2.2]" />
-                </div>
-                <span className="text-[10px] mt-0.5 font-medium leading-none">
-                  {item.name}
-                </span>
-                {isActive && (
-                  <span className="w-1 h-1 rounded-full bg-[#15803d] dark:bg-[#86efac] mt-1" />
-                )}
-              </NavLink>
-            );
-          })}
-
-          {/* Tombol Menu / Lainnya (Buka Drawer Lengkap dengan Cuan, Setting, Logout) */}
-          <button
-            onClick={() => setIsSidebarOpen(true)}
-            className={cn(
-              "flex flex-col items-center justify-center py-1 px-2.5 rounded-xl min-w-[56px] transition-all duration-150 active:scale-90 cursor-pointer",
-              isMoreActive || isSidebarOpen
-                ? "text-[#15803d] dark:text-[#86efac] font-bold"
-                : "text-[#64748b] dark:text-[#8baaa0] hover:text-[#192e22] dark:hover:text-[#e4efe8]"
-            )}
-            aria-label="Buka menu lainnya"
-          >
-            <div className={cn(
-              "p-1 rounded-xl transition-colors relative",
-              isMoreActive || isSidebarOpen ? "bg-[#bde5d1]/60 dark:bg-[#1f3a2b]" : "bg-transparent"
-            )}>
-              <MoreHorizontal className="w-5 h-5 stroke-[2.2]" />
-              {isMoreActive && (
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              )}
-            </div>
-            <span className="text-[10px] mt-0.5 font-medium leading-none">
-              Lainnya
-            </span>
-            {(isMoreActive || isSidebarOpen) && (
-              <span className="w-1 h-1 rounded-full bg-[#15803d] dark:bg-[#86efac] mt-1" />
-            )}
-          </button>
-        </nav>
       </main>
     </div>
   );
