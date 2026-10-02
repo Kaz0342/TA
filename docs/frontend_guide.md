@@ -67,7 +67,19 @@ Indikator spidometer analog semi-lingkaran yang diakselerasi langsung oleh GPU b
 Widget kontrol jeda panen di Dashboard utama yang memungkinkan pengguna mengaktifkan mode panen (failsafe timer 2h, 4h, 6h, 8h) dan mengakhiri jeda seketika untuk kembali ke mode AUTO.
 
 ### 4. `HppAnalysisCard` ([components/HppAnalysisCard.tsx](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/components/HppAnalysisCard.tsx))
-Kartu 4 metrik analisis biaya manajerial (Modal Pengadaan Baglog, Beban Operasional, Total Omzet, dan Margin Kontribusi) yang tersusun dalam grid 2x2 di ponsel.
+Kartu 4 metrik analisis biaya manajerial (Modal Pengadaan Baglog, Beban Operasional, Total Omzet, dan Margin Kontribusi) yang tersusun dalam grid 2x2 di ponsel. Dilengkapi **Missing Price Warning Banner** warna kuning amber jika terdeteksi ada batch aktif dengan harga modal 0 (`price_per_baglog == 0`) guna mencegah distorsi HPP.
+
+### 5. `SlotDetailModal` ([components/SlotDetailModal.tsx](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/components/SlotDetailModal.tsx))
+Modal detail kamar rak WMS dengan kapabilitas in-context:
+- Menampilkan ringkasan batch, umur baglog, status miselium, dan kapasitas aktif fisik (`active_capacity / initial_quantity`).
+- Tombol **"Catat Afkir" (In-Context Afkir):** Membuka modal afkir dengan auto-fill `slot_code` dan `baglog_batch_id`.
+- Tombol **"Tutup Siklus":** Menyelesaikan masa produksi kamar rak, menandai status `COMPLETED`, dan secara otomatis mencatat seluruh sisa baglog aktif sebagai afkir `HABIS_PRODUKSI`.
+
+### 6. `VoidConfirmModal` & Pola Audit Trail Pembatalan
+Seluruh tabel transaksi finansial dan biosekuriti (*Harvests*, *Sales*, *Culls*) menerapkan standar UX pembatalan non-destruktif:
+- Tombol aksi merah "Batalkan (Void)" membuka modal dialog penegasan.
+- Input teks alasan pembatalan wajib diisi (*required*, min 3 karakter) sebelum tombol konfirmasi aktif.
+- Baris data yang berstatus void ditampilkan dengan teks tercoret (*line-through*), opasitas pudar (`opacity-60`), serta badge merah `Dibatalkan` lengkap dengan tooltip tanggal pembatalan dan alasannya.
 
 ---
 
@@ -79,7 +91,7 @@ Visualisasi denah rak 3D kamar kumbung jamur menerapkan standar:
    - Kolom nomor tingkat vertikal memiliki latar belakang solid 100% opaque (`#0f1712`), tinggi seragam (86px), dan bayangan batas (`shadow-[4px_0_10px_rgba(0,0,0,0.5)]`).
    - Slot kamar di belakangnya **tidak tembus pandang** saat digeser horizontal pada layar sempit.
 3. **Mode Tampilan Ganda:**
-   - **Grid Fisik:** Menampilkan kode slot, status alokasi, umur baglog, dan sisa kapasitas aktif.
+   - **Grid Fisik:** Menampilkan kode slot, status alokasi, umur baglog, dan sisa kapasitas aktif (misal `8/10`). Slot selesai tampil berlatar abu-abu netral.
    - **Peta Panen (Heatmap):** Menampilkan akumulasi total berat panen per kamar rak dengan gradasi warna hijau.
 
 ---
@@ -96,13 +108,16 @@ Seluruh modul tabel data (*Baglog*, *Harvest*, *Sales*, dan *Ledger Culls*) waji
 ## ⚙️ Halaman Settings Minimalis (`Settings.tsx`)
 1. **Preset Fase Snap Carousel:** Di ponsel, pilihan preset fase pertumbuhan (Inkubasi, Primordia, Fruiting) dapat di-*swipe* horizontal secara mulus.
 2. **Side-by-Side Threshold Inputs:** Input Suhu Min & Max serta Kelembapan Min & Max disusun berdampingan 2 kolom dengan helper text di bawahnya.
-3. **Zero Visualizer Clutter:** Menghilangkan bar spektrum warna-warni yang redundan untuk meminimalkan scrolling dan mempercepat proses konfigurasi.
+3. **Validasi Deadband Kelembapan ($\ge 4\%$):** Form memvalidasi bahwa selisih `humidity_max - humidity_min` wajib minimal 4.0% guna mencegah osilasi relay misting yang merusak pompa air.
+4. **Zero Visualizer Clutter:** Menghilangkan bar spektrum warna-warni yang redundan untuk meminimalkan scrolling dan mempercepat proses konfigurasi.
 
 ---
 
 ## 🌐 Layanan API Frontend (`services/`)
 
-- [`slotService.ts`](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/services/slotService.ts): Mengambil master slot, heatmap panen, dan mutasi alokasi batch WMS.
-- [`cullService.ts`](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/services/cullService.ts): Mengambil riwayat dan mencatat mutasi afkir baglog.
-- [`hppService.ts`](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/services/hppService.ts): Mengambil ringkasan HPP, margin kontribusi, dan mutasi biaya operasional.
-- [`deviceControlService.ts`](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/services/deviceControlService.ts): Mengirim perintah jeda panen (`pause`) dan resume ke mode AUTO.
+- [`slotService.ts`](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/services/slotService.ts): Master slot spasial, heatmap panen, alokasi batch, dan `completeSlotCycle(slotCode, reason)`.
+- [`cullService.ts`](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/services/cullService.ts): Pengambilan riwayat afkir, pencatatan mutasi culls, dan `voidCull(id, reason)`.
+- [`harvestService.ts`](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/services/harvestService.ts): Pencatatan hasil panen, tren 14 hari, dan `voidHarvest(id, reason)`.
+- [`saleService.ts`](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/services/saleService.ts): Pencatatan penjualan, rekap mingguan, dan `voidSale(id, reason)`.
+- [`hppService.ts`](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/services/hppService.ts): Ringkasan HPP, margin kontribusi, dan mutasi biaya operasional.
+- [`deviceControlService.ts`](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/services/deviceControlService.ts): Perintah jeda panen (`pause`) dan resume ke mode AUTO.

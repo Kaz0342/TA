@@ -152,7 +152,7 @@ Sistem terdiri dari 11 entitas inti:
 | Method | Endpoint | Deskripsi | Akses |
 |--------|----------|-----------|-------|
 | `POST` | `/api/login` | Otentikasi pengguna | Publik |
-| `POST` | `/api/register` | Registrasi akun worker baru | Publik |
+| `POST` | `/api/register` | Registrasi akun worker baru (terproteksi) | Auth (Admin) |
 | `POST` | `/api/sensor-data` | Ingesti telemetri dari ESP32 | Publik (Throttle 20/m) |
 | `POST` | `/api/sprinkler-logs` | Ingesti log aktuator dari ESP32 | Publik (Throttle 20/m) |
 | `GET`  | `/api/thresholds/active` | Ambil batas iklim & command jeda panen | Publik (IoT) |
@@ -160,22 +160,30 @@ Sistem terdiri dari 11 entitas inti:
 | `GET`  | `/api/sensor-data/latest` | Telemetri iklim mikro terkini | Auth |
 | `GET`  | `/api/sensor-data/chart` | Data grafik iklim downsampled adaptif | Auth |
 | `GET`  | `/api/dashboard/stats` | Ringkasan 4 kartu KPI & status EWS | Auth |
-| `GET`  | `/api/slots` | Daftar master 300 slot rak A/B/C | Auth |
+| `GET`  | `/api/slots` | Daftar master 300 slot rak A/B/C (Anti N+1) | Auth |
 | `GET`  | `/api/slots/heatmap` | Agregasi total berat panen per slot | Auth |
 | `GET`  | `/api/slots/{code}` | Detail status & histori slot tertentu | Auth |
 | `POST` | `/api/batch-slot-assignments` | Alokasikan batch baglog ke slot | Admin |
 | `PATCH`| `/api/batch-slot-assignments/{id}/status` | Update status kamar alokasi | Admin |
+| `POST` | `/api/slot-assignments/{id}/complete` | Selesaikan siklus slot & auto-cull habis | Auth (Worker/Admin) |
 | `DELETE`| `/api/batch-slot-assignments/{id}` | Kosongkan/hapus alokasi slot | Admin |
 | `GET`  | `/api/baglog-culls` | Daftar histori mutasi afkir baglog | Auth |
 | `POST` | `/api/baglog-culls` | Catat mutasi afkir baglog baru | Auth (Admin/Worker) |
+| `POST` | `/api/baglog-culls/{id}/void` | Batalkan mutasi afkir & pulihkan kapasitas | Auth (Admin) |
+| `GET`  | `/api/harvests` | Daftar riwayat pemetikan panen | Auth |
+| `POST` | `/api/harvests` | Catat timbangan hasil panen harian | Auth (Admin/Worker) |
+| `POST` | `/api/harvests/{id}/void` | Batalkan catatan panen (audit trail) | Auth (Admin/Worker) |
+| `GET`  | `/api/sales` | Daftar riwayat transaksi penjualan | Auth (Admin) |
+| `POST` | `/api/sales` | Catat nota transaksi penjualan baru | Auth (Admin) |
+| `POST` | `/api/sales/{id}/void` | Batalkan transaksi penjualan (audit trail) | Auth (Admin) |
 | `GET`  | `/api/baglogs/hpp-summary` | Ringkasan HPP & Margin Kontribusi | Auth |
 | `GET`  | `/api/operational-expenses` | Daftar beban biaya operasional | Auth |
 | `POST` | `/api/operational-expenses` | Catat pengeluaran operasional baru | Admin |
 | `DELETE`| `/api/operational-expenses/{id}` | Hapus catatan pengeluaran | Admin |
-| `POST` | `/api/device/pause` | Aktifkan jeda panen timer failsafe | Auth |
+| `POST` | `/api/device/pause` | Aktifkan jeda panen timer failsafe (max 8h) | Auth |
 | `POST` | `/api/device/resume` | Akhiri jeda panen & kembali ke AUTO | Auth |
 | `GET`  | `/api/thresholds` | Konfigurasi ambang batas lengkap | Admin |
-| `PUT`  | `/api/thresholds` | Update batas suhu, kelembapan, & preset | Admin |
+| `PUT`  | `/api/thresholds` | Update batas suhu, kelembapan, & preset (min 4% diff) | Admin |
 
 ---
 
@@ -192,22 +200,23 @@ Sistem terdiri dari 11 entitas inti:
 ## 11. Desain Halaman UI/UX
 
 1. **Dashboard Monitoring**: 4 KPI Cards teratas (Suhu, RH, Baglog Aktif, Panen Hari Ini), Widget Mode Panen, Grafik Iklim Recharts, Grafik Panen 14 Hari, dan Log Aktuator.
-2. **Kumbung Grid (WMS 3D)**: Selector Rak A, B, C; Tombol Alokasi Kompak; Matriks Kolom 01–10 dan Tingkat T-01..T-10; Kolom Tier *sticky solid* 100% opaque; Mode Tampilan Grid Fisik dan Peta Panen (Heatmap).
-3. **Baglog Management**: Kartu KPI 2x2 di ponsel, tabel batch terpaginasi 10 baris, tombol catat mutasi afkir, dan modal jurnal kematian baglog.
-4. **Harvest Management**: Kartu KPI 2x2, tren panen 14 hari, tabel rekapitulasi panen terpaginasi dengan informasi slot kamar dan nomor flush.
-5. **Sales & HPP Management**: Kartu Analisis HPP (Modal Awal, Biaya Operasional, Omzet, Keuntungan Kotor/Margin Kontribusi), tombol tambah biaya operasional, dan tabel riwayat transaksi.
-6. **Settings Page**: Pemilih preset fase pertumbuhan (carousel snap di mobile), form input batas suhu & kelembapan side-by-side bersih tanpa visualizer redundan, dan tombol terapkan konfigurasi.
+2. **Kumbung Grid (WMS 3D)**: Selector Rak A, B, C; Tombol Alokasi Kompak; Matriks Kolom 01–10 dan Tingkat T-01..T-10; Kolom Tier *sticky solid* 100% opaque; Mode Tampilan Grid Fisik dan Peta Panen (Heatmap); Tombol In-Context *"Catat Rusak"* dan *"Tutup Siklus"*.
+3. **Baglog Management**: Kartu KPI 2x2 di ponsel, tabel batch terpaginasi 10 baris, tombol catat mutasi afkir, tombol void afkir, dan modal jurnal kematian baglog.
+4. **Harvest Management**: Kartu KPI 2x2, tren panen 14 hari, tabel rekapitulasi panen terpaginasi dengan informasi slot kamar, nomor flush, dan tombol pembatalan (*Void Harvest*).
+5. **Sales & HPP Management**: Kartu Analisis HPP (Modal Awal, Biaya Operasional, Omzet, Keuntungan Kotor/Margin Kontribusi, Banner Peringatan Harga Modal), tombol tambah biaya operasional, tabel riwayat transaksi terpaginasi, dan tombol pembatalan (*Void Sale*).
+6. **Settings Page**: Pemilih preset fase pertumbuhan (carousel snap di mobile), form input batas suhu & kelembapan side-by-side bersih dengan validasi deadband minimal 4 poin, dan tabel riwayat aktuator lengkap dengan badge status terkini.
 
 ---
 
 ## 12. Strategi Pengujian & QA
 
-### 12.1 Automated Testing (PHPUnit) — 133 Tests Passing (418 Assertions)
+### 12.1 Automated Testing (PHPUnit) — 168 Tests Passing (591 Assertions)
 Seluruh pengujian otomatis backend mencapai **100% kelulusan** tanpa kegagalan:
 *   `Phase2ModelsTest.php`: Integritas skema database, foreign key constraints, perhitungan umur dinamis, formula kapasitas aktif slot, dan relasi master slots.
 *   `Phase3ApiTest.php`: Validasi endpoint alokasi slot WMS, pelarangan tumpang tindih slot, pencatatan ledger afkir, kalkulasi HPP dinamis, dan agregasi heatmap panen.
 *   `Phase4DeviceControlTest.php`: Pengujian aktivasi mode jeda panen (`/device/pause`), validasi timer non-blocking, persistensi log sistem aktuator, dan resume kembali ke mode AUTO.
 *   `Phase5IotRuleEngineTest.php`: Ingesti data telemetri berpresisi desimal, penerimaan log aktuator misting/fan, penegakan rate limiting (20 req/menit), sinkronisasi threshold dinamis, dan verifikasi endpoint latest.
+*   `WmsPhaseATest.php` s.d. `WmsPhaseDTest.php`: Pengujian komprehensif lifecycle WMS baglog, pengurangan kapasitas aktif per slot, otomatisasi afkir `HABIS_PRODUKSI` saat siklus selesai, pembatalan data (*void*) dengan audit trail, eliminasi query N+1, dan proteksi race condition nomor batch `BL-YYYYMMDD-XXX`.
 *   `EccComprehensiveTestSuiteTest.php`, `SecurityAuthTest.php`, `SecurityInjectionTest.php`, `SecurityRateLimitTest.php`: Uji keamanan injeksi SQL, token expiry, pembatasan kuota admin, dan sanitasi payload.
 
 ### 12.2 IoT Simulator Testing (`iot_simulator.py`)

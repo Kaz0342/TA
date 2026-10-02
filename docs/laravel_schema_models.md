@@ -209,9 +209,12 @@ Schema::create('batch_slot_assignments', function (Blueprint $table) {
     $table->string('slot_code', 10);
     $table->foreign('slot_code')->references('slot_code')->on('slots')->cascadeOnDelete();
     $table->integer('initial_quantity')->default(10);
+    $table->integer('active_capacity')->default(10)->index();
     $table->string('initial_mycelium_stage', 30)->default('LEVEL_2');
     $table->string('current_status', 30)->default('INCUBATION');
     $table->date('assigned_at')->index();
+    $table->timestamp('completed_at')->nullable();
+    $table->string('completion_reason', 255)->nullable();
     $table->timestamps();
 });
 ```
@@ -228,21 +231,17 @@ class BatchSlotAssignment extends Model
     use HasFactory;
 
     protected $fillable = [
-        'baglog_batch_id', 'slot_code', 'initial_quantity', 'initial_mycelium_stage', 'current_status', 'assigned_at'
+        'baglog_batch_id', 'slot_code', 'initial_quantity', 'active_capacity',
+        'initial_mycelium_stage', 'current_status', 'assigned_at',
+        'completed_at', 'completion_reason'
     ];
 
     protected $casts = [
         'initial_quantity' => 'integer',
+        'active_capacity' => 'integer',
         'assigned_at' => 'date',
+        'completed_at' => 'datetime',
     ];
-
-    protected $appends = ['active_capacity'];
-
-    public function getActiveCapacityAttribute(): int
-    {
-        $cullsCount = (int) $this->culls()->sum('quantity');
-        return max(0, $this->initial_quantity - $cullsCount);
-    }
 
     public function batch()
     {
@@ -276,8 +275,11 @@ Schema::create('baglog_culls', function (Blueprint $table) {
     $table->foreign('slot_code')->references('slot_code')->on('slots')->cascadeOnDelete();
     $table->date('cull_date')->index();
     $table->integer('quantity');
-    $table->string('reason', 50); // TRICHODERMA, BUSUK_BASAH, HAMA, KERING, LAINNYA
+    $table->string('reason', 50); // TRICHODERMA, BUSUK_BASAH, HAMA, KERING, HABIS_PRODUKSI, LAINNYA
     $table->text('notes')->nullable();
+    $table->timestamp('voided_at')->nullable()->index();
+    $table->string('void_reason', 255)->nullable();
+    $table->foreignId('void_by')->nullable()->constrained('users')->nullOnDelete();
     $table->timestamps();
 });
 ```
@@ -286,20 +288,23 @@ Schema::create('baglog_culls', function (Blueprint $table) {
 ```php
 namespace App\Models;
 
+use App\Traits\HasVoid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class BaglogCull extends Model
 {
-    use HasFactory;
+    use HasFactory, HasVoid;
 
     protected $fillable = [
-        'baglog_batch_id', 'slot_code', 'cull_date', 'quantity', 'reason', 'notes'
+        'baglog_batch_id', 'slot_code', 'cull_date', 'quantity', 'reason', 'notes',
+        'voided_at', 'void_reason', 'void_by'
     ];
 
     protected $casts = [
         'cull_date' => 'date',
         'quantity' => 'integer',
+        'voided_at' => 'datetime',
     ];
 
     public function batch()
@@ -317,7 +322,7 @@ class BaglogCull extends Model
 ---
 
 ## 6. Tabel `harvests`
-Mencatat hasil panen harian dilengkapi `slot_code` dan `flush_number`.
+Mencatat hasil panen harian dilengkapi `slot_code`, `flush_number`, dan audit trail pembatalan (*soft-void*).
 
 ### Migration
 ```php
@@ -331,6 +336,9 @@ Schema::create('harvests', function (Blueprint $table) {
     $table->date('harvest_date')->index();
     $table->decimal('weight_kg', 8, 2);
     $table->text('notes')->nullable();
+    $table->timestamp('voided_at')->nullable()->index();
+    $table->string('void_reason', 255)->nullable();
+    $table->foreignId('void_by')->nullable()->constrained('users')->nullOnDelete();
     $table->timestamps();
 
     $table->index(['user_id', 'harvest_date']);
@@ -341,18 +349,23 @@ Schema::create('harvests', function (Blueprint $table) {
 ```php
 namespace App\Models;
 
+use App\Traits\HasVoid;
 use Illuminate\Database\Eloquent\Model;
 
 class Harvest extends Model
 {
+    use HasVoid;
+
     protected $fillable = [
-        'user_id', 'baglog_batch_id', 'slot_code', 'flush_number', 'harvest_date', 'weight_kg', 'notes'
+        'user_id', 'baglog_batch_id', 'slot_code', 'flush_number', 'harvest_date', 'weight_kg', 'notes',
+        'voided_at', 'void_reason', 'void_by'
     ];
 
     protected $casts = [
         'harvest_date' => 'date',
         'weight_kg' => 'decimal:2',
         'flush_number' => 'integer',
+        'voided_at' => 'datetime',
     ];
 
     public function user()
@@ -375,7 +388,7 @@ class Harvest extends Model
 ---
 
 ## 7. Tabel `sales`
-Mencatat transaksi penjualan jamur kuping dan pendapatan kotor (*revenue*).
+Mencatat transaksi penjualan jamur kuping dan pendapatan kotor (*revenue*) lengkap dengan audit trail void.
 
 ### Migration
 ```php
@@ -389,6 +402,9 @@ Schema::create('sales', function (Blueprint $table) {
     $table->decimal('total_revenue', 12, 2);
     $table->string('buyer_name', 100);
     $table->text('notes')->nullable();
+    $table->timestamp('voided_at')->nullable()->index();
+    $table->string('void_reason', 255)->nullable();
+    $table->foreignId('void_by')->nullable()->constrained('users')->nullOnDelete();
     $table->timestamps();
 
     $table->index(['user_id', 'sale_date']);
@@ -399,12 +415,17 @@ Schema::create('sales', function (Blueprint $table) {
 ```php
 namespace App\Models;
 
+use App\Traits\HasVoid;
 use Illuminate\Database\Eloquent\Model;
 
 class Sale extends Model
 {
+    use HasVoid;
+
     protected $fillable = [
-        'user_id', 'baglog_batch_id', 'sale_date', 'quantity_kg', 'price_per_kg', 'total_revenue', 'buyer_name', 'notes'
+        'user_id', 'baglog_batch_id', 'sale_date', 'quantity_kg', 'price_per_kg',
+        'total_revenue', 'buyer_name', 'notes',
+        'voided_at', 'void_reason', 'void_by'
     ];
 
     protected $casts = [
@@ -412,6 +433,7 @@ class Sale extends Model
         'quantity_kg' => 'decimal:2',
         'price_per_kg' => 'decimal:2',
         'total_revenue' => 'decimal:2',
+        'voided_at' => 'datetime',
     ];
 
     public function user()
@@ -552,3 +574,61 @@ Schema::create('sprinkler_logs', function (Blueprint $table) {
     $table->timestamps();
 });
 ```
+
+---
+
+## 12. Trait `HasVoid` (`app/Traits/HasVoid.php`)
+Trait reusable untuk menerapkan pola **Voiding Ledger Pattern & Soft-Void Audit Trail** pada model transaksional (`Harvest`, `Sale`, `BaglogCull`).
+
+```php
+namespace App\Traits;
+
+use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
+
+trait HasVoid
+{
+    public static function bootHasVoid(): void
+    {
+        // Secara default hanya mengambil rekaman aktif (non-voided)
+        static::addGlobalScope('notVoided', function (Builder $builder) {
+            $builder->whereNull('voided_at');
+        });
+    }
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->whereNull('voided_at');
+    }
+
+    public function scopeVoided(Builder $query): Builder
+    {
+        return $query->withoutGlobalScope('notVoided')->whereNotNull('voided_at');
+    }
+
+    public function scopeWithVoided(Builder $query): Builder
+    {
+        return $query->withoutGlobalScope('notVoided');
+    }
+
+    public function isVoided(): bool
+    {
+        return !is_null($this->voided_at);
+    }
+
+    public function void(int $userId, string $reason): bool
+    {
+        $this->voided_at = now();
+        $this->void_by = $userId;
+        $this->void_reason = $reason;
+
+        return $this->save();
+    }
+
+    public function voidedBy()
+    {
+        return $this->belongsTo(User::class, 'void_by');
+    }
+}
+```
+

@@ -9,3 +9,5 @@ backend/.env.production
 __pycache__/
 *.pyc
 .codegraph/
+.agents/
+.gemini/
