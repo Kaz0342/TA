@@ -85,3 +85,12 @@
 .animate-actuator-glow {
   animation: actuator-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+/* Mobile Touch & Horizontal Carousel Utilities */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

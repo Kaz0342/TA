@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Grid as GridIcon, Map, Plus, Check, X, Box, CheckCircle2 } from 'lucide-react';
+import { Grid as GridIcon, Map, Plus, Check, X, Box, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { slotService } from '../services/slotService';
 import type { SlotData } from '../services/slotService';
 import api from '../services/api';
@@ -18,6 +18,7 @@ export default function KumbungGrid() {
   const [activeRow, setActiveRow] = useState<'A' | 'B' | 'C'>('A');
   const [statusFilter, setStatusFilter] = useState<'all' | 'occupied' | 'empty'>('all');
   const [viewMode, setViewMode] = useState<'physical' | 'heatmap'>('physical');
+  const [selectedBay, setSelectedBay] = useState<number>(1);
 
   // Allocation Selection State
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -258,17 +259,17 @@ export default function KumbungGrid() {
     <div className="space-y-6 animate-in fade-in duration-300 pb-20">
       
       {/* Grid Controls Header */}
-      <div className="flex flex-col gap-3 bg-[#fbfdfc] dark:bg-[#142219] p-2.5 rounded-2xl border border-[#d6e9df] dark:border-[#1e382b]">
+      <div className="flex flex-col gap-3 bg-[#fbfdfc] dark:bg-[#142219] p-2.5 sm:p-3 rounded-2xl border border-[#d6e9df] dark:border-[#1e382b]">
         
         {/* Top Row: Rak Selector + Allocate Button */}
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           {/* Row Selector */}
-          <div className="flex p-1 bg-[#d7ebe0]/50 dark:bg-[#111c15] rounded-xl">
+          <div className="grid grid-cols-3 sm:flex p-1 bg-[#d7ebe0]/50 dark:bg-[#111c15] rounded-xl w-full sm:w-auto">
             {['A', 'B', 'C'].map((row) => (
               <button
                 key={row}
                 onClick={() => setActiveRow(row as any)}
-                className={`px-4 sm:px-6 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`py-2 sm:px-6 rounded-lg text-xs font-bold transition-all text-center cursor-pointer ${
                   activeRow === row 
                     ? 'bg-emerald-600 dark:bg-emerald-500 text-white shadow-sm' 
                     : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-white'
@@ -283,7 +284,7 @@ export default function KumbungGrid() {
           {user?.role === 'admin' && !isSelectionMode && viewMode !== 'heatmap' && (
             <button
               onClick={handleStartAllocation}
-              className="bg-[#244b37] hover:bg-[#1b3a2b] dark:bg-[#2e7d52] dark:hover:bg-[#246341] active:scale-[0.98] text-white px-3 sm:px-4 py-2 rounded-xl text-xs font-bold shadow-xs hover:shadow-md transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              className="w-full sm:w-auto justify-center bg-[#244b37] hover:bg-[#1b3a2b] dark:bg-[#2e7d52] dark:hover:bg-[#246341] active:scale-[0.98] text-white px-3 sm:px-4 py-2.5 sm:py-2 rounded-xl text-xs font-bold shadow-xs hover:shadow-md transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
               <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
               <span>Alokasikan Baglog</span>
@@ -292,9 +293,9 @@ export default function KumbungGrid() {
         </div>
 
         {/* Bottom Row: Status Filter + Batch Allocation Status Widget + View Mode */}
-        <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           {/* Status Segment */}
-          <div className="flex p-1 bg-[#d7ebe0]/50 dark:bg-[#111c15] rounded-xl shrink-0">
+          <div className="flex p-1 bg-[#d7ebe0]/50 dark:bg-[#111c15] rounded-xl overflow-x-auto no-scrollbar shrink-0">
             {[
               { id: 'all', label: 'Semua (100)' },
               { id: 'occupied', label: 'Terisi' },
@@ -303,7 +304,7 @@ export default function KumbungGrid() {
               <button
                 key={f.id}
                 onClick={() => setStatusFilter(f.id as any)}
-                className={`px-3 sm:px-4 py-2 rounded-lg text-xs transition-all cursor-pointer ${
+                className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs transition-all whitespace-nowrap text-center cursor-pointer ${
                   statusFilter === f.id
                     ? 'bg-white dark:bg-[#223629] text-[#192e22] dark:text-white font-bold shadow-xs'
                     : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-white font-medium'
@@ -314,7 +315,7 @@ export default function KumbungGrid() {
             ))}
           </div>
 
-          {/* Tengah (Space Kosong Gambar 2): Status Alokasi Batch & Sisa Baglog Belum Terdaftar */}
+          {/* Tengah: Status Alokasi Batch & Sisa Baglog Belum Terdaftar */}
           {activePreviewBatch ? (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs transition-all shadow-2xs overflow-hidden flex-wrap sm:flex-nowrap bg-white dark:bg-[#111c15] border-[#d6e9df] dark:border-[#1e382b]">
               <div className="flex items-center gap-1.5 font-bold text-[#192e22] dark:text-[#e4efe8] shrink-0">
@@ -355,14 +356,11 @@ export default function KumbungGrid() {
                   <span>
                     Belum di Rak: <strong>{previewBatchUnassigned.toLocaleString('id-ID')} Baglog</strong>
                   </span>
-                  <span className="text-[10px] font-normal text-amber-700/80 dark:text-amber-400/80">
-                    (~{Math.ceil(previewBatchUnassigned / 10)} slot lagi)
-                  </span>
                 </div>
               ) : (
                 <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-900/60 shrink-0">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>100% Baglog Terpasang di Rak ({previewBatchAssigned.toLocaleString('id-ID')} Unit)</span>
+                  <span>100% Baglog di Rak ({previewBatchAssigned.toLocaleString('id-ID')} Unit)</span>
                 </div>
               )}
             </div>
@@ -377,7 +375,7 @@ export default function KumbungGrid() {
           <div className="flex p-1 bg-[#d7ebe0]/50 dark:bg-[#111c15] rounded-xl shrink-0">
             <button
               onClick={() => setViewMode('physical')}
-              className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg text-xs transition-all cursor-pointer ${
+              className={`flex-1 sm:flex-none justify-center flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs transition-all cursor-pointer ${
                 viewMode === 'physical'
                   ? 'bg-white dark:bg-[#223629] text-[#192e22] dark:text-white font-bold shadow-xs'
                   : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-white font-medium'
@@ -388,7 +386,7 @@ export default function KumbungGrid() {
             </button>
             <button
               onClick={() => setViewMode('heatmap')}
-              className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg text-xs transition-all cursor-pointer ${
+              className={`flex-1 sm:flex-none justify-center flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs transition-all cursor-pointer ${
                 viewMode === 'heatmap'
                   ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-400 font-bold shadow-xs'
                   : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-amber-700 dark:hover:text-amber-400 font-medium'
@@ -402,8 +400,161 @@ export default function KumbungGrid() {
 
       </div>
 
-      {/* Grid Canvas */}
-      <div className="bg-[#0f1712] rounded-3xl py-5 overflow-x-auto relative shadow-inner border border-[#1e382b]">
+      {/* MOBILE-ONLY: Bay Inspector (lg:hidden) */}
+      <div className="lg:hidden space-y-4">
+        {/* Bay Selector Header Carousel */}
+        <div className="bg-[#142219] p-3.5 rounded-3xl border border-[#1e382b] space-y-3 shadow-md">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-[#86efac] uppercase tracking-wider">Bay Selector</span>
+              <span className="text-xs font-semibold text-[#a3c9b4]">
+                Rak {activeRow} • Bay {selectedBay.toString().padStart(2, '0')}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setSelectedBay(Math.max(1, selectedBay - 1))}
+                disabled={selectedBay === 1}
+                aria-label="Bay Sebelumnya"
+                className="w-8 h-8 rounded-xl bg-[#182c20] disabled:opacity-30 border border-[#1e382b] text-[#86efac] flex items-center justify-center cursor-pointer disabled:cursor-not-allowed active:scale-95"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-xs font-bold text-white px-1">
+                {selectedBay}/10
+              </span>
+              <button
+                onClick={() => setSelectedBay(Math.min(10, selectedBay + 1))}
+                disabled={selectedBay === 10}
+                aria-label="Bay Selanjutnya"
+                className="w-8 h-8 rounded-xl bg-[#182c20] disabled:opacity-30 border border-[#1e382b] text-[#86efac] flex items-center justify-center cursor-pointer disabled:cursor-not-allowed active:scale-95"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Bay Scrollable Pills */}
+          <div className="-mx-2 px-2 flex gap-2 overflow-x-auto no-scrollbar py-0.5">
+            {bays.map((bay) => {
+              const baySlots = slots.filter((s) => s.slot_code.startsWith(`${activeRow}-${bay.toString().padStart(2, '0')}-`));
+              const occupiedCount = baySlots.filter((s) => s.is_occupied).length;
+              const isCurrent = selectedBay === bay;
+              return (
+                <button
+                  key={`mobile-bay-tab-${bay}`}
+                  onClick={() => setSelectedBay(bay)}
+                  className={`shrink-0 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex flex-col items-center gap-0.5 cursor-pointer ${
+                    isCurrent
+                      ? 'bg-emerald-600 text-white shadow-lg ring-2 ring-emerald-400/50'
+                      : 'bg-[#182c20] text-[#a3c9b4] hover:bg-[#223b2b] border border-[#1e382b]'
+                  }`}
+                >
+                  <span>BAY {bay.toString().padStart(2, '0')}</span>
+                  <span className={`text-[10px] font-medium ${isCurrent ? 'text-emerald-100' : 'text-[#6b8a78]'}`}>
+                    {occupiedCount}/10 Isi
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Mobile Tier Stack List (T-10 down to T-01) */}
+        {isSlotsLoading ? (
+          <div className="py-12 flex flex-col items-center justify-center">
+            <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+            <p className="text-emerald-500 font-bold text-xs">Memuat Rak {activeRow} Bay {selectedBay}...</p>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {tiers.map((tier) => {
+              const code = `${activeRow}-${selectedBay.toString().padStart(2, '0')}-${tier.toString().padStart(2, '0')}`;
+              const slot = slots.find((s) => s.slot_code === code);
+              const isSelected = selectedSlotCodes.has(code);
+              const heatData = heatmapData?.slots.find((s: any) => s.slot_code === code);
+
+              return (
+                <div
+                  key={`mobile-slot-${code}`}
+                  onClick={() => slot && handleSlotClick(slot)}
+                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-emerald-50/90 dark:bg-emerald-950/40 border-emerald-500 ring-2 ring-emerald-500/30'
+                      : slot?.is_occupied
+                        ? 'bg-white dark:bg-[#142219] border-[#d6e9df] dark:border-[#1e382b] hover:border-emerald-400'
+                        : 'bg-white/60 dark:bg-[#0f1712] border-dashed border-[#c6dfd1] dark:border-[#223b2b] hover:border-emerald-500/60'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    {/* Left: Tier Badge & Code */}
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-10 h-10 rounded-xl bg-[#e8f4ed] dark:bg-[#182c20] text-[#192e22] dark:text-[#86efac] font-black text-xs flex items-center justify-center border border-[#d6e9df] dark:border-[#1e382b] shrink-0">
+                        T-{tier.toString().padStart(2, '0')}
+                      </span>
+                      <div>
+                        <span className="text-xs font-bold text-[#192e22] dark:text-[#e4efe8] block">
+                          {code}
+                        </span>
+                        <span className="text-[11px] text-[#759183] dark:text-[#6b8a78]">
+                          Tier {tier} • Bay {selectedBay.toString().padStart(2, '0')}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Right: Status or Selection Checkbox */}
+                    <div className="flex items-center gap-2">
+                      {isSelectionMode ? (
+                        <div
+                          className={`w-7 h-7 rounded-xl flex items-center justify-center border transition-all ${
+                            isSelected
+                              ? 'bg-emerald-500 border-emerald-500 text-white shadow-xs'
+                              : slot?.is_occupied
+                                ? 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 opacity-40'
+                                : 'border-[#759183] dark:border-[#6b8a78] hover:border-emerald-500'
+                          }`}
+                        >
+                          {isSelected && <Check className="w-4 h-4 stroke-[3]" />}
+                        </div>
+                      ) : viewMode === 'heatmap' ? (
+                        <div className="text-right">
+                          <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                            {heatData?.total_kg ? `${heatData.total_kg} Kg` : '0 Kg'}
+                          </span>
+                        </div>
+                      ) : slot?.is_occupied ? (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#e8f4ed] dark:bg-[#182c20] text-[#244b37] dark:text-[#86efac] border border-emerald-200 dark:border-emerald-900/40">
+                          {slot.assignment?.active_capacity || 0}/{slot.max_capacity} Baglog
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-[#182c20]/60 text-slate-500 dark:text-slate-400 border border-dashed border-slate-300 dark:border-slate-700">
+                          Kosong
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Expanded Info If Occupied */}
+                  {slot?.is_occupied && slot.assignment && (
+                    <div className="mt-2.5 pt-2.5 border-t border-[#edf5f0] dark:border-[#1e382b]/60 flex items-center justify-between text-[11px] text-[#526a5e] dark:text-[#a3c9b4]">
+                      <div className="flex items-center gap-1.5">
+                        <Box className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <span>Batch: <strong className="text-[#192e22] dark:text-[#e4efe8]">{slot.active_batch?.batch_code || '-'}</strong></span>
+                      </div>
+                      <div>
+                        <span>Miselium: <strong>{slot.assignment.initial_mycelium_stage || 'Stage 2'}</strong></span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* DESKTOP-ONLY: Full 300-Slot Grid Canvas (hidden lg:block) */}
+      <div className="hidden lg:block bg-[#0f1712] rounded-3xl py-5 overflow-x-auto relative shadow-inner border border-[#1e382b]">
         
         {isSlotsLoading ? (
           <div className="h-96 flex items-center justify-center">
@@ -460,12 +611,14 @@ export default function KumbungGrid() {
 
       </div>
 
-      {/* Selection Floating Action Bar (Gambar 1) */}
+      {/* Selection Floating Action Bar */}
       {isSelectionMode && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white dark:bg-[#142219] border border-[#d6e9df] dark:border-[#1e382b] rounded-2xl shadow-2xl p-4 flex items-center gap-4 sm:gap-6 z-50 animate-in slide-in-from-bottom-4 max-w-[90vw] flex-wrap sm:flex-nowrap justify-between">
-          <div className="text-sm flex items-center flex-wrap gap-1.5">
-            <span className="font-bold text-[#192e22] dark:text-white">{selectedSlotCodes.size} Slot</span>
-            <span className="text-[#759183] dark:text-[#6b8a78]">terpilih</span>
+        <div className="fixed bottom-4 sm:bottom-6 left-3 right-3 sm:left-1/2 sm:-translate-x-1/2 bg-white dark:bg-[#142219] border border-[#d6e9df] dark:border-[#1e382b] rounded-2xl shadow-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-6 z-50 animate-in slide-in-from-bottom-4 sm:max-w-xl justify-between">
+          <div className="text-sm flex items-center justify-between sm:justify-start flex-wrap gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-[#192e22] dark:text-white">{selectedSlotCodes.size} Slot</span>
+              <span className="text-[#759183] dark:text-[#6b8a78]">terpilih</span>
+            </div>
             <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800">
               = {selectedSlotCodes.size * 10} Baglog
             </span>
@@ -479,7 +632,7 @@ export default function KumbungGrid() {
           <div className="flex gap-2 shrink-0">
             <button
               onClick={handleCancelAllocation}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-[#526a5e] dark:text-[#a3c9b4] hover:bg-slate-100 dark:hover:bg-[#1e382b] transition-all cursor-pointer"
+              className="flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-bold text-[#526a5e] dark:text-[#a3c9b4] hover:bg-slate-100 dark:hover:bg-[#1e382b] transition-all cursor-pointer"
             >
               Batal
             </button>
@@ -491,7 +644,7 @@ export default function KumbungGrid() {
                 setIsAssignModalOpen(true);
               }}
               disabled={selectedSlotCodes.size === 0}
-              className="px-6 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all cursor-pointer"
+              className="flex-1 sm:flex-none px-6 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all cursor-pointer"
             >
               Lanjutkan Alokasi
             </button>

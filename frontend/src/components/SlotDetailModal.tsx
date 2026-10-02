@@ -47,8 +47,8 @@ export default function SlotDetailModal({ isOpen, onClose, slot, onRecordCull }:
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-[#142219] w-full max-w-sm rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-[#142219] w-full max-w-sm rounded-t-3xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 flex flex-col max-h-[92vh] sm:max-h-[90vh]">
         
         {/* Header */}
         <div className="px-6 py-5 border-b border-[#edf5f0] dark:border-[#1e382b] flex items-center justify-between bg-[#fbfdfc] dark:bg-[#0c140e] shrink-0">

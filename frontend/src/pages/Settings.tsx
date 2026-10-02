@@ -906,11 +906,11 @@ export default function Settings() {
                     <p className="text-xs text-[#759183] dark:text-[#6b8a78]">Catatan aktivasi penyemprotan kabut (Misting) &amp; sirkulasi udara (Fan) oleh mikrokontroler</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 self-start sm:self-auto bg-slate-100 dark:bg-[#111c15] p-1 rounded-xl border border-slate-200 dark:border-[#1e382b]">
+                <div className="w-full sm:w-auto -mx-1 sm:mx-0 px-1 sm:px-0 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 bg-slate-100 dark:bg-[#111c15] p-1 rounded-xl border border-slate-200 dark:border-[#1e382b]">
                   <button
                     type="button"
                     onClick={() => setActuatorFilter('all')}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                       actuatorFilter === 'all'
                         ? 'bg-white dark:bg-[#1e382b] text-[#192e22] dark:text-[#86efac] shadow-2xs'
                         : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
@@ -921,7 +921,7 @@ export default function Settings() {
                   <button
                     type="button"
                     onClick={() => setActuatorFilter('misting')}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                       actuatorFilter === 'misting'
                         ? 'bg-white dark:bg-[#1e382b] text-cyan-700 dark:text-cyan-300 shadow-2xs'
                         : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
@@ -933,7 +933,7 @@ export default function Settings() {
                   <button
                     type="button"
                     onClick={() => setActuatorFilter('fan')}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                       actuatorFilter === 'fan'
                         ? 'bg-white dark:bg-[#1e382b] text-amber-700 dark:text-amber-300 shadow-2xs'
                         : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
@@ -945,7 +945,74 @@ export default function Settings() {
                 </div>
               </div>
 
-              <div className="overflow-x-auto rounded-2xl border border-[#e4efe8] dark:border-[#1e382b]">
+              {/* MOBILE-ONLY: Event Cards (md:hidden) */}
+              <div className="md:hidden space-y-2.5">
+                {sprinklerLogs.length > 0 ? (
+                  sprinklerLogs.map((log, idx) => {
+                    const isFan = log.actuator === 'fan';
+                    return (
+                      <div
+                        key={`mobile-log-${idx}`}
+                        className="p-3.5 rounded-2xl border border-[#e4efe8] dark:border-[#1e382b] bg-[#f7faf8]/60 dark:bg-[#111c15] space-y-2.5"
+                      >
+                        {/* Top: Actuator + Time + Duration */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {isFan ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
+                                <Fan className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                                Fan
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-cyan-50 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800/60">
+                                <Droplets className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+                                Misting
+                              </span>
+                            )}
+                            <span className="text-[11px] font-mono font-semibold text-[#192e22] dark:text-[#e4efe8]">
+                              {new Date(log.started_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </span>
+                          </div>
+
+                          <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800/80 font-mono text-[11px] font-bold text-[#192e22] dark:text-[#e4efe8]">
+                            {log.duration_seconds}s
+                          </span>
+                        </div>
+
+                        {/* Details */}
+                        <div className="bg-white dark:bg-[#142219] p-2.5 rounded-xl border border-[#e4efe8] dark:border-[#1e382b] space-y-1.5 text-xs">
+                          <div>
+                            <div className="flex items-center justify-between mb-0.5">
+                              <span className="text-[10px] text-slate-400 dark:text-[#6b8a78] font-semibold">Pemicu:</span>
+                              {renderTriggerBadge(log.trigger_reason)}
+                            </div>
+                            <span className="block text-slate-700 dark:text-slate-300 text-xs font-medium">
+                              {log.trigger_reason}
+                            </span>
+                          </div>
+
+                          <div className="pt-1.5 border-t border-[#edf5f0] dark:border-[#1e382b]/50">
+                            <div className="flex items-center justify-between mb-0.5">
+                              <span className="text-[10px] text-slate-400 dark:text-[#6b8a78] font-semibold">Berhenti:</span>
+                              {renderStopBadge(log.stop_reason)}
+                            </div>
+                            <span className="block text-slate-500 dark:text-slate-400 text-xs">
+                              {log.stop_reason || 'Batas durasi tercapai'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="py-6 text-center text-slate-400 text-xs">
+                    Belum ada log penyemprotan otomatis.
+                  </div>
+                )}
+              </div>
+
+              {/* DESKTOP-ONLY: Modern Table (hidden md:block) */}
+              <div className="hidden md:block overflow-x-auto rounded-2xl border border-[#e4efe8] dark:border-[#1e382b]">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-[#edf5f0] dark:bg-[#111c15] text-[#192e22] dark:text-[#a3c9b4] font-bold uppercase tracking-wider text-[11px] border-b border-[#d6e9df] dark:border-[#1e382b]">
                     <tr>

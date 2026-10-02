@@ -512,7 +512,7 @@ export default function BaglogManagement() {
       </div>
 
       {/* Module Navigation Tabs */}
-      <div className="flex items-center gap-2 bg-[#d7ebe0]/50 dark:bg-[#182c20]/60 p-1.5 rounded-2xl border border-[#d6e9df] dark:border-[#1e382b] overflow-x-auto">
+      <div className="flex items-center gap-2 bg-[#d7ebe0]/50 dark:bg-[#182c20]/60 p-1.5 rounded-2xl border border-[#d6e9df] dark:border-[#1e382b] overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveTab('batches')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${activeTab === 'batches'
@@ -549,50 +549,50 @@ export default function BaglogManagement() {
 
       {activeTab === 'batches' && (
         /* Main Table Card with Integrated Search & Filter Controls */
-        <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-5">
+        <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-4 sm:p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-5">
 
           {/* Toolbar: Search + Segmented Status Tabs */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
 
             {/* Segmented Filter Pills */}
-            <div className="bg-[#d7ebe0] dark:bg-[#182c20] rounded-full p-1 flex items-center text-xs font-semibold overflow-x-auto self-start md:self-auto">
+            <div className="w-full md:w-auto -mx-1 sm:mx-0 px-1 sm:px-0 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
               <button
                 onClick={() => setStatusFilter('all')}
-                className={`px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap ${statusFilter === 'all'
-                    ? 'bg-white dark:bg-[#142219] text-[#192e22] dark:text-[#86efac] shadow-2xs font-bold'
-                    : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
+                className={`px-3.5 py-2 rounded-xl sm:rounded-full text-xs font-semibold transition-all whitespace-nowrap cursor-pointer shrink-0 ${statusFilter === 'all'
+                    ? 'bg-emerald-700 text-white dark:bg-emerald-600 dark:text-white shadow-xs font-bold'
+                    : 'bg-[#d7ebe0] dark:bg-[#182c20] text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
                   }`}
               >
                 Semua ({baglogs.length})
               </button>
               <button
                 onClick={() => setStatusFilter('active')}
-                className={`px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap flex items-center gap-1.5 ${statusFilter === 'active'
-                    ? 'bg-white dark:bg-[#142219] text-[#192e22] dark:text-[#86efac] shadow-2xs font-bold'
-                    : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
+                className={`px-3.5 py-2 rounded-xl sm:rounded-full text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer shrink-0 ${statusFilter === 'active'
+                    ? 'bg-emerald-700 text-white dark:bg-emerald-600 dark:text-white shadow-xs font-bold'
+                    : 'bg-[#d7ebe0] dark:bg-[#182c20] text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
                   }`}
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                 Aktif ({baglogs.filter((b) => b.status === 'active').length})
               </button>
               <button
                 onClick={() => setStatusFilter('contaminated')}
-                className={`px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap flex items-center gap-1.5 ${statusFilter === 'contaminated'
-                    ? 'bg-white dark:bg-[#142219] text-[#192e22] dark:text-[#86efac] shadow-2xs font-bold'
-                    : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
+                className={`px-3.5 py-2 rounded-xl sm:rounded-full text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer shrink-0 ${statusFilter === 'contaminated'
+                    ? 'bg-amber-600 text-white dark:bg-amber-500 dark:text-white shadow-xs font-bold'
+                    : 'bg-[#d7ebe0] dark:bg-[#182c20] text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
                   }`}
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
                 Terkontaminasi ({baglogs.filter((b) => b.status === 'contaminated').length})
               </button>
               <button
                 onClick={() => setStatusFilter('disposed')}
-                className={`px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap flex items-center gap-1.5 ${statusFilter === 'disposed'
-                    ? 'bg-white dark:bg-[#142219] text-[#192e22] dark:text-[#86efac] shadow-2xs font-bold'
-                    : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
+                className={`px-3.5 py-2 rounded-xl sm:rounded-full text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer shrink-0 ${statusFilter === 'disposed'
+                    ? 'bg-rose-600 text-white dark:bg-rose-500 dark:text-white shadow-xs font-bold'
+                    : 'bg-[#d7ebe0] dark:bg-[#182c20] text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
                   }`}
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
                 Dibuang ({baglogs.filter((b) => b.status === 'disposed').length})
               </button>
             </div>
@@ -618,8 +618,144 @@ export default function BaglogManagement() {
             </div>
           </div>
 
-          {/* Modern Baglog Table */}
-          <div className="overflow-x-auto rounded-2xl border border-[#e4efe8] dark:border-[#1e382b]">
+          {/* MOBILE-ONLY: Batch Cards (md:hidden) */}
+          <div className="md:hidden space-y-3">
+            {isLoading ? (
+              <div className="py-10 text-center text-slate-400">
+                <RefreshCw className="w-5 h-5 animate-spin text-[#2e7d52] mx-auto mb-2" />
+                <span className="text-xs">Memuat data media tanam...</span>
+              </div>
+            ) : paginatedBatches.length > 0 ? (
+              paginatedBatches.map((batch) => (
+                <div
+                  key={`mobile-batch-${batch.id}`}
+                  className="p-3.5 rounded-2xl border border-[#e4efe8] dark:border-[#1e382b] bg-[#f7faf8]/60 dark:bg-[#111c15] space-y-3"
+                >
+                  {/* Card Header: Code + Status */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
+                        <Package className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="font-bold text-sm text-[#192e22] dark:text-[#e4efe8]">
+                        {batch.batch_code}
+                      </span>
+                    </div>
+                    {renderStatusBadge(batch.status)}
+                  </div>
+
+                  {/* Badges: Age + Entry Date */}
+                  <div className="flex items-center justify-between text-xs pt-1 border-t border-[#edf5f0] dark:border-[#1e382b]/50">
+                    <div>{renderAgeBadge(batch.age_days)}</div>
+                    <span className="text-[11px] text-slate-500 dark:text-[#a3c9b4]">
+                      Tanam: {new Date(batch.entry_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                  </div>
+
+                  {/* Metadata Grid */}
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-white dark:bg-[#142219] p-2.5 rounded-xl border border-[#e4efe8] dark:border-[#1e382b]">
+                    <div>
+                      <span className="text-[10px] text-slate-400 dark:text-[#6b8a78] block">Jumlah Baglog</span>
+                      <span className="font-bold text-[#192e22] dark:text-[#e4efe8]">
+                        {Number(batch.quantity).toLocaleString('id-ID')} Unit
+                      </span>
+                      {batch.status === 'active' && (
+                        <span className="block text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                          {(batch.unassigned_quantity ?? (batch.quantity - (batch.assigned_quantity || 0))) > 0
+                            ? `Sisa ${batch.unassigned_quantity} blm di rak`
+                            : '100% di rak'}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 dark:text-[#6b8a78] block">Supplier</span>
+                      <span className="font-medium text-slate-700 dark:text-slate-300 truncate block">
+                        {batch.supplier || 'Mandiri'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {batch.notes && (
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-[#182c20]/40 p-2 rounded-lg">
+                      <span className="font-semibold text-slate-600 dark:text-slate-300">Catatan:</span> {batch.notes}
+                    </div>
+                  )}
+
+                  {/* Mobile Admin Quick Actions */}
+                  {user?.role === 'admin' && (
+                    <div className="pt-2 border-t border-[#edf5f0] dark:border-[#1e382b]/60 flex items-center justify-end gap-2">
+                      {batch.status === 'active' ? (
+                        <>
+                          <button
+                            onClick={() =>
+                              setConfirmModal({
+                                isOpen: true,
+                                batchCode: batch.batch_code,
+                                batchId: batch.id,
+                                status: 'contaminated',
+                                title: 'Tandai Batch Terkontaminasi',
+                                description: `Apakah batch ${batch.batch_code} mengalami kontaminasi?`,
+                                actionLabel: 'Tandai Terkontaminasi',
+                                statusNotes: '',
+                              })
+                            }
+                            className="flex-1 py-1.5 px-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                            <span>Kontam</span>
+                          </button>
+                          <button
+                            onClick={() =>
+                              setConfirmModal({
+                                isOpen: true,
+                                batchCode: batch.batch_code,
+                                batchId: batch.id,
+                                status: 'disposed',
+                                title: 'Bongkar & Buang Media Tanam',
+                                description: `Apakah batch ${batch.batch_code} akan dibongkar dari rak kumbung?`,
+                                actionLabel: 'Buang Baglog',
+                                statusNotes: '',
+                              })
+                            }
+                            className="flex-1 py-1.5 px-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Buang</span>
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() =>
+                            setConfirmModal({
+                              isOpen: true,
+                              batchCode: batch.batch_code,
+                              batchId: batch.id,
+                              status: 'active',
+                              title: 'Reaktivasi Batch Baglog',
+                              description: `Kembalikan batch ${batch.batch_code} ke daftar populasi baglog produktif?`,
+                              actionLabel: 'Kembalikan ke Aktif',
+                              statusNotes: '',
+                            })
+                          }
+                          className="w-full py-1.5 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Reaktivasi Batch</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="py-8 text-center text-slate-400 text-xs">
+                Tidak ada data batch yang sesuai filter.
+              </div>
+            )}
+          </div>
+
+          {/* DESKTOP-ONLY: Modern Baglog Table (hidden md:block) */}
+          <div className="hidden md:block overflow-x-auto rounded-2xl border border-[#e4efe8] dark:border-[#1e382b]">
             <table className="w-full text-xs text-left">
               <thead>
                 <tr className="border-b border-[#e4efe8] dark:border-[#1e382b] bg-[#f7faf8] dark:bg-[#111c15] text-[#486356] dark:text-[#a3c9b4] font-bold">

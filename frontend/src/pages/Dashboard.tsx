@@ -400,158 +400,156 @@ export default function Dashboard() {
       )}
 
       {/* Row 2: Top 4 KPI Operational Cards (Suhu, RH, Baglog Aktif, Panen Hari Ini) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-5">
 
         {/* Card 1: Temperature */}
-        <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
+        <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
           <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8]">
-            <div className="flex items-center gap-2.5">
-              <Thermometer className="w-5 h-5 stroke-[2] text-[#244b37] dark:text-[#86efac]" />
-              <div>
-                <span className="font-bold text-sm text-[#192e22] dark:text-[#e4efe8]">Temperature</span>
-                <span className="block text-[10px] text-[#526a5e] dark:text-[#a3c9b4] font-semibold">Rata-rata 3x DHT22</span>
+            <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
+              <Thermometer className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2] text-[#244b37] dark:text-[#86efac] shrink-0" />
+              <div className="min-w-0">
+                <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate block">Suhu</span>
+                <span className="hidden sm:block text-[10px] text-[#526a5e] dark:text-[#a3c9b4] font-semibold truncate">3x DHT22</span>
               </div>
             </div>
-            <Link to="/settings" title="Pengaturan Threshold Suhu di Modul Setting">
-              <SlidersHorizontal className="w-4 h-4 text-[#8ca497] hover:text-[#192e22] dark:hover:text-[#e4efe8] transition-colors" />
+            <Link to="/settings" title="Pengaturan Threshold Suhu di Modul Setting" className="shrink-0">
+              <SlidersHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#8ca497] hover:text-[#192e22] dark:hover:text-[#e4efe8] transition-colors" />
             </Link>
           </div>
 
-          <div className="flex items-end justify-between mt-3">
-            <div>
-              <div className="flex items-baseline gap-1">
+          <div className="flex items-end justify-between mt-2 sm:mt-3">
+            <div className="min-w-0">
+              <div className="flex items-baseline gap-0.5 sm:gap-1">
                 <AnimatedNumber
                   value={tempVal}
                   decimals={1}
-                  className="text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
+                  className="text-xl sm:text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
                 />
-                <span className="text-lg font-bold text-[#192e22] dark:text-[#e4efe8]">°C</span>
+                <span className="text-sm sm:text-lg font-bold text-[#192e22] dark:text-[#e4efe8]">°C</span>
               </div>
-              <p className={`text-xs font-bold mt-0.5 ${isTempOptimal ? 'text-[#15803d] dark:text-[#4ade80]' : 'text-[#e05345] dark:text-[#f87171]'}`}>
-                {isTempOptimal ? `Zona Aman (${tempMin}–${tempMax}°C)` : tempVal < tempMin ? `Terlalu Dingin (< ${tempMin}°C)` : `Terlalu Panas (> ${tempMax}°C)`}
+              <p className={`text-[10px] sm:text-xs font-bold mt-0.5 truncate ${isTempOptimal ? 'text-[#15803d] dark:text-[#4ade80]' : 'text-[#e05345] dark:text-[#f87171]'}`}>
+                {isTempOptimal ? `Aman (${tempMin}–${tempMax}°C)` : tempVal < tempMin ? `Dingin (<${tempMin})` : `Panas (>${tempMax})`}
               </p>
-              <div className="flex items-center justify-between text-[11px] text-[#759183] dark:text-[#6b8a78] mt-2 font-medium">
-                <span>1hr change {tempDiff >= 0 ? `+${tempDiff.toFixed(1)}` : tempDiff.toFixed(1)}°C</span>
-                <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-100 dark:border-emerald-800 flex items-center gap-1" title="Waktu Pembacaan Terakhir Sensor">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  {latestSensor?.recorded_at ? new Date(latestSensor.recorded_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Live'}
-                </span>
+              <div className="flex items-center justify-between text-[9px] sm:text-[11px] text-[#759183] dark:text-[#6b8a78] mt-1.5 sm:mt-2 font-medium">
+                <span className="truncate">{tempDiff >= 0 ? `+${tempDiff.toFixed(1)}` : tempDiff.toFixed(1)}°C/jam</span>
               </div>
             </div>
-            <SemiCircleGauge value={tempVal} min={15} max={35} color={isTempOptimal ? '#499b70' : '#e05345'} />
+            <div className="hidden sm:block">
+              <SemiCircleGauge value={tempVal} min={15} max={35} color={isTempOptimal ? '#499b70' : '#e05345'} />
+            </div>
           </div>
         </div>
 
         {/* Card 2: Humidity (Presisi 1 Desimal) */}
-        <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
+        <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
           <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8]">
-            <div className="flex items-center gap-2.5">
-              <Droplets className="w-5 h-5 stroke-[2] text-[#244b37] dark:text-[#86efac]" />
-              <div>
-                <span className="font-bold text-sm text-[#192e22] dark:text-[#e4efe8]">Humidity</span>
-                <span className="block text-[10px] text-[#526a5e] dark:text-[#a3c9b4] font-semibold">Rata-rata 3x DHT22</span>
+            <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
+              <Droplets className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2] text-[#244b37] dark:text-[#86efac] shrink-0" />
+              <div className="min-w-0">
+                <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate block">Kelembapan</span>
+                <span className="hidden sm:block text-[10px] text-[#526a5e] dark:text-[#a3c9b4] font-semibold truncate">3x DHT22</span>
               </div>
             </div>
-            <Link to="/settings" title="Pengaturan Threshold Kelembapan di Modul Setting">
-              <SlidersHorizontal className="w-4 h-4 text-[#8ca497] hover:text-[#192e22] dark:hover:text-[#e4efe8] transition-colors" />
+            <Link to="/settings" title="Pengaturan Threshold Kelembapan di Modul Setting" className="shrink-0">
+              <SlidersHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#8ca497] hover:text-[#192e22] dark:hover:text-[#e4efe8] transition-colors" />
             </Link>
           </div>
 
-          <div className="flex items-end justify-between mt-3">
-            <div>
-              <div className="flex items-baseline gap-1">
+          <div className="flex items-end justify-between mt-2 sm:mt-3">
+            <div className="min-w-0">
+              <div className="flex items-baseline gap-0.5 sm:gap-1">
                 <AnimatedNumber
                   value={humVal}
                   decimals={1}
-                  className="text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
+                  className="text-xl sm:text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
                 />
-                <span className="text-lg font-bold text-[#192e22] dark:text-[#e4efe8]">%</span>
+                <span className="text-sm sm:text-lg font-bold text-[#192e22] dark:text-[#e4efe8]">%</span>
               </div>
-              <p className={`text-xs font-bold mt-0.5 ${isHumOptimal ? 'text-[#0284c7] dark:text-[#38bdf8]' : 'text-[#e05345] dark:text-[#f87171]'}`}>
+              <p className={`text-[10px] sm:text-xs font-bold mt-0.5 truncate ${isHumOptimal ? 'text-[#0284c7] dark:text-[#38bdf8]' : 'text-[#e05345] dark:text-[#f87171]'}`}>
                 {isHumOptimal
-                  ? `Zona Aman (${humMin}–${humMax}%)`
+                  ? `Aman (${humMin}–${humMax}%)`
                   : humVal < humMin
-                    ? isNight
-                      ? `Kering (< ${humMin}%, Standby Jam Malam)`
-                      : `Kering (< ${humMin}%, Misting Aktif)`
-                    : `Terlalu Lembab (> ${humMax}%)`
+                    ? 'Kering (Misting)'
+                    : `Lembab (>${humMax}%)`
                 }
               </p>
-              <div className="flex items-center justify-between text-[11px] text-[#759183] dark:text-[#6b8a78] mt-2 font-medium">
-                <span>1hr change {humDiff >= 0 ? `+${humDiff.toFixed(1)}` : humDiff.toFixed(1)}%</span>
-                <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-100 dark:border-emerald-800 flex items-center gap-1" title="Waktu Pembacaan Terakhir Sensor">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  {latestSensor?.recorded_at ? new Date(latestSensor.recorded_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Live'}
-                </span>
+              <div className="flex items-center justify-between text-[9px] sm:text-[11px] text-[#759183] dark:text-[#6b8a78] mt-1.5 sm:mt-2 font-medium">
+                <span className="truncate">{humDiff >= 0 ? `+${humDiff.toFixed(1)}` : humDiff.toFixed(1)}%/jam</span>
               </div>
             </div>
-            <SemiCircleGauge value={humVal} min={40} max={100} color={isHumOptimal ? '#499b70' : '#e05345'} />
+            <div className="hidden sm:block">
+              <SemiCircleGauge value={humVal} min={40} max={100} color={isHumOptimal ? '#499b70' : '#e05345'} />
+            </div>
           </div>
         </div>
 
         {/* Card 3: Baglog Aktif */}
-        <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
+        <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
           <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8]">
-            <div className="flex items-center gap-2">
-              <Layers className="w-5 h-5 stroke-[2] text-[#244b37] dark:text-[#86efac]" />
-              <span className="font-bold text-sm text-[#192e22] dark:text-[#e4efe8]">Baglog Aktif</span>
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <Layers className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2] text-[#244b37] dark:text-[#86efac] shrink-0" />
+              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Baglog Aktif</span>
             </div>
-            <Link to="/baglogs" title="Buka Modul Manajemen Baglog">
-              <ArrowUpRight className="w-4 h-4 text-[#8ca497] hover:text-[#192e22] dark:hover:text-[#e4efe8] transition-colors" />
+            <Link to="/baglogs" title="Buka Modul Manajemen Baglog" className="shrink-0">
+              <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#8ca497] hover:text-[#192e22] dark:hover:text-[#e4efe8] transition-colors" />
             </Link>
           </div>
 
-          <div className="flex items-end justify-between mt-3">
-            <div>
-              <div className="flex items-baseline gap-1.5">
+          <div className="flex items-end justify-between mt-2 sm:mt-3">
+            <div className="min-w-0">
+              <div className="flex items-baseline gap-0.5 sm:gap-1.5">
                 <AnimatedNumber
                   value={activeBaglogs}
                   decimals={0}
-                  className="text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
+                  className="text-xl sm:text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
                 />
-                <span className="text-sm font-semibold text-[#192e22] dark:text-[#e4efe8]">Unit</span>
+                <span className="text-xs sm:text-sm font-semibold text-[#192e22] dark:text-[#e4efe8]">Unit</span>
               </div>
-              <p className="text-xs font-bold text-[#2e7d52] dark:text-[#4ade80] mt-0.5">
-                Kapasitas {baglogPercentage}% ({maxCapacity.toLocaleString('id-ID')} Max)
+              <p className="text-[10px] sm:text-xs font-bold text-[#2e7d52] dark:text-[#4ade80] mt-0.5 truncate">
+                Isi {baglogPercentage}% (Max {maxCapacity})
               </p>
-              <p className="text-[11px] text-[#759183] dark:text-[#6b8a78] mt-2 font-medium">
-                {stats?.latest_batches?.length || 0} Batch aktif kumbung
+              <p className="text-[9px] sm:text-[11px] text-[#759183] dark:text-[#6b8a78] mt-1.5 sm:mt-2 font-medium truncate">
+                {stats?.latest_batches?.length || 0} Batch aktif
               </p>
             </div>
-            <SemiCircleGauge value={baglogPercentage} min={0} max={100} color="#499b70" />
+            <div className="hidden sm:block">
+              <SemiCircleGauge value={baglogPercentage} min={0} max={100} color="#499b70" />
+            </div>
           </div>
         </div>
 
         {/* Card 4: Panen Hari Ini */}
-        <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
+        <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
           <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8]">
-            <div className="flex items-center gap-2">
-              <Scale className="w-5 h-5 stroke-[2] text-[#244b37] dark:text-[#86efac]" />
-              <span className="font-bold text-sm text-[#192e22] dark:text-[#e4efe8]">Panen Hari Ini</span>
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <Scale className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2] text-[#244b37] dark:text-[#86efac] shrink-0" />
+              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Panen Hari Ini</span>
             </div>
-            <Link to="/harvests" title="Buka Modul Pencatatan Panen">
-              <ArrowUpRight className="w-4 h-4 text-[#8ca497] hover:text-[#192e22] dark:hover:text-[#e4efe8] transition-colors" />
+            <Link to="/harvests" title="Buka Modul Pencatatan Panen" className="shrink-0">
+              <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#8ca497] hover:text-[#192e22] dark:hover:text-[#e4efe8] transition-colors" />
             </Link>
           </div>
 
-          <div className="flex items-end justify-between mt-3">
-            <div>
-              <div className="flex items-baseline gap-1.5">
+          <div className="flex items-end justify-between mt-2 sm:mt-3">
+            <div className="min-w-0">
+              <div className="flex items-baseline gap-0.5 sm:gap-1.5">
                 <AnimatedNumber
                   value={todayHarvestKg}
                   decimals={1}
-                  className="text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
+                  className="text-xl sm:text-3xl font-bold text-[#192e22] dark:text-[#e4efe8] tracking-tight"
                 />
-                <span className="text-sm font-semibold text-[#192e22] dark:text-[#e4efe8]">Kg</span>
+                <span className="text-xs sm:text-sm font-semibold text-[#192e22] dark:text-[#e4efe8]">Kg</span>
               </div>
-              <p className={`text-xs font-bold mt-0.5 ${todayHarvestKg > 0 ? 'text-[#2e7d52] dark:text-[#4ade80]' : 'text-[#759183] dark:text-[#6b8a78]'}`}>
-                {todayHarvestKg > 0 ? `${harvestPercentage}% Target Harian` : 'Belum Ada Timbangan'}
+              <p className={`text-[10px] sm:text-xs font-bold mt-0.5 truncate ${todayHarvestKg > 0 ? 'text-[#2e7d52] dark:text-[#4ade80]' : 'text-[#759183] dark:text-[#6b8a78]'}`}>
+                {todayHarvestKg > 0 ? `${harvestPercentage}% Target` : 'Belum Ada'}
               </p>
-              <p className="text-[11px] text-[#759183] dark:text-[#6b8a78] mt-2 font-medium">
-                Target panen harian: {dailyTargetKg} Kg
+              <p className="text-[9px] sm:text-[11px] text-[#759183] dark:text-[#6b8a78] mt-1.5 sm:mt-2 font-medium truncate">
+                Target: {dailyTargetKg} Kg/hari
               </p>
             </div>
-            <SemiCircleGauge value={harvestPercentage} min={0} max={100} color="#499b70" />
+            <div className="hidden sm:block">
+              <SemiCircleGauge value={harvestPercentage} min={0} max={100} color="#499b70" />
+            </div>
           </div>
         </div>
 
@@ -566,40 +564,40 @@ export default function Dashboard() {
         {/* Climate History Card (2 Cols) — Ukuran Grafiknya Dibesarkan & Interval Jam Dirapatkan */}
         <div className="lg:col-span-2 bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between">
           <div>
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div>
                 <h2 className="text-base sm:text-lg font-bold text-[#192e22] dark:text-[#e4efe8]">
                   Climate History ({timeRange === '6h' ? '6 Jam Terakhir' : timeRange === '12h' ? '12 Jam Terakhir' : timeRange === '24h' ? '24 Jam Terakhir' : '7 Hari Terakhir'})
                 </h2>
                 <p className="text-xs text-[#526a5e] dark:text-[#a3c9b4] mt-0.5">
-                  Korelasi riil Suhu (°C) &amp; Kelembapan (RH %) dari <span className="font-semibold text-[#1e5236] dark:text-[#86efac]">rata-rata 3 sensor DHT22</span> kumbung
+                  Rata-rata 3 sensor DHT22 kumbung
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                {/* View Mode Toggle: [ Berdampingan | Gabungan ] */}
+              <div className="flex flex-wrap sm:flex-nowrap items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
+                {/* View Mode Toggle: [ Split | Mix ] */}
                 <div className="bg-[#edf5f0] dark:bg-[#0c140e] border border-[#d6e9df] dark:border-[#1e382b] rounded-full p-1 flex items-center text-xs font-semibold">
                   <button
                     onClick={() => setChartViewMode('split')}
-                    className={`px-3 py-1 rounded-full flex items-center gap-1.5 transition-all cursor-pointer ${chartViewMode === 'split'
+                    className={`px-2.5 sm:px-3 py-1 rounded-full flex items-center gap-1.5 transition-all cursor-pointer ${chartViewMode === 'split'
                         ? 'bg-[#244b37] dark:bg-[#1f3a2b] text-white dark:text-[#86efac] shadow-xs font-bold'
                         : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
                       }`}
-                    title="Tampilan berdampingan (Suhu & RH terpisah persis Gambar 1)"
+                    title="Tampilan berdampingan (Suhu & RH terpisah)"
                   >
                     <Columns2 className="w-3.5 h-3.5" />
-                    <span>Berdampingan</span>
+                    <span className="text-[11px] sm:text-xs">Split</span>
                   </button>
                   <button
                     onClick={() => setChartViewMode('combined')}
-                    className={`px-3 py-1 rounded-full flex items-center gap-1.5 transition-all cursor-pointer ${chartViewMode === 'combined'
+                    className={`px-2.5 sm:px-3 py-1 rounded-full flex items-center gap-1.5 transition-all cursor-pointer ${chartViewMode === 'combined'
                         ? 'bg-[#244b37] dark:bg-[#1f3a2b] text-white dark:text-[#86efac] shadow-xs font-bold'
                         : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
                       }`}
                     title="Tampilan gabungan (Dual-Axis chart)"
                   >
                     <Layers className="w-3.5 h-3.5" />
-                    <span>Gabungan</span>
+                    <span className="text-[11px] sm:text-xs">Mix</span>
                   </button>
                 </div>
 
@@ -609,7 +607,7 @@ export default function Dashboard() {
                     <button
                       key={r}
                       onClick={() => setTimeRange(r)}
-                      className={`px-3 py-1 rounded-full transition-all cursor-pointer ${timeRange === r
+                      className={`px-2.5 sm:px-3 py-1 rounded-full transition-all cursor-pointer text-[11px] sm:text-xs ${timeRange === r
                           ? 'bg-white dark:bg-[#142219] text-[#192e22] dark:text-[#86efac] shadow-2xs font-bold'
                           : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
                         }`}
@@ -1054,42 +1052,54 @@ export default function Dashboard() {
               <div
                 onClick={() => setTestMisting(prev => prev === null ? true : prev ? false : null)}
                 title="Klik untuk uji simulasi animasi Misting Sprinkler"
-                className={`border rounded-2xl p-3.5 flex items-center justify-between transition-all cursor-pointer select-none ${isMistingActive
+                className={`border rounded-2xl p-3.5 transition-all cursor-pointer select-none ${isMistingActive
                     ? 'bg-[#f0fdf4] dark:bg-[#0f2918] border-emerald-300 dark:border-emerald-700 shadow-xs'
                     : 'bg-[#f7faf8] dark:bg-[#111c15] border-[#e4efe8] dark:border-[#1e382b] hover:border-slate-300 dark:hover:border-[#2b503d]'
                   }`}
               >
-                <div className="flex items-center gap-3.5">
-                  <div className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${isMistingActive
+                <div className="flex items-start gap-3">
+                  <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center shrink-0 transition-all ${isMistingActive
                       ? 'bg-emerald-500 text-white animate-actuator-glow ring-4 ring-emerald-100 dark:ring-emerald-950/60 shadow-[0_0_14px_rgba(16,185,129,0.4)]'
                       : 'bg-[#e8f4ed] dark:bg-[#182c20] text-[#2b563e] dark:text-[#86efac]'
                     }`}>
                     <Wind className={`w-5 h-5 ${isMistingActive ? 'animate-mist' : ''}`} />
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-bold text-[#192e22] dark:text-[#e4efe8]">Misting Sprinkler</p>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-all ${isMistingActive
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                      <p className="text-xs sm:text-sm font-bold text-[#192e22] dark:text-[#e4efe8]">Misting Sprinkler</p>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-all shrink-0 ${isMistingActive
                           ? 'bg-emerald-500 text-white animate-pulse shadow-xs'
                           : isNight
                             ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60'
                             : 'bg-slate-100 dark:bg-[#1f382b] text-slate-600 dark:text-[#a3c9b4]'
                         }`}>
                         {isMistingActive
-                          ? 'Sedang Menyemprot'
+                          ? 'Menyemprot'
                           : isNight
-                            ? 'Night Lockout (17:00–06:00)'
-                            : 'Standby (Auto Siang)'}
+                            ? 'Night Lockout'
+                            : 'Standby'}
                       </span>
                     </div>
-                    <p className="text-[11px] text-[#526a5e] dark:text-[#a3c9b4] mt-0.5">
-                      {isNight
-                        ? 'Lockout Malam Aktif: Misting dikunci mati agar baglog tidak becek/busuk (Bypass darurat jika RH < 70%)'
-                        : `Auto trigger jika RH < ${humMin}% (Timeout darurat 60s • Pulse 30s • Cooldown 150s)`}
+
+                    <div className="mt-1 flex items-center gap-1.5 text-[11px] text-[#526a5e] dark:text-[#a3c9b4] flex-wrap">
+                      <span>Target: <strong className="text-[#192e22] dark:text-[#e4efe8]">RH &lt; {humMin}%</strong></span>
                       {testMisting !== null && (
-                        <span className="ml-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">(Mode Tes Aktif)</span>
+                        <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">• Mode Tes</span>
                       )}
-                    </p>
+                    </div>
+
+                    {/* Micro-Chips Timing */}
+                    <div className="mt-2 flex items-center gap-1.5 flex-wrap text-[9px] sm:text-[10px] font-bold text-[#486356] dark:text-[#86efac]">
+                      <span className="bg-white/80 dark:bg-[#182c20] border border-[#d6e9df] dark:border-[#1e382b] px-2 py-0.5 rounded-md">
+                        Pulse: 30s
+                      </span>
+                      <span className="bg-white/80 dark:bg-[#182c20] border border-[#d6e9df] dark:border-[#1e382b] px-2 py-0.5 rounded-md">
+                        Cooldown: 150s
+                      </span>
+                      <span className="bg-white/80 dark:bg-[#182c20] border border-[#d6e9df] dark:border-[#1e382b] px-2 py-0.5 rounded-md">
+                        Timeout: 60s
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1098,13 +1108,13 @@ export default function Dashboard() {
               <div
                 onClick={() => setTestFan(prev => prev === null ? true : prev ? false : null)}
                 title="Klik untuk uji simulasi animasi Exhaust Fan"
-                className={`border rounded-2xl p-3.5 flex items-center justify-between transition-all cursor-pointer select-none ${isFanActive
+                className={`border rounded-2xl p-3.5 transition-all cursor-pointer select-none ${isFanActive
                     ? 'bg-[#f0fdf4] dark:bg-[#0f2918] border-emerald-300 dark:border-emerald-700 shadow-xs'
                     : 'bg-[#f7faf8] dark:bg-[#111c15] border-[#e4efe8] dark:border-[#1e382b] hover:border-slate-300 dark:hover:border-[#2b503d]'
                   }`}
               >
-                <div className="flex items-center gap-3.5">
-                  <div className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${isFanActive
+                <div className="flex items-start gap-3">
+                  <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center shrink-0 transition-all ${isFanActive
                       ? 'bg-emerald-500 text-white animate-actuator-glow ring-4 ring-emerald-100 dark:ring-emerald-950/60 shadow-[0_0_14px_rgba(16,185,129,0.4)]'
                       : 'bg-[#e8f4ed] dark:bg-[#182c20] text-[#2b563e] dark:text-[#86efac]'
                     }`}>
@@ -1113,30 +1123,42 @@ export default function Dashboard() {
                       style={isFanActive ? { animationDuration: '1.4s' } : undefined}
                     />
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-bold text-[#192e22] dark:text-[#e4efe8]">Exhaust Fan / Blower</p>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-all ${isFanActive
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                      <p className="text-xs sm:text-sm font-bold text-[#192e22] dark:text-[#e4efe8]">Exhaust Fan / Blower</p>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-all shrink-0 ${isFanActive
                           ? 'bg-emerald-500 text-white animate-pulse shadow-xs'
                           : isNight
                             ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60'
                             : 'bg-slate-100 dark:bg-[#1f382b] text-slate-600 dark:text-[#a3c9b4]'
                         }`}>
                         {isFanActive
-                          ? 'Sirkulasi Aktif'
+                          ? 'Sirkulasi ON'
                           : isNight
-                            ? 'Standby Night Purge/Flush'
-                            : 'Standby (Auto Siang)'}
+                            ? 'Night Purge'
+                            : 'Standby'}
                       </span>
                     </div>
-                    <p className="text-[11px] text-[#526a5e] dark:text-[#a3c9b4] mt-0.5">
-                      {isNight
-                        ? 'Mode Malam Aktif: Over-Humidity Purge (RH ≥ 96%, 45s) & Periodic CO2 Flush (Tiap 60m, 45s)'
-                        : `Auto trigger jika Suhu > ${tempMax}°C (Histeresis 30.5°C • Timeout 180s • Homogenisasi 30s)`}
+
+                    <div className="mt-1 flex items-center gap-1.5 text-[11px] text-[#526a5e] dark:text-[#a3c9b4] flex-wrap">
+                      <span>Target: <strong className="text-[#192e22] dark:text-[#e4efe8]">Suhu &gt; {tempMax}°C</strong></span>
                       {testFan !== null && (
-                        <span className="ml-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">(Mode Tes Aktif)</span>
+                        <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">• Mode Tes</span>
                       )}
-                    </p>
+                    </div>
+
+                    {/* Micro-Chips Timing */}
+                    <div className="mt-2 flex items-center gap-1.5 flex-wrap text-[9px] sm:text-[10px] font-bold text-[#486356] dark:text-[#86efac]">
+                      <span className="bg-white/80 dark:bg-[#182c20] border border-[#d6e9df] dark:border-[#1e382b] px-2 py-0.5 rounded-md">
+                        Histeresis: 1.5°C
+                      </span>
+                      <span className="bg-white/80 dark:bg-[#182c20] border border-[#d6e9df] dark:border-[#1e382b] px-2 py-0.5 rounded-md">
+                        Timeout: 180s
+                      </span>
+                      <span className="bg-white/80 dark:bg-[#182c20] border border-[#d6e9df] dark:border-[#1e382b] px-2 py-0.5 rounded-md">
+                        Homogenisasi: 30s
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1237,7 +1259,7 @@ export default function Dashboard() {
         {/* Card Kedua: Dilengkapi Toggle Tampilan [ Grafik Panen | Batch Baglog Aktif ] */}
         <div className="lg:col-span-2 bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between">
           <div>
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div>
                 <h2 className="text-base sm:text-lg font-bold text-[#192e22] dark:text-[#e4efe8]">
                   {bottomCardTab === 'harvest' ? 'Crop Progress (Jamur Kuping Hitam)' : 'Informasi Batch Penanaman Aktif'}
@@ -1249,12 +1271,12 @@ export default function Dashboard() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2.5">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
                 {/* Segmented Control Toggle: [ 📊 Grafik Panen | 📦 Batch Baglog ] */}
-                <div className="bg-[#d7ebe0] dark:bg-[#182c20] rounded-full p-1 flex items-center text-xs font-semibold">
+                <div className="w-full sm:w-auto grid grid-cols-2 sm:flex bg-[#d7ebe0] dark:bg-[#182c20] rounded-xl sm:rounded-full p-1 text-xs font-semibold">
                   <button
                     onClick={() => setBottomCardTab('harvest')}
-                    className={`px-3 py-1 rounded-full transition-all flex items-center gap-1.5 cursor-pointer ${bottomCardTab === 'harvest'
+                    className={`justify-center py-1.5 sm:py-1 px-3 rounded-lg sm:rounded-full transition-all flex items-center gap-1.5 cursor-pointer ${bottomCardTab === 'harvest'
                         ? 'bg-white dark:bg-[#142219] text-[#192e22] dark:text-[#86efac] shadow-2xs font-bold'
                         : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
                       }`}
@@ -1264,7 +1286,7 @@ export default function Dashboard() {
                   </button>
                   <button
                     onClick={() => setBottomCardTab('batches')}
-                    className={`px-3 py-1 rounded-full transition-all flex items-center gap-1.5 cursor-pointer ${bottomCardTab === 'batches'
+                    className={`justify-center py-1.5 sm:py-1 px-3 rounded-lg sm:rounded-full transition-all flex items-center gap-1.5 cursor-pointer ${bottomCardTab === 'batches'
                         ? 'bg-white dark:bg-[#142219] text-[#192e22] dark:text-[#86efac] shadow-2xs font-bold'
                         : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
                       }`}
@@ -1274,35 +1296,37 @@ export default function Dashboard() {
                   </button>
                 </div>
 
-                {bottomCardTab === 'harvest' ? (
-                  <>
-                    <button
-                      onClick={() => setCropViewMode(cropViewMode === 'weight' ? 'percent' : 'weight')}
-                      title="Klik untuk berganti tampilan Kg atau Persentase"
-                      className="bg-[#d7ebe0] dark:bg-[#182c20] rounded-full px-3 py-1 flex items-center gap-2 text-xs font-semibold text-[#192e22] dark:text-[#86efac] cursor-pointer"
-                    >
-                      <span>{cropViewMode === 'weight' ? 'Kg' : '% Target'}</span>
-                      <div className={`w-8 h-4.5 rounded-full p-0.5 flex items-center transition-colors ${cropViewMode === 'weight' ? 'bg-[#3b6550] justify-start' : 'bg-[#3b6550] justify-end'
-                        }`}>
-                        <div className="w-3.5 h-3.5 rounded-full bg-white shadow-xs" />
-                      </div>
-                    </button>
+                <div className="flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
+                  {bottomCardTab === 'harvest' ? (
+                    <>
+                      <button
+                        onClick={() => setCropViewMode(cropViewMode === 'weight' ? 'percent' : 'weight')}
+                        title="Klik untuk berganti tampilan Kg atau Persentase"
+                        className="flex-1 sm:flex-none justify-center bg-[#d7ebe0] dark:bg-[#182c20] rounded-full px-3 py-1 flex items-center gap-2 text-xs font-semibold text-[#192e22] dark:text-[#86efac] cursor-pointer"
+                      >
+                        <span>{cropViewMode === 'weight' ? 'Kg' : '% Target'}</span>
+                        <div className={`w-8 h-4.5 rounded-full p-0.5 flex items-center transition-colors ${cropViewMode === 'weight' ? 'bg-[#3b6550] justify-start' : 'bg-[#3b6550] justify-end'
+                          }`}>
+                          <div className="w-3.5 h-3.5 rounded-full bg-white shadow-xs" />
+                        </div>
+                      </button>
 
+                      <Link
+                        to="/harvests"
+                        className="bg-[#edf5f0] dark:bg-[#111c15] hover:bg-[#dff0e6] dark:hover:bg-[#182c20] text-[#244b37] dark:text-[#86efac] px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1 transition-colors whitespace-nowrap"
+                      >
+                        Modul Panen <ArrowUpRight className="w-3 h-3" />
+                      </Link>
+                    </>
+                  ) : (
                     <Link
-                      to="/harvests"
-                      className="bg-[#edf5f0] dark:bg-[#111c15] hover:bg-[#dff0e6] dark:hover:bg-[#182c20] text-[#244b37] dark:text-[#86efac] px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1 transition-colors"
+                      to="/baglogs"
+                      className="w-full sm:w-auto justify-center bg-[#edf5f0] dark:bg-[#111c15] hover:bg-[#dff0e6] dark:hover:bg-[#182c20] text-[#244b37] dark:text-[#86efac] px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1 transition-colors"
                     >
-                      Modul Panen <ArrowUpRight className="w-3 h-3" />
+                      Modul Baglog <ArrowUpRight className="w-3 h-3" />
                     </Link>
-                  </>
-                ) : (
-                  <Link
-                    to="/baglogs"
-                    className="bg-[#edf5f0] dark:bg-[#111c15] hover:bg-[#dff0e6] dark:hover:bg-[#182c20] text-[#244b37] dark:text-[#86efac] px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1 transition-colors"
-                  >
-                    Modul Baglog <ArrowUpRight className="w-3 h-3" />
-                  </Link>
-                )}
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1379,50 +1403,96 @@ export default function Dashboard() {
               </div>
             ) : (
               /* Content Tab 2: Informasi Batch Penanaman Aktif */
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
-                  <thead>
-                    <tr className="border-b border-[#e2ece6] dark:border-[#1e382b] text-[#486356] dark:text-[#a3c9b4] font-semibold">
-                      <th className="py-2.5 px-3">Kode Batch</th>
-                      <th className="py-2.5 px-3">Tgl Masuk</th>
-                      <th className="py-2.5 px-3">Umur</th>
-                      <th className="py-2.5 px-3">Jumlah</th>
-                      <th className="py-2.5 px-3">Supplier</th>
-                      <th className="py-2.5 px-3 text-right">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#edf5f0] dark:divide-[#1e382b]">
-                    {stats?.latest_batches && stats.latest_batches.length > 0 ? (
-                      stats.latest_batches.map((batch: any) => (
-                        <tr key={batch.batch_code} className="hover:bg-[#f7faf8] dark:hover:bg-[#182c20]/60 transition-colors">
-                          <td className="py-2.5 px-3 font-bold text-[#192e22] dark:text-[#e4efe8]">{batch.batch_code}</td>
-                          <td className="py-2.5 px-3 text-slate-600 dark:text-[#a3c9b4]">
-                            {new Date(batch.entry_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                          </td>
-                          <td className="py-2.5 px-3">
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${batch.age_days >= 30
-                                ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
-                                : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+              <div>
+                {/* Desktop Table View */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead>
+                      <tr className="border-b border-[#e2ece6] dark:border-[#1e382b] text-[#486356] dark:text-[#a3c9b4] font-semibold">
+                        <th className="py-2.5 px-3">Kode Batch</th>
+                        <th className="py-2.5 px-3">Tgl Masuk</th>
+                        <th className="py-2.5 px-3">Umur</th>
+                        <th className="py-2.5 px-3">Jumlah</th>
+                        <th className="py-2.5 px-3">Supplier</th>
+                        <th className="py-2.5 px-3 text-right">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#edf5f0] dark:divide-[#1e382b]">
+                      {stats?.latest_batches && stats.latest_batches.length > 0 ? (
+                        stats.latest_batches.map((batch: any) => (
+                          <tr key={batch.batch_code} className="hover:bg-[#f7faf8] dark:hover:bg-[#182c20]/60 transition-colors">
+                            <td className="py-2.5 px-3 font-bold text-[#192e22] dark:text-[#e4efe8]">{batch.batch_code}</td>
+                            <td className="py-2.5 px-3 text-slate-600 dark:text-[#a3c9b4]">
+                              {new Date(batch.entry_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${batch.age_days >= 30
+                                  ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                                  : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                }`}>
+                                {batch.age_days} Hari
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 font-semibold text-[#192e22] dark:text-[#e4efe8]">{Number(batch.quantity).toLocaleString('id-ID')} Baglog</td>
+                            <td className="py-2.5 px-3 text-slate-600 dark:text-[#a3c9b4]">{batch.supplier || 'Mandiri'}</td>
+                            <td className="py-2.5 px-3 text-right">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#e8f4ed] dark:bg-[#182c20] text-[#244b37] dark:text-[#86efac]">
+                                Produktif
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={6} className="py-6 text-center text-slate-400">Belum ada data batch baglog aktif.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Cards View */}
+                <div className="sm:hidden space-y-2.5">
+                  {stats?.latest_batches && stats.latest_batches.length > 0 ? (
+                    stats.latest_batches.map((batch: any) => (
+                      <div key={batch.batch_code} className="bg-[#f7faf8] dark:bg-[#111c15] p-3 rounded-2xl border border-[#e2ece6] dark:border-[#1e382b] flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-sm text-[#192e22] dark:text-[#e4efe8]">{batch.batch_code}</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#e8f4ed] dark:bg-[#182c20] text-[#244b37] dark:text-[#86efac]">
+                            Produktif
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <span className="text-[10px] text-slate-400 block">Tgl Masuk</span>
+                            <span className="font-medium text-slate-700 dark:text-slate-300">
+                              {new Date(batch.entry_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-400 block">Umur</span>
+                            <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${batch.age_days >= 30
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
+                                : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300'
                               }`}>
                               {batch.age_days} Hari
                             </span>
-                          </td>
-                          <td className="py-2.5 px-3 font-semibold text-[#192e22] dark:text-[#e4efe8]">{Number(batch.quantity).toLocaleString('id-ID')} Baglog</td>
-                          <td className="py-2.5 px-3 text-slate-600 dark:text-[#a3c9b4]">{batch.supplier || 'Mandiri'}</td>
-                          <td className="py-2.5 px-3 text-right">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#e8f4ed] dark:bg-[#182c20] text-[#244b37] dark:text-[#86efac]">
-                              Produktif
-                            </span>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={6} className="py-6 text-center text-slate-400">Belum ada data batch baglog aktif.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-400 block">Jumlah</span>
+                            <span className="font-semibold text-[#192e22] dark:text-[#e4efe8]">{Number(batch.quantity).toLocaleString('id-ID')} Baglog</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-400 block">Supplier</span>
+                            <span className="font-medium text-slate-700 dark:text-slate-300 truncate block">{batch.supplier || 'Mandiri'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="py-6 text-center text-slate-400 text-xs">Belum ada data batch baglog aktif.</div>
+                  )}
+                </div>
               </div>
             )}
           </div>

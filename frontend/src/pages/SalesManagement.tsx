@@ -875,36 +875,36 @@ export default function SalesManagement() {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
             
             {/* Time Filter Tabs */}
-            <div className="bg-[#edf5f0] dark:bg-[#182c20] p-1 rounded-2xl flex items-center border border-[#d6e9df] dark:border-[#1e382b]">
+            <div className="-mx-1 sm:mx-0 px-1 sm:px-0 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
               <button
                 onClick={() => setTimeFilter('all')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                   timeFilter === 'all'
-                    ? 'bg-white dark:bg-[#142219] text-[#192e22] dark:text-[#86efac] shadow-2xs'
-                    : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
+                    ? 'bg-emerald-700 text-white dark:bg-emerald-600 dark:text-white shadow-xs'
+                    : 'bg-[#edf5f0] dark:bg-[#182c20] text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
                 }`}
               >
                 Semua
               </button>
               <button
                 onClick={() => setTimeFilter('month')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                   timeFilter === 'month'
-                    ? 'bg-white dark:bg-[#142219] text-[#192e22] dark:text-[#86efac] shadow-2xs'
-                    : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
+                    ? 'bg-emerald-700 text-white dark:bg-emerald-600 dark:text-white shadow-xs'
+                    : 'bg-[#edf5f0] dark:bg-[#182c20] text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
                 }`}
               >
                 Bulan Ini
               </button>
               <button
                 onClick={() => setTimeFilter('week')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                   timeFilter === 'week'
-                    ? 'bg-white dark:bg-[#142219] text-[#192e22] dark:text-[#86efac] shadow-2xs'
-                    : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
+                    ? 'bg-emerald-700 text-white dark:bg-emerald-600 dark:text-white shadow-xs'
+                    : 'bg-[#edf5f0] dark:bg-[#182c20] text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
                 }`}
               >
                 7 Hari Terakhir
@@ -925,7 +925,7 @@ export default function SalesManagement() {
 
             {/* Search Box */}
             <div className="relative min-w-[200px]">
-              <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Cari pembeli / catatan..."
@@ -938,8 +938,93 @@ export default function SalesManagement() {
           </div>
         </div>
 
-        {/* Data Table */}
-        <div className="overflow-x-auto rounded-2xl border border-[#e4efe8] dark:border-[#1e382b]">
+        {/* MOBILE-ONLY: Sales Cards (md:hidden) */}
+        <div className="md:hidden space-y-3">
+          {isLoadingSales ? (
+            <div className="py-10 text-center text-slate-400">
+              <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#244b37] dark:text-[#86efac]" />
+              <span className="text-xs">Memuat data transaksi...</span>
+            </div>
+          ) : paginatedSales.length > 0 ? (
+            paginatedSales.map((s) => (
+              <div
+                key={`mobile-sale-${s.id}`}
+                className="p-3.5 rounded-2xl border border-[#e4efe8] dark:border-[#1e382b] bg-[#f7faf8]/60 dark:bg-[#111c15] space-y-3"
+              >
+                {/* Header: Buyer Name + Revenue Badge */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
+                      <ShoppingBag className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <span className="font-bold text-sm text-[#192e22] dark:text-[#e4efe8] block">
+                        {s.buyer_name || 'Pembeli Umum'}
+                      </span>
+                      <span className="text-[10px] text-slate-500 dark:text-[#a3c9b4]">
+                        {formatDateIndo(s.sale_date)}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-xl bg-[#edf5f0] dark:bg-[#1a3324] text-[#1e5236] dark:text-[#86efac] font-bold text-xs border border-[#cbe5d7] dark:border-[#235839]">
+                    {formatCurrency(s.total_revenue)}
+                  </span>
+                </div>
+
+                {/* Metadata Grid */}
+                <div className="grid grid-cols-2 gap-2 text-xs bg-white dark:bg-[#142219] p-2.5 rounded-xl border border-[#e4efe8] dark:border-[#1e382b]">
+                  <div>
+                    <span className="text-[10px] text-slate-400 dark:text-[#6b8a78] block">Volume Terjual</span>
+                    <span className="font-bold text-[#192e22] dark:text-[#e4efe8]">
+                      {Number(s.quantity_kg).toFixed(2)} Kg
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 dark:text-[#6b8a78] block">Harga Satuan</span>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">
+                      {formatCurrency(s.price_per_kg)}/Kg
+                    </span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-[10px] text-slate-400 dark:text-[#6b8a78] block">Petugas Kasir</span>
+                    <span className="font-medium text-slate-600 dark:text-[#a3c9b4]">
+                      {s.user?.name || 'Admin'}
+                    </span>
+                  </div>
+                </div>
+
+                {s.notes && (
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-[#182c20]/40 p-2 rounded-lg">
+                    <span className="font-semibold text-slate-600 dark:text-slate-300">Catatan:</span> {s.notes}
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="pt-2 border-t border-[#edf5f0] dark:border-[#1e382b]/60 flex items-center justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVoidTarget(s);
+                      setVoidReason('');
+                      setVoidError('');
+                    }}
+                    className="px-3 py-1.5 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Ban className="w-3.5 h-3.5" />
+                    <span>Batalkan Transaksi (Void)</span>
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="py-8 text-center text-slate-400 text-xs">
+              Tidak ada transaksi penjualan ditemukan.
+            </div>
+          )}
+        </div>
+
+        {/* DESKTOP-ONLY: Data Table (hidden md:block) */}
+        <div className="hidden md:block overflow-x-auto rounded-2xl border border-[#e4efe8] dark:border-[#1e382b]">
           <table className="w-full text-left text-xs sm:text-sm">
             <thead className="bg-[#edf5f0] dark:bg-[#111c15] text-[#192e22] dark:text-[#a3c9b4] font-bold uppercase tracking-wider text-[11px] border-b border-[#d6e9df] dark:border-[#1e382b]">
               <tr>

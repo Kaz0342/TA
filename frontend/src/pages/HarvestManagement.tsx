@@ -583,56 +583,56 @@ export default function HarvestManagement() {
       </div>
 
       {/* Row 3: Data Table Card with Integrated Search & Filter Controls */}
-      <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-5">
+      <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-4 sm:p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-5">
         
         {/* Toolbar: Time Range Segmented + Batch Select + Search */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
           
           {/* Segmented Time Filter Pills */}
-          <div className="bg-[#d7ebe0] dark:bg-[#182c20] rounded-full p-1 flex items-center text-xs font-semibold overflow-x-auto self-start lg:self-auto">
+          <div className="w-full lg:w-auto -mx-1 sm:mx-0 px-1 sm:px-0 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
             <button
               onClick={() => setTimeFilter('all')}
-              className={`px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-3.5 py-2 rounded-xl sm:rounded-full text-xs font-semibold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                 timeFilter === 'all'
-                  ? 'bg-white dark:bg-[#142219] text-[#192e22] dark:text-[#86efac] shadow-2xs font-bold'
-                  : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
+                  ? 'bg-emerald-700 text-white dark:bg-emerald-600 dark:text-white shadow-xs font-bold'
+                  : 'bg-[#d7ebe0] dark:bg-[#182c20] text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
               }`}
             >
               Semua Waktu ({harvests.length})
             </button>
             <button
               onClick={() => setTimeFilter('today')}
-              className={`px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-3.5 py-2 rounded-xl sm:rounded-full text-xs font-semibold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                 timeFilter === 'today'
-                  ? 'bg-white dark:bg-[#142219] text-[#192e22] dark:text-[#86efac] shadow-2xs font-bold'
-                  : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
+                  ? 'bg-emerald-700 text-white dark:bg-emerald-600 dark:text-white shadow-xs font-bold'
+                  : 'bg-[#d7ebe0] dark:bg-[#182c20] text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
               }`}
             >
               Hari Ini
             </button>
             <button
               onClick={() => setTimeFilter('week')}
-              className={`px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-3.5 py-2 rounded-xl sm:rounded-full text-xs font-semibold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                 timeFilter === 'week'
-                  ? 'bg-white dark:bg-[#142219] text-[#192e22] dark:text-[#86efac] shadow-2xs font-bold'
-                  : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
+                  ? 'bg-emerald-700 text-white dark:bg-emerald-600 dark:text-white shadow-xs font-bold'
+                  : 'bg-[#d7ebe0] dark:bg-[#182c20] text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
               }`}
             >
               7 Hari Terakhir
             </button>
             <button
               onClick={() => setTimeFilter('month')}
-              className={`px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-3.5 py-2 rounded-xl sm:rounded-full text-xs font-semibold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                 timeFilter === 'month'
-                  ? 'bg-white dark:bg-[#142219] text-[#192e22] dark:text-[#86efac] shadow-2xs font-bold'
-                  : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
+                  ? 'bg-emerald-700 text-white dark:bg-emerald-600 dark:text-white shadow-xs font-bold'
+                  : 'bg-[#d7ebe0] dark:bg-[#182c20] text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
               }`}
             >
               Bulan Ini
             </button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
             {/* Batch Filter Dropdown */}
             <select
               value={batchFilter}
@@ -654,7 +654,7 @@ export default function HarvestManagement() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari batch, petugas, catatan..."
+                placeholder="Cari batch, petugas..."
                 className="w-full pl-10 pr-4 py-2 bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] focus:border-[#2e7d52] focus:bg-white dark:focus:bg-[#182c20] rounded-2xl text-xs font-semibold text-[#192e22] dark:text-[#e4efe8] placeholder:text-[#8ca497] dark:placeholder:text-slate-500 outline-none transition-all shadow-2xs"
               />
               {searchQuery && (
@@ -670,8 +670,121 @@ export default function HarvestManagement() {
 
         </div>
 
-        {/* Modern Harvest Table */}
-        <div className="overflow-x-auto rounded-2xl border border-[#e4efe8] dark:border-[#1e382b]">
+        {/* MOBILE-ONLY: Harvest Cards (md:hidden) */}
+        <div className="md:hidden space-y-3">
+          {isLoadingHarvests ? (
+            <div className="py-10 text-center text-slate-400 font-medium">
+              <RefreshCw className="w-5 h-5 animate-spin text-[#2e7d52] mx-auto mb-2" />
+              <span className="text-xs">Memuat data panen...</span>
+            </div>
+          ) : paginatedHarvests.length > 0 ? (
+            paginatedHarvests.map((h) => {
+              const weightNum = Number(h.weight_kg) || 0;
+              const estimatedValuation = weightNum * 25000;
+              return (
+                <div
+                  key={`mobile-harvest-${h.id}`}
+                  className="p-3.5 rounded-2xl border border-[#e4efe8] dark:border-[#1e382b] bg-[#f7faf8]/60 dark:bg-[#111c15] space-y-3"
+                >
+                  {/* Top: Date + Weight Badge */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-[#e8f4ed] dark:bg-[#182c20] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
+                        <Calendar className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="font-semibold text-xs text-[#192e22] dark:text-[#e4efe8]">
+                        {new Date(h.harvest_date).toLocaleDateString('id-ID', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </span>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-sm font-black text-[#15803d] dark:text-[#4ade80]">
+                        {weightNum.toFixed(2)} Kg
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Metadata Grid */}
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-white dark:bg-[#142219] p-2.5 rounded-xl border border-[#e4efe8] dark:border-[#1e382b]">
+                    <div>
+                      <span className="text-[10px] text-slate-400 dark:text-[#6b8a78] block">Batch & Slot</span>
+                      <span className="font-bold text-[#192e22] dark:text-[#e4efe8] block truncate">
+                        {h.baglog_batch?.batch_code || 'Umum'}
+                      </span>
+                      {h.slot_code && (
+                        <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-300">
+                          Slot {h.slot_code}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 dark:text-[#6b8a78] block">Flush & Mutu</span>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="text-[10px] font-bold bg-slate-100 dark:bg-[#182c20] px-1.5 py-0.5 rounded border border-slate-200 dark:border-[#234230]">
+                          F-{h.flush_number ?? 1}
+                        </span>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                          h.quality_grade === 'REJECT'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/50 dark:text-rose-300'
+                            : h.quality_grade === 'B'
+                            ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300'
+                        }`}>
+                          Grade {h.quality_grade || 'A'}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 dark:text-[#6b8a78] block">Valuasi Pasar</span>
+                      <span className="font-semibold text-slate-700 dark:text-[#c4ded0]">
+                        Rp {estimatedValuation.toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 dark:text-[#6b8a78] block">Petugas</span>
+                      <span className="font-medium text-slate-600 dark:text-[#a3c9b4] truncate block">
+                        {h.user?.name ? h.user.name.replace(/\bKing\s*/gi, '').trim() || 'Admin' : 'Petugas'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {h.notes && (
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-[#182c20]/40 p-2 rounded-lg">
+                      <span className="font-semibold text-slate-600 dark:text-slate-300">Catatan:</span> {h.notes}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="pt-2 border-t border-[#edf5f0] dark:border-[#1e382b]/60 flex items-center justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVoidTarget(h);
+                        setVoidReason('');
+                        setVoidError('');
+                      }}
+                      className="px-3 py-1.5 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Ban className="w-3.5 h-3.5" />
+                      <span>Batalkan Panen (Void)</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="py-8 text-center text-slate-400 text-xs">
+              Tidak ada catatan panen yang sesuai filter.
+            </div>
+          )}
+        </div>
+
+        {/* DESKTOP-ONLY: Modern Harvest Table (hidden md:block) */}
+        <div className="hidden md:block overflow-x-auto rounded-2xl border border-[#e4efe8] dark:border-[#1e382b]">
           <table className="w-full text-xs text-left">
             <thead>
               <tr className="border-b border-[#e4efe8] dark:border-[#1e382b] bg-[#f7faf8] dark:bg-[#111c15] text-[#486356] dark:text-[#a3c9b4] font-bold">
