@@ -46,8 +46,12 @@ export default function HarvestPauseWidget() {
       deviceControlService.pause(duration, reason),
     onSuccess: (data) => {
       queryClient.setQueryData(['deviceCommandStatus'], data);
+      const hours = Math.round(data.duration_seconds / 3600);
+      const durationLabel = hours >= 1
+        ? `${hours} jam`
+        : `${Math.round(data.duration_seconds / 60)} menit`;
       addToast(
-        `Mode Panen aktif selama ${Math.round(data.duration_seconds / 60)} menit. Misting & Blower OFF.`,
+        `Mode Panen aktif selama ${durationLabel}. Misting & Blower OFF.`,
         'info'
       );
     },
@@ -164,25 +168,32 @@ export default function HarvestPauseWidget() {
 
           <div className="flex items-center gap-2 flex-wrap">
             <button
-              onClick={() => pauseMutation.mutate({ duration: 1800, reason: 'Panen Rutin 30m' })}
+              onClick={() => pauseMutation.mutate({ duration: 7200, reason: 'Panen Rutin 2 Jam' })}
               disabled={pauseMutation.isPending}
               className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#edf5f0] dark:bg-[#182c20] hover:bg-[#d6e9df] dark:hover:bg-[#1f3a2b] text-[#244b37] dark:text-[#86efac] border border-[#d6e9df] dark:border-[#2b503d] transition-all cursor-pointer active:scale-95 disabled:opacity-50"
             >
-              30 Menit
+              2 Jam
             </button>
             <button
-              onClick={() => pauseMutation.mutate({ duration: 3600, reason: 'Panen Penuh 60m' })}
+              onClick={() => pauseMutation.mutate({ duration: 14400, reason: 'Panen Rutin 4 Jam' })}
               disabled={pauseMutation.isPending}
               className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#edf5f0] dark:bg-[#182c20] hover:bg-[#d6e9df] dark:hover:bg-[#1f3a2b] text-[#244b37] dark:text-[#86efac] border border-[#d6e9df] dark:border-[#2b503d] transition-all cursor-pointer active:scale-95 disabled:opacity-50"
             >
-              60 Menit
+              4 Jam
             </button>
             <button
-              onClick={() => pauseMutation.mutate({ duration: 7200, reason: 'Inspeksi & Panen Besar 120m' })}
+              onClick={() => pauseMutation.mutate({ duration: 21600, reason: 'Inspeksi & Panen Besar 6 Jam' })}
               disabled={pauseMutation.isPending}
               className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#edf5f0] dark:bg-[#182c20] hover:bg-[#d6e9df] dark:hover:bg-[#1f3a2b] text-[#244b37] dark:text-[#86efac] border border-[#d6e9df] dark:border-[#2b503d] transition-all cursor-pointer active:scale-95 disabled:opacity-50"
             >
-              120 Menit
+              6 Jam
+            </button>
+            <button
+              onClick={() => pauseMutation.mutate({ duration: 28800, reason: 'Siklus Panen Total 8 Jam' })}
+              disabled={pauseMutation.isPending}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#edf5f0] dark:bg-[#182c20] hover:bg-[#d6e9df] dark:hover:bg-[#1f3a2b] text-[#244b37] dark:text-[#86efac] border border-[#d6e9df] dark:border-[#2b503d] transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+            >
+              8 Jam
             </button>
           </div>
         </div>

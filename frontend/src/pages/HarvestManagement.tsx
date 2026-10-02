@@ -16,7 +16,8 @@ import {
   User, 
   Banknote,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Ban
 } from 'lucide-react';
 import api from '../services/api';
 import { useToastStore } from '../stores/toastStore';
@@ -28,6 +29,9 @@ interface HarvestRecord {
   id: number;
   user_id: number;
   baglog_batch_id: number | null;
+  slot_code?: string | null;
+  flush_number?: number | null;
+  quality_grade?: string | null;
   harvest_date: string;
   weight_kg: string | number;
   notes?: string | null;
@@ -76,8 +80,16 @@ export default function HarvestManagement() {
   const [harvestDate, setHarvestDate] = useState(new Date().toISOString().split('T')[0]);
   const [weightKg, setWeightKg] = useState('');
   const [selectedBatchId, setSelectedBatchId] = useState('');
+  const [slotCode, setSlotCode] = useState('');
+  const [flushNumber, setFlushNumber] = useState('');
+  const [qualityGrade, setQualityGrade] = useState<'A' | 'B' | 'REJECT'>('A');
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState('');
+
+  // Void Modal State
+  const [voidTarget, setVoidTarget] = useState<HarvestRecord | null>(null);
+  const [voidReason, setVoidReason] = useState('');
+  const [voidError, setVoidError] = useState('');
 
   // 1. Query: All Harvest Records
   const { data: harvests = [], isLoading: isLoadingHarvests } = useQuery<HarvestRecord[]>({
@@ -97,7 +109,24 @@ export default function HarvestManagement() {
     },
   });
 
-  // 3. Query: Harvest Daily Chart (14 Hari Terakhir)
+  // 3. Query: Occupied Slots for Modal
+  const { data: slots = [] } = useQuery({
+    queryKey: ['slots'],
+    queryFn: async () => {
+      const res = await api.get('/slots');
+      return res.data.data || [];
+    },
+    enabled: isModalOpen,
+  });
+
+  // Filter slot yang ditempati batch terpilih & kapasitas masih ada
+  const availableSlots = useMemo(() => {
+    if (!selectedBatchId) return [];
+    const bId = Number(selectedBatchId);
+    return slots.filter((s: any) => s.assignment && s.active_batch?.id === bId && (s.assignment.active_capacity ?? 1) > 0);
+  }, [slots, selectedBatchId]);
+
+  // 4. Query: Harvest Daily Chart (14 Hari Terakhir)
   const { data: chartData = [], isLoading: isLoadingChart } = useQuery({
     queryKey: ['harvestChart', 14],
     queryFn: async () => {
@@ -198,7 +227,15 @@ export default function HarvestManagement() {
 
   // Mutation: Create Harvest
   const createMutation = useMutation({
-    mutationFn: async (payload: { harvest_date: string; weight_kg: number; baglog_batch_id?: number; notes?: string }) => {
+    mutationFn: async (payload: {
+      harvest_date: string;
+      weight_kg: number;
+      baglog_batch_id?: number;
+      slot_code?: string;
+      flush_number?: number;
+      quality_grade?: string;
+      notes?: string;
+    }) => {
       const res = await api.post('/harvests', payload);
       return res.data;
     },
@@ -206,6 +243,7 @@ export default function HarvestManagement() {
       queryClient.invalidateQueries({ queryKey: ['harvests'] });
       queryClient.invalidateQueries({ queryKey: ['harvestChart'] });
       queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
+      queryClient.invalidateQueries({ queryKey: ['slots'] });
       addToast('Data hasil timbangan panen berhasil dicatat!', 'success');
       setIsModalOpen(false);
       resetForm();
@@ -217,10 +255,36 @@ export default function HarvestManagement() {
     },
   });
 
+  // Mutation: Void Harvest
+  const voidMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: number; reason: string }) => {
+      const res = await api.post(`/harvests/${id}/void`, { reason });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['harvests'] });
+      queryClient.invalidateQueries({ queryKey: ['slots'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
+      queryClient.invalidateQueries({ queryKey: ['harvestChart'] });
+      addToast('Data panen berhasil dibatalkan (void).', 'success');
+      setVoidTarget(null);
+      setVoidReason('');
+      setVoidError('');
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || 'Gagal membatalkan data panen.';
+      setVoidError(msg);
+      addToast(msg, 'error');
+    },
+  });
+
   const resetForm = () => {
     setHarvestDate(new Date().toISOString().split('T')[0]);
     setWeightKg('');
     setSelectedBatchId('');
+    setSlotCode('');
+    setFlushNumber('');
+    setQualityGrade('A');
     setNotes('');
     setFormError('');
   };
@@ -253,6 +317,9 @@ export default function HarvestManagement() {
       harvest_date: harvestDate,
       weight_kg: numWeight,
       baglog_batch_id: parseInt(selectedBatchId, 10),
+      slot_code: slotCode.trim() ? slotCode.trim() : undefined,
+      flush_number: flushNumber ? parseInt(flushNumber, 10) : undefined,
+      quality_grade: qualityGrade,
       notes: notes.trim() || undefined,
     });
   };
@@ -609,17 +676,19 @@ export default function HarvestManagement() {
             <thead>
               <tr className="border-b border-[#e4efe8] dark:border-[#1e382b] bg-[#f7faf8] dark:bg-[#111c15] text-[#486356] dark:text-[#a3c9b4] font-bold">
                 <th className="py-3 px-4">Tanggal Panen</th>
-                <th className="py-3 px-4">Batch Baglog Asal</th>
+                <th className="py-3 px-4">Batch &amp; Slot</th>
+                <th className="py-3 px-4">Flush &amp; Mutu</th>
                 <th className="py-3 px-4">Berat Timbangan</th>
                 <th className="py-3 px-4">Estimasi Valuasi</th>
                 <th className="py-3 px-4">Petugas Kebun</th>
                 <th className="py-3 px-4">Catatan Mutu</th>
+                <th className="py-3 px-4 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#edf5f0] dark:divide-[#1e382b]">
               {isLoadingHarvests ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400 font-medium">
+                  <td colSpan={8} className="py-12 text-center text-slate-400 font-medium">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <RefreshCw className="w-5 h-5 animate-spin text-[#2e7d52]" />
                       <span>Memuat data hasil panen kumbung...</span>
@@ -649,18 +718,43 @@ export default function HarvestManagement() {
                         </div>
                       </td>
 
-                      {/* Batch Baglog Asal */}
+                      {/* Batch & Slot */}
                       <td className="py-3 px-4 whitespace-nowrap">
                         {h.baglog_batch ? (
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-[#192e22] dark:text-[#e4efe8]">{h.baglog_batch.batch_code}</span>
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-[#1f382b] px-2 py-0.5 rounded-md">
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-[#192e22] dark:text-[#e4efe8]">{h.baglog_batch.batch_code}</span>
+                              {h.slot_code && (
+                                <span className="text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-1.5 py-0.5 rounded">
+                                  {h.slot_code}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400">
                               {h.baglog_batch.supplier}
                             </span>
                           </div>
                         ) : (
                           <span className="text-slate-400 italic">Umum / Tanpa Batch</span>
                         )}
+                      </td>
+
+                      {/* Flush & Mutu */}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-[#192e22] dark:text-[#e4efe8] bg-slate-100 dark:bg-[#182c20] px-2 py-0.5 rounded-lg border border-slate-200 dark:border-[#234230]">
+                            F-{h.flush_number ?? 1}
+                          </span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                            h.quality_grade === 'REJECT'
+                              ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-900'
+                              : h.quality_grade === 'B'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-900'
+                              : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-900'
+                          }`}>
+                            Grade {h.quality_grade || 'A'}
+                          </span>
+                        </div>
                       </td>
 
                       {/* Berat Timbangan (Kg) */}
@@ -686,12 +780,28 @@ export default function HarvestManagement() {
                         {h.notes || <span className="text-slate-300 dark:text-slate-600">-</span>}
                       </td>
 
+                      {/* Aksi */}
+                      <td className="py-3 px-4 text-center whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setVoidTarget(h);
+                            setVoidReason('');
+                            setVoidError('');
+                          }}
+                          className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                          title="Batalkan (Void) Data Panen"
+                        >
+                          <Ban className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="py-10 text-center text-slate-400">
+                  <td colSpan={8} className="py-10 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-1.5">
                       <Scale className="w-8 h-8 text-slate-300" />
                       <p className="font-semibold text-slate-600 dark:text-slate-400">Tidak ada catatan panen yang sesuai.</p>
@@ -823,7 +933,10 @@ export default function HarvestManagement() {
                   </label>
                   <select
                     value={selectedBatchId}
-                    onChange={(e) => setSelectedBatchId(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedBatchId(e.target.value);
+                      setSlotCode('');
+                    }}
                     required
                     className="w-full px-3.5 py-2.5 bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] focus:border-[#2e7d52] focus:bg-white dark:focus:bg-[#182c20] rounded-2xl text-xs font-semibold text-[#192e22] dark:text-[#e4efe8] outline-none transition-all cursor-pointer"
                   >
@@ -837,23 +950,80 @@ export default function HarvestManagement() {
                 </div>
               </div>
 
-              {/* Row 2: Berat Timbangan (Kg) */}
-              <div>
-                <label className="block text-xs font-bold text-[#192e22] dark:text-[#e4efe8] mb-1.5">
-                  Berat Panen (Kg) <span className="text-rose-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={weightKg}
-                    onChange={(e) => handleFloatChange(e.target.value)}
-                    placeholder="Contoh: 15.5 atau 8.25"
+              {/* Row 2: Koordinat Slot & Mutu Jamur */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-[#192e22] dark:text-[#e4efe8] mb-1.5 flex items-center justify-between">
+                    <span>Koordinat Slot Rak</span>
+                    <span className="text-[10px] text-slate-400 font-normal">Opsional (Timbang Batch)</span>
+                  </label>
+                  <select
+                    value={slotCode}
+                    onChange={(e) => setSlotCode(e.target.value)}
+                    disabled={!selectedBatchId}
+                    className="w-full px-3.5 py-2.5 bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] focus:border-[#2e7d52] focus:bg-white dark:focus:bg-[#182c20] rounded-2xl text-xs font-semibold text-[#192e22] dark:text-[#e4efe8] outline-none transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <option value="">-- Timbang Global Per Batch (Tanpa Slot) --</option>
+                    {availableSlots.map((s: any) => (
+                      <option key={s.slot_code} value={s.slot_code}>
+                        Slot {s.slot_code} (Sisa {s.assignment?.active_capacity ?? 10} baglog)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#192e22] dark:text-[#e4efe8] mb-1.5">
+                    Grade Mutu Jamur <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={qualityGrade}
+                    onChange={(e) => setQualityGrade(e.target.value as any)}
                     required
-                    className="w-full pl-3.5 pr-12 py-2.5 bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] focus:border-[#2e7d52] focus:bg-white dark:focus:bg-[#182c20] rounded-2xl text-xs font-bold text-[#192e22] dark:text-[#e4efe8] outline-none transition-all"
+                    className="w-full px-3.5 py-2.5 bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] focus:border-[#2e7d52] focus:bg-white dark:focus:bg-[#182c20] rounded-2xl text-xs font-semibold text-[#192e22] dark:text-[#e4efe8] outline-none transition-all cursor-pointer"
+                  >
+                    <option value="A">Grade A (Super / Daun Lebar &amp; Tebal)</option>
+                    <option value="B">Grade B (Standar / Campur)</option>
+                    <option value="REJECT">Afkir / Rusak / Cacat</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 3: Berat Timbangan & Flush Number */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-[#192e22] dark:text-[#e4efe8] mb-1.5">
+                    Berat Panen (Kg) <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={weightKg}
+                      onChange={(e) => handleFloatChange(e.target.value)}
+                      placeholder="Contoh: 15.5 atau 8.25"
+                      required
+                      className="w-full pl-3.5 pr-12 py-2.5 bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] focus:border-[#2e7d52] focus:bg-white dark:focus:bg-[#182c20] rounded-2xl text-xs font-bold text-[#192e22] dark:text-[#e4efe8] outline-none transition-all"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#244b37] dark:text-[#86efac]">
+                      Kg
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#192e22] dark:text-[#e4efe8] mb-1.5 flex items-center justify-between">
+                    <span>Siklus Panen (Flush)</span>
+                    <span className="text-[10px] text-slate-400 font-normal">Opsional (1–7)</span>
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={7}
+                    value={flushNumber}
+                    onChange={(e) => setFlushNumber(e.target.value)}
+                    placeholder="Otomatis dihitung sistem (+1)"
+                    className="w-full px-3.5 py-2.5 bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] focus:border-[#2e7d52] focus:bg-white dark:focus:bg-[#182c20] rounded-2xl text-xs font-semibold text-[#192e22] dark:text-[#e4efe8] outline-none transition-all placeholder:text-slate-400"
                   />
-                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#244b37] dark:text-[#86efac]">
-                    Kg
-                  </span>
                 </div>
               </div>
 
@@ -908,6 +1078,97 @@ export default function HarvestManagement() {
 
             </form>
 
+          </div>
+        </div>
+      )}
+
+      {/* Modal Konfirmasi Void Panen */}
+      {voidTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-[#14241a] border border-rose-200 dark:border-rose-900/60 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                <Ban className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Batalkan (Void) Catatan Panen
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Tindakan ini akan menganulir catatan panen dari kalkulasi statistik dan valuasi.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-slate-50 dark:bg-[#101b13] rounded-2xl border border-slate-100 dark:border-[#1e382b] text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Tanggal Panen:</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {new Date(voidTarget.harvest_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Batch / Slot:</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {voidTarget.baglog_batch?.batch_code || '-'} {voidTarget.slot_code ? `(${voidTarget.slot_code})` : ''}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Berat:</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                  {Number(voidTarget.weight_kg).toFixed(2)} Kg
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+                Alasan Pembatalan <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                value={voidReason}
+                onChange={(e) => {
+                  setVoidReason(e.target.value);
+                  if (voidError) setVoidError('');
+                }}
+                placeholder="Misal: Salah input timbangan, duplikasi data panen..."
+                rows={3}
+                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-[#111c15] border border-slate-200 dark:border-[#1e382b] focus:border-rose-500 rounded-2xl text-xs font-medium text-slate-900 dark:text-slate-100 outline-none transition-all resize-none"
+              />
+              {voidError && (
+                <p className="text-[11px] text-rose-500 font-semibold mt-1">{voidError}</p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                disabled={voidMutation.isPending}
+                onClick={() => {
+                  setVoidTarget(null);
+                  setVoidReason('');
+                  setVoidError('');
+                }}
+                className="px-4 py-2 rounded-2xl text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={voidMutation.isPending || voidReason.trim().length < 5}
+                onClick={() => {
+                  if (voidReason.trim().length < 5) {
+                    setVoidError('Alasan pembatalan minimal 5 karakter.');
+                    return;
+                  }
+                  voidMutation.mutate({ id: voidTarget.id, reason: voidReason.trim() });
+                }}
+                className="px-4 py-2 rounded-2xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+              >
+                {voidMutation.isPending && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                <span>Konfirmasi Void</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

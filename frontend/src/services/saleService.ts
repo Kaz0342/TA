@@ -32,4 +32,9 @@ export const saleService = {
     const res = await api.get('/sales/price-trend');
     return res.data.data;
   },
+
+  async voidSale(id: number, reason: string): Promise<any> {
+    const res = await api.post(`/sales/${id}/void`, { reason });
+    return res.data.data;
+  },
 };

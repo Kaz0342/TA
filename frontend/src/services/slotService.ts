@@ -21,10 +21,11 @@ export interface SlotData {
     current_status: string;
     assigned_at: string;
     total_harvest_kg?: number;
+    last_flush?: number;
     badge: { 
       label: string; 
-      class: string; 
-      dot: string;
+      class?: string; 
+      dot?: string;
       description?: string;
       age_days?: number;
     };
@@ -63,6 +64,16 @@ export const slotService = {
 
   async assignBatch(payload: AssignBatchPayload): Promise<any> {
     const res = await api.post('/batch-slot-assignments', payload);
+    return res.data;
+  },
+
+  async completeAssignment(id: number, payload?: { reason?: string; date?: string }): Promise<any> {
+    const res = await api.post(`/batch-slot-assignments/${id}/complete`, payload);
+    return res.data;
+  },
+
+  async updateStatus(id: number, status: string): Promise<any> {
+    const res = await api.patch(`/batch-slot-assignments/${id}/status`, { status });
     return res.data;
   }
 };

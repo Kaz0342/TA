@@ -8,7 +8,8 @@ import {
   Plus, 
   Trash2, 
   Clock,
-  Info
+  Info,
+  AlertTriangle
 } from 'lucide-react';
 import { hppService, type HppSummaryData, type BatchHppData, type OperationalExpenseItem } from '../services/hppService';
 import AnimatedProgressBar from './AnimatedProgressBar';
@@ -191,17 +192,23 @@ export default function HppAnalysisCard({ batches, isAdmin }: HppAnalysisCardPro
 
               {/* Batch Selector Dropdown */}
               <div className="relative">
-                <select
-                  value={selectedBatchId || ''}
-                  onChange={(e) => setSelectedBatchId(e.target.value ? Number(e.target.value) : null)}
-                  className="bg-[#edf5f0] dark:bg-[#0c140e] border border-[#d6e9df] dark:border-[#1e382b] rounded-2xl px-3.5 py-1.5 text-xs text-[#192e22] dark:text-[#e4efe8] font-bold outline-hidden focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-                >
-                  {batches.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.batch_code} ({b.status.toUpperCase()})
-                    </option>
-                  ))}
-                </select>
+                {batches.length > 0 ? (
+                  <select
+                    value={selectedBatchId || ''}
+                    onChange={(e) => setSelectedBatchId(e.target.value ? Number(e.target.value) : null)}
+                    className="bg-[#edf5f0] dark:bg-[#0c140e] border border-[#d6e9df] dark:border-[#1e382b] rounded-2xl px-3.5 py-1.5 text-xs text-[#192e22] dark:text-[#e4efe8] font-bold outline-hidden focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                  >
+                    {batches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.batch_code} ({b.status.toUpperCase()})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 px-3 py-1 bg-slate-100 dark:bg-[#111c15] rounded-xl border border-slate-200 dark:border-[#1e382b]">
+                    Belum Ada Batch
+                  </span>
+                )}
               </div>
             </div>
 
@@ -211,6 +218,19 @@ export default function HppAnalysisCard({ batches, isAdmin }: HppAnalysisCardPro
               </div>
             ) : batchHpp ? (
               <div className="space-y-5">
+                {/* Warning: Harga Beli Belum Terdefinisi */}
+                {batchHpp.price_missing && (
+                  <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-2xl p-3.5 text-xs flex items-start gap-2.5 text-amber-800 dark:text-amber-200">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-[11px]">Harga Beli Baglog Belum Diisi (Rp 0)</p>
+                      <p className="text-[10px] text-amber-700 dark:text-amber-300 mt-0.5 leading-relaxed">
+                        Batch ini belum memiliki catatan harga modal per baglog, sehingga kalkulasi biaya modal dan HPP belum sepenuhnya akurat.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Cycle Progress Bar (Audit Recommendation: Young batches are not failing!) */}
                 <div className="bg-[#fbfdfc] dark:bg-[#0c140e] border border-[#d6e9df] dark:border-[#1e382b] rounded-2xl p-4">
                   <div className="flex items-center justify-between mb-2">

@@ -15,6 +15,7 @@ export interface BatchHppData {
   total_culls_qty?: number;
   mortality_rate_percent?: number;
   price_per_baglog?: number;
+  price_missing?: boolean;
   baglog_capital_cost?: number;
   modal_baglog_awal?: number;
   operational_expense_allocated?: number;

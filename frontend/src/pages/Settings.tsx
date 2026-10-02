@@ -22,7 +22,8 @@ import {
   Sun,
   Moon,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  Pause
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useThemeStore } from '../stores/themeStore';
@@ -192,14 +193,22 @@ export default function Settings() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const hMin = parseFloat(minHum);
+    const hMax = parseFloat(maxHum);
+    if (!isNaN(hMin) && !isNaN(hMax) && (hMax - hMin) < 4) {
+      addToast('Selisih Kelembaban Maksimum dan Minimum minimal 4% agar histeresis otomasi bekerja.', 'error');
+      return;
+    }
+
     setLoading(true);
 
     try {
       const payload = {
         temp_min: parseFloat(minTemp),
         temp_max: parseFloat(maxTemp),
-        humidity_min: parseFloat(minHum),
-        humidity_max: parseFloat(maxHum),
+        humidity_min: hMin,
+        humidity_max: hMax,
         phase_mode: phaseMode,
       };
 
@@ -289,16 +298,48 @@ export default function Settings() {
         </span>
       );
     }
+    if (reason.toLowerCase().includes('pause') || reason.toLowerCase().includes('jeda')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700 shrink-0">
+          <Pause className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+          Jeda Panen
+        </span>
+      );
+    }
     return null;
   };
 
   const renderStopBadge = (reason?: string | null) => {
     const text = reason || 'Batas durasi tercapai';
+    if (text.includes('teratasi')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 shrink-0">
+          <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+          Kritis Teratasi
+        </span>
+      );
+    }
     if (text.includes('Kelembaban target') || text.includes('Suhu normal') || text.includes('Target')) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 shrink-0">
           <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
           Target Tercapai
+        </span>
+      );
+    }
+    if (text.includes('Manual Pause') || text.includes('Jeda')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shrink-0">
+          <Pause className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+          Jeda Panen
+        </span>
+      );
+    }
+    if (text.includes('Transisi ke Night Mode') || text.includes('Transisi')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 shrink-0">
+          <Moon className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+          Transisi Malam
         </span>
       );
     }

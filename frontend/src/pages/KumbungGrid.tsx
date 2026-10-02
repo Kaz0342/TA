@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Grid as GridIcon, Map, Plus, Check, X } from 'lucide-react';
+import { Grid as GridIcon, Map, Plus, Check, X, Box, CheckCircle2 } from 'lucide-react';
 import { slotService } from '../services/slotService';
 import type { SlotData } from '../services/slotService';
 import api from '../services/api';
 import { useToastStore } from '../stores/toastStore';
 import { useAuthStore } from '../stores/authStore';
 import SlotDetailModal from '../components/SlotDetailModal';
+import RecordCullModal from '../components/RecordCullModal';
 
 export default function KumbungGrid() {
   const user = useAuthStore((state) => state.user);
@@ -25,11 +26,16 @@ export default function KumbungGrid() {
   // Detail Modal State
   const [detailModalSlot, setDetailModalSlot] = useState<SlotData | null>(null);
 
+  // Cull Modal State
+  const [isCullModalOpen, setIsCullModalOpen] = useState(false);
+  const [cullSlot, setCullSlot] = useState<SlotData | null>(null);
+
   // Allocation Form State
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [assignBatchId, setAssignBatchId] = useState<number | ''>('');
-  const [assignMyceliumStage, setAssignMyceliumStage] = useState<'LEVEL_1' | 'LEVEL_2' | 'LEVEL_3'>('LEVEL_1');
+  const [assignMyceliumStage, setAssignMyceliumStage] = useState<'LEVEL_1' | 'LEVEL_2' | 'LEVEL_3'>('LEVEL_2');
   const [assignDate, setAssignDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedPreviewBatchId, setSelectedPreviewBatchId] = useState<number | null>(null);
 
   // Fetch Slots
   const { data: slots = [], isLoading: isSlotsLoading } = useQuery<SlotData[]>({
@@ -52,6 +58,33 @@ export default function KumbungGrid() {
       return (res.data.data || []).filter((b: any) => b.status === 'active');
     },
   });
+
+  // Metrik Alokasi Batch ke Slot Rak
+  const activePreviewBatch = useMemo(() => {
+    if (!activeBatches || activeBatches.length === 0) return null;
+    if (selectedPreviewBatchId) {
+      const found = activeBatches.find((b: any) => b.id === selectedPreviewBatchId);
+      if (found) return found;
+    }
+    // Prioritaskan batch yang masih punya sisa baglog belum teralokasi, atau batch teratas
+    return activeBatches.find((b: any) => (b.unassigned_quantity ?? (b.quantity - (b.assigned_quantity || 0))) > 0) || activeBatches[0];
+  }, [activeBatches, selectedPreviewBatchId]);
+
+  const previewBatchUnassigned = useMemo(() => {
+    if (!activePreviewBatch) return 0;
+    return activePreviewBatch.unassigned_quantity ?? Math.max(0, Number(activePreviewBatch.quantity || 0) - Number(activePreviewBatch.assigned_quantity || 0));
+  }, [activePreviewBatch]);
+
+  const previewBatchAssigned = useMemo(() => {
+    if (!activePreviewBatch) return 0;
+    return activePreviewBatch.assigned_quantity ?? (Number(activePreviewBatch.quantity || 0) - previewBatchUnassigned);
+  }, [activePreviewBatch, previewBatchUnassigned]);
+
+  const selectedModalBatch = useMemo(() => {
+    const idToFind = assignBatchId || activePreviewBatch?.id;
+    if (!idToFind) return null;
+    return activeBatches.find((b: any) => b.id === Number(idToFind));
+  }, [activeBatches, assignBatchId, activePreviewBatch]);
 
   // Assign Batch Mutation
   const assignMutation = useMutation({
@@ -258,10 +291,10 @@ export default function KumbungGrid() {
           )}
         </div>
 
-        {/* Bottom Row: Status Filter + View Mode */}
+        {/* Bottom Row: Status Filter + Batch Allocation Status Widget + View Mode */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           {/* Status Segment */}
-          <div className="flex p-1 bg-[#d7ebe0]/50 dark:bg-[#111c15] rounded-xl">
+          <div className="flex p-1 bg-[#d7ebe0]/50 dark:bg-[#111c15] rounded-xl shrink-0">
             {[
               { id: 'all', label: 'Semua (100)' },
               { id: 'occupied', label: 'Terisi' },
@@ -281,8 +314,67 @@ export default function KumbungGrid() {
             ))}
           </div>
 
+          {/* Tengah (Space Kosong Gambar 2): Status Alokasi Batch & Sisa Baglog Belum Terdaftar */}
+          {activePreviewBatch ? (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs transition-all shadow-2xs overflow-hidden flex-wrap sm:flex-nowrap bg-white dark:bg-[#111c15] border-[#d6e9df] dark:border-[#1e382b]">
+              <div className="flex items-center gap-1.5 font-bold text-[#192e22] dark:text-[#e4efe8] shrink-0">
+                <Box className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                {activeBatches.length > 1 ? (
+                  <select
+                    value={activePreviewBatch.id}
+                    onChange={(e) => setSelectedPreviewBatchId(Number(e.target.value))}
+                    className="bg-transparent font-bold text-xs text-[#192e22] dark:text-[#e4efe8] cursor-pointer outline-hidden pr-1"
+                    title="Pilih batch untuk melihat status alokasi slot"
+                  >
+                    {activeBatches.map((b: any) => (
+                      <option key={b.id} value={b.id} className="dark:bg-[#142219]">
+                        {b.batch_code}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span>{activePreviewBatch.batch_code}</span>
+                )}
+              </div>
+
+              <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">•</span>
+
+              <div className="flex items-center gap-1.5 text-[11px] text-[#526a5e] dark:text-[#a3c9b4] shrink-0">
+                <span>Total Beli:</span>
+                <span className="font-bold text-[#192e22] dark:text-[#e4efe8]">
+                  {Number(activePreviewBatch.quantity).toLocaleString('id-ID')}
+                </span>
+                <span>Baglog</span>
+              </div>
+
+              <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">•</span>
+
+              {previewBatchUnassigned > 0 ? (
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-900/60 shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  <span>
+                    Belum di Rak: <strong>{previewBatchUnassigned.toLocaleString('id-ID')} Baglog</strong>
+                  </span>
+                  <span className="text-[10px] font-normal text-amber-700/80 dark:text-amber-400/80">
+                    (~{Math.ceil(previewBatchUnassigned / 10)} slot lagi)
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-900/60 shrink-0">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>100% Baglog Terpasang di Rak ({previewBatchAssigned.toLocaleString('id-ID')} Unit)</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="hidden lg:flex items-center gap-1.5 text-xs text-[#759183] dark:text-[#6b8a78] px-3 py-1.5 rounded-xl border border-dashed border-[#d6e9df] dark:border-[#1e382b]">
+              <Box className="w-3.5 h-3.5 opacity-60" />
+              <span>Belum ada batch baglog aktif</span>
+            </div>
+          )}
+
           {/* Mode Segment */}
-          <div className="flex p-1 bg-[#d7ebe0]/50 dark:bg-[#111c15] rounded-xl">
+          <div className="flex p-1 bg-[#d7ebe0]/50 dark:bg-[#111c15] rounded-xl shrink-0">
             <button
               onClick={() => setViewMode('physical')}
               className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg text-xs transition-all cursor-pointer ${
@@ -368,15 +460,23 @@ export default function KumbungGrid() {
 
       </div>
 
-      {/* Selection Floating Action Bar */}
+      {/* Selection Floating Action Bar (Gambar 1) */}
       {isSelectionMode && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white dark:bg-[#142219] border border-[#d6e9df] dark:border-[#1e382b] rounded-2xl shadow-2xl p-4 flex items-center gap-6 z-50 animate-in slide-in-from-bottom-4">
-          <div className="text-sm">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white dark:bg-[#142219] border border-[#d6e9df] dark:border-[#1e382b] rounded-2xl shadow-2xl p-4 flex items-center gap-4 sm:gap-6 z-50 animate-in slide-in-from-bottom-4 max-w-[90vw] flex-wrap sm:flex-nowrap justify-between">
+          <div className="text-sm flex items-center flex-wrap gap-1.5">
             <span className="font-bold text-[#192e22] dark:text-white">{selectedSlotCodes.size} Slot</span>
-            <span className="text-[#759183] dark:text-[#6b8a78] ml-1">terpilih</span>
+            <span className="text-[#759183] dark:text-[#6b8a78]">terpilih</span>
+            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800">
+              = {selectedSlotCodes.size * 10} Baglog
+            </span>
+            {previewBatchUnassigned > 0 && (
+              <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium hidden md:inline ml-1">
+                • Sisa belum di rak: <strong>{previewBatchUnassigned} Baglog</strong>
+              </span>
+            )}
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-2 shrink-0">
             <button
               onClick={handleCancelAllocation}
               className="px-4 py-2 rounded-xl text-xs font-bold text-[#526a5e] dark:text-[#a3c9b4] hover:bg-slate-100 dark:hover:bg-[#1e382b] transition-all cursor-pointer"
@@ -384,7 +484,12 @@ export default function KumbungGrid() {
               Batal
             </button>
             <button
-              onClick={() => setIsAssignModalOpen(true)}
+              onClick={() => {
+                if (!assignBatchId && activePreviewBatch) {
+                  setAssignBatchId(activePreviewBatch.id);
+                }
+                setIsAssignModalOpen(true);
+              }}
               disabled={selectedSlotCodes.size === 0}
               className="px-6 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all cursor-pointer"
             >
@@ -423,10 +528,44 @@ export default function KumbungGrid() {
                   className="w-full bg-[#fbfdfc] dark:bg-[#0c140e] border border-[#d6e9df] dark:border-[#1e382b] rounded-xl px-3.5 py-2.5 text-sm text-[#192e22] dark:text-[#e4efe8] font-bold outline-hidden focus:ring-2 focus:ring-emerald-500 transition-all cursor-pointer"
                 >
                   <option value="" disabled>-- Pilih Batch Baglog --</option>
-                  {activeBatches.map((b: any) => (
-                    <option key={b.id} value={b.id}>{b.batch_code} ({b.quantity} baglog)</option>
-                  ))}
+                  {activeBatches.map((b: any) => {
+                    const unassigned = b.unassigned_quantity ?? Math.max(0, Number(b.quantity || 0) - Number(b.assigned_quantity || 0));
+                    return (
+                      <option key={b.id} value={b.id}>
+                        {b.batch_code} (Total: {b.quantity} • Belum di Rak: {unassigned} Baglog)
+                      </option>
+                    );
+                  })}
                 </select>
+
+                {/* Ringkasan Status Batch Terpilih */}
+                {selectedModalBatch && (
+                  <div className="p-3 rounded-xl bg-[#f7faf8] dark:bg-[#0c140e] border border-[#d6e9df] dark:border-[#1e382b] text-xs space-y-1.5 mt-2">
+                    <div className="flex justify-between items-center text-[#526a5e] dark:text-[#a3c9b4]">
+                      <span>Total Pembelian Batch:</span>
+                      <span className="font-bold text-[#192e22] dark:text-[#e4efe8]">
+                        {Number(selectedModalBatch.quantity).toLocaleString('id-ID')} Baglog
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-[#526a5e] dark:text-[#a3c9b4]">
+                      <span>Sudah Masuk Rak:</span>
+                      <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                        {Number(selectedModalBatch.assigned_quantity || 0).toLocaleString('id-ID')} Baglog ({selectedModalBatch.assigned_slots_count || Math.round(Number(selectedModalBatch.assigned_quantity || 0) / 10)} Slot)
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-[#526a5e] dark:text-[#a3c9b4] pt-1.5 border-t border-[#edf5f0] dark:border-[#1e382b]">
+                      <span className="font-semibold">Sisa Belum Teralokasi:</span>
+                      <span className={`font-bold ${
+                        (selectedModalBatch.unassigned_quantity ?? (selectedModalBatch.quantity - (selectedModalBatch.assigned_quantity || 0))) > 0
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-emerald-600 dark:text-emerald-400'
+                      }`}>
+                        {Number(selectedModalBatch.unassigned_quantity ?? (selectedModalBatch.quantity - (selectedModalBatch.assigned_quantity || 0))).toLocaleString('id-ID')} Baglog
+                        {' '}(~{Math.ceil((selectedModalBatch.unassigned_quantity ?? (selectedModalBatch.quantity - (selectedModalBatch.assigned_quantity || 0))) / 10)} slot lagi)
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -442,8 +581,9 @@ export default function KumbungGrid() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[11px] font-bold text-[#486356] dark:text-[#a3c9b4] uppercase tracking-wider">
-                  Tingkat Kematangan Miselium
+                <label className="text-[11px] font-bold text-[#486356] dark:text-[#a3c9b4] uppercase tracking-wider flex items-center justify-between">
+                  <span>Tingkat Kematangan Miselium</span>
+                  <span className="text-[10px] font-normal text-emerald-600 dark:text-emerald-400 lowercase">rekomendasi: level 2</span>
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   <button
@@ -454,7 +594,7 @@ export default function KumbungGrid() {
                         : 'bg-white dark:bg-[#142219] border-[#d6e9df] dark:border-[#1e382b] text-[#759183] dark:text-[#6b8a78] hover:border-emerald-300'
                     }`}
                   >
-                    Level 1 (Putih &lt;50%)
+                    Level 1 (&lt;40%)
                   </button>
                   <button
                     onClick={() => setAssignMyceliumStage('LEVEL_2')}
@@ -464,7 +604,7 @@ export default function KumbungGrid() {
                         : 'bg-white dark:bg-[#142219] border-[#d6e9df] dark:border-[#1e382b] text-[#759183] dark:text-[#6b8a78] hover:border-emerald-300'
                     }`}
                   >
-                    Level 2 (Putih &gt;50%)
+                    Level 2 (40–80%)
                   </button>
                   <button
                     onClick={() => setAssignMyceliumStage('LEVEL_3')}
@@ -474,7 +614,7 @@ export default function KumbungGrid() {
                         : 'bg-white dark:bg-[#142219] border-[#d6e9df] dark:border-[#1e382b] text-[#759183] dark:text-[#6b8a78] hover:border-emerald-300'
                     }`}
                   >
-                    Level 3 (Full Putih)
+                    Level 3 (Full &gt;80%)
                   </button>
                 </div>
               </div>
@@ -511,6 +651,23 @@ export default function KumbungGrid() {
         isOpen={!!detailModalSlot} 
         onClose={() => setDetailModalSlot(null)} 
         slot={detailModalSlot} 
+        onRecordCull={(slot) => {
+          setCullSlot(slot);
+          setIsCullModalOpen(true);
+        }}
+      />
+
+      {/* Record Cull Modal (In-Context from Slot) */}
+      <RecordCullModal
+        isOpen={isCullModalOpen}
+        onClose={() => {
+          setIsCullModalOpen(false);
+          setCullSlot(null);
+        }}
+        batches={activeBatches}
+        initialBatchId={cullSlot?.active_batch?.id}
+        initialSlotCode={cullSlot?.slot_code}
+        maxQuantity={cullSlot?.assignment?.active_capacity}
       />
 
     </div>

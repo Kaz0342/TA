@@ -21,10 +21,10 @@ import {
   CheckCircle2,
   Lock,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Ban
 } from 'lucide-react';
 import api from '../services/api';
-import { saleService, type BuyerRankingItem, type PriceTrendData } from '../services/saleService';
 import { useAuthStore } from '../stores/authStore';
 import { useToastStore } from '../stores/toastStore';
 import { useThemeStore } from '../stores/themeStore';
@@ -60,14 +60,7 @@ interface WeeklyReportData {
   total_revenue_idr: number;
 }
 
-const BUYER_SUGGESTIONS = [
-  { name: 'Pak Joko (Pasar Induk)', category: 'Pasar Tradisional' },
-  { name: 'Ibu Dewi (Toko Sayur)', category: 'Retail / Sayur Segar' },
-  { name: 'Bu Sari (Resto Jamur)', category: 'Kuliner & Horeka' },
-  { name: 'Mas Adi (Tengkulak)', category: 'Pengepul Komoditas' },
-];
 
-const PRICE_PRESETS = [20000, 22000, 25000, 30000, 35000];
 
 export default function SalesManagement() {
   const user = useAuthStore((state) => state.user);
@@ -101,6 +94,11 @@ export default function SalesManagement() {
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState('');
 
+  // Void Modal State
+  const [voidTarget, setVoidTarget] = useState<SaleRecord | null>(null);
+  const [voidReason, setVoidReason] = useState('');
+  const [voidError, setVoidError] = useState('');
+
   // 1. Query: All Sales
   const { data: sales = [], isLoading: isLoadingSales } = useQuery<SaleRecord[]>({
     queryKey: ['sales'],
@@ -121,19 +119,7 @@ export default function SalesManagement() {
     enabled: user?.role === 'admin'
   });
 
-  // 3. Query: Top 4 Buyer Ranking
-  const { data: topBuyers = [] } = useQuery<BuyerRankingItem[]>({
-    queryKey: ['buyerRanking'],
-    queryFn: () => saleService.getBuyerRanking(4),
-    enabled: user?.role === 'admin',
-  });
 
-  // 4. Query: Price Trend & Recommended Presets
-  const { data: priceTrend } = useQuery<PriceTrendData>({
-    queryKey: ['priceTrend'],
-    queryFn: () => saleService.getPriceTrend(),
-    enabled: user?.role === 'admin',
-  });
 
   // 5. Query: Active Baglog Batches (for batch attribution dropdown)
   const { data: batches = [] } = useQuery<Array<{ id: number; batch_code: string; entry_date: string; status: string }>>({
@@ -170,8 +156,33 @@ export default function SalesManagement() {
     onError: (error: any) => {
       const msg = error.response?.data?.message || 'Gagal menyimpan data penjualan.';
       setFormError(msg);
-      addToast(msg, 'error');
     }
+  });
+
+  // Mutation: Void Sale
+  const voidMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: number; reason: string }) => {
+      const res = await api.post(`/sales/${id}/void`, { reason });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+      queryClient.invalidateQueries({ queryKey: ['salesWeeklyReport'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
+      queryClient.invalidateQueries({ queryKey: ['buyerRanking'] });
+      queryClient.invalidateQueries({ queryKey: ['priceTrend'] });
+      queryClient.invalidateQueries({ queryKey: ['hppSummary'] });
+      queryClient.invalidateQueries({ queryKey: ['batchHpp'] });
+      addToast('Transaksi penjualan berhasil dibatalkan (void).', 'success');
+      setVoidTarget(null);
+      setVoidReason('');
+      setVoidError('');
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || 'Gagal membatalkan transaksi penjualan.';
+      setVoidError(msg);
+      addToast(msg, 'error');
+    },
   });
 
   const resetForm = () => {
@@ -248,11 +259,13 @@ export default function SalesManagement() {
     const totalAllRevenue = sales.reduce((sum, s) => sum + Number(s.total_revenue || 0), 0);
     const totalAllVolumeKg = sales.reduce((sum, s) => sum + Number(s.quantity_kg || 0), 0);
     const totalTransactions = sales.length;
+    const allTimeAvgPrice = totalAllVolumeKg > 0 ? Math.round(totalAllRevenue / totalAllVolumeKg) : 0;
+    const displayAvgPrice = monthAvgPrice > 0 ? monthAvgPrice : allTimeAvgPrice;
 
     // Price range
     const prices = sales.map((s) => Number(s.price_per_kg)).filter((p) => p > 0);
-    const minPrice = prices.length > 0 ? Math.min(...prices) : 20000;
-    const maxPrice = prices.length > 0 ? Math.max(...prices) : 35000;
+    const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+    const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
 
     // Average transaction size
     const avgTransactionRevenue = thisMonthSales.length > 0 
@@ -264,6 +277,7 @@ export default function SalesManagement() {
       monthVolumeKg: Number(monthVolumeKg.toFixed(2)),
       monthTransactionsCount: thisMonthSales.length,
       monthAvgPrice,
+      displayAvgPrice,
       totalAllRevenue,
       totalAllVolumeKg: Number(totalAllVolumeKg.toFixed(2)),
       totalTransactions,
@@ -271,6 +285,45 @@ export default function SalesManagement() {
       maxPrice,
       avgTransactionRevenue
     };
+  }, [sales]);
+
+  // Ranking Pembeli / Mitra Pengepul:
+  // - Hanya muncul jika minimal ada 1 transaksi
+  // - Diurutkan berdasarkan frekuensi transaksi terbanyak (paling sering = paling kiri)
+  // - Tanpa deskripsi tambahan
+  const rankedBuyers = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const s of sales) {
+      const name = s.buyer_name?.trim();
+      if (name) {
+        counts[name] = (counts[name] || 0) + 1;
+      }
+    }
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1]) // Paling sering di sebelah kiri
+      .map(([name]) => name)
+      .slice(0, 6); // Maksimal 6 saran pembeli teratas
+  }, [sales]);
+
+  // Preset Harga Pasar Dinamis:
+  // - Murni berdasarkan histori transaksi terakhir (recency)
+  // - Transaksi paling baru = paling kiri
+  // - Maksimal 5 harga unik terakhir yang pernah dipakai
+  // - Tanpa deskripsi
+  const recentPricePresets = useMemo(() => {
+    const sorted = [...sales].sort((a, b) => {
+      const dateDiff = new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime();
+      return dateDiff !== 0 ? dateDiff : b.id - a.id;
+    });
+    const uniquePrices: number[] = [];
+    for (const s of sorted) {
+      const price = Math.round(Number(s.price_per_kg));
+      if (price > 0 && !uniquePrices.includes(price)) {
+        uniquePrices.push(price);
+        if (uniquePrices.length >= 5) break;
+      }
+    }
+    return uniquePrices;
   }, [sales]);
 
   // Chart Data Preparation: Daily Revenue & Volume
@@ -490,7 +543,7 @@ export default function SalesManagement() {
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
                 <Tag className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
               </div>
-              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Rata2 Harga/Kg</span>
+              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Rerata Harga/Kg</span>
             </div>
             <span className="text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md bg-[#f7faf8] dark:bg-[#111c15] text-[#526a5e] dark:text-[#a3c9b4] border border-[#d6e9df] dark:border-[#1e382b] shrink-0">
               Pasar &amp; Resto
@@ -498,7 +551,7 @@ export default function SalesManagement() {
           </div>
           <div className="text-lg sm:text-3xl font-extrabold text-[#192e22] dark:text-[#e4efe8] tracking-tight flex items-baseline gap-1 truncate">
             <AnimatedNumber
-              value={metrics.monthAvgPrice || 22500}
+              value={metrics.displayAvgPrice}
               formatter={(val) => formatCurrency(val)}
             />
             <span className="text-xs font-medium text-[#759183] dark:text-[#6b8a78]">/Kg</span>
@@ -506,7 +559,11 @@ export default function SalesManagement() {
           <div className="mt-2 sm:mt-2.5 flex items-center justify-between text-[10px] sm:text-xs text-[#759183] dark:text-[#6b8a78] gap-1">
             <span className="truncate">Rentang:</span>
             <span className="font-semibold text-[#192e22] dark:text-[#e4efe8] truncate text-[9px] sm:text-xs">
-              {formatCurrency(metrics.minPrice)}–{formatCurrency(metrics.maxPrice)}
+              {metrics.totalTransactions > 0 && metrics.minPrice > 0
+                ? (metrics.minPrice === metrics.maxPrice
+                    ? formatCurrency(metrics.minPrice)
+                    : `${formatCurrency(metrics.minPrice)}–${formatCurrency(metrics.maxPrice)}`)
+                : '-'}
             </span>
           </div>
         </div>
@@ -749,49 +806,53 @@ export default function SalesManagement() {
 
       </div>
 
-      {/* 4. Segmentasi Mitra Pembeli (Buyer Quick Insights) */}
-      <div className="bg-white dark:bg-[#142219] rounded-3xl p-6 border border-[#d6e9df] dark:border-[#1e382b] shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm sm:text-base font-bold text-[#192e22] dark:text-[#e4efe8] flex items-center gap-2">
-            <Store className="w-4 h-4 text-[#244b37] dark:text-[#86efac]" />
-            Segmentasi Mitra &amp; Kanal Pembeli Aktif
-          </h2>
-          <span className="text-xs text-[#759183] dark:text-[#6b8a78] font-medium">
-            Klik mitra untuk memfilter riwayat transaksi
-          </span>
-        </div>
+      {/* 4. Peringkat Mitra Pembeli (Buyer Quick Insights) */}
+      {rankedBuyers.length > 0 && (
+        <div className="bg-white dark:bg-[#142219] rounded-3xl p-6 border border-[#d6e9df] dark:border-[#1e382b] shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm sm:text-base font-bold text-[#192e22] dark:text-[#e4efe8] flex items-center gap-2">
+              <Store className="w-4 h-4 text-[#244b37] dark:text-[#86efac]" />
+              Peringkat Mitra &amp; Kanal Pembeli Aktif
+            </h2>
+            <span className="text-xs text-[#759183] dark:text-[#6b8a78] font-medium">
+              Klik mitra untuk memfilter riwayat transaksi
+            </span>
+          </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-          {BUYER_SUGGESTIONS.map((b) => {
-            const count = sales.filter((s) => s.buyer_name === b.name).length;
-            const totalKg = sales
-              .filter((s) => s.buyer_name === b.name)
-              .reduce((sum, s) => sum + Number(s.quantity_kg || 0), 0);
-            const isSelected = buyerFilter === b.name;
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+            {rankedBuyers.map((name) => {
+              const count = sales.filter((s) => s.buyer_name === name).length;
+              const totalKg = sales
+                .filter((s) => s.buyer_name === name)
+                .reduce((sum, s) => sum + Number(s.quantity_kg || 0), 0);
+              const isSelected = buyerFilter === name;
 
-            return (
-              <button
-                key={b.name}
-                onClick={() => setBuyerFilter(isSelected ? 'all' : b.name)}
-                className={`p-3.5 rounded-2xl text-left transition-all border cursor-pointer ${
-                  isSelected 
-                    ? 'bg-[#e8f4ed] dark:bg-[#1b3324] border-[#86c4a3] dark:border-[#387c56] ring-1 ring-[#86c4a3] dark:ring-[#387c56] shadow-xs' 
-                    : 'bg-[#f7faf8] dark:bg-[#111c15] hover:bg-[#edf5f0] dark:hover:bg-[#18291d] border-[#d6e9df] dark:border-[#1e382b]'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-semibold text-[#759183] dark:text-[#6b8a78] truncate max-w-[120px]">{b.category}</span>
-                  {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-[#244b37] dark:text-[#86efac] shrink-0" />}
-                </div>
-                <p className="text-xs sm:text-sm font-bold text-[#192e22] dark:text-[#e4efe8] truncate">{b.name}</p>
-                <p className="text-xs font-semibold text-[#244b37] dark:text-[#86efac] mt-1">
-                  {totalKg.toFixed(1)} Kg <span className="text-[#759183] dark:text-[#6b8a78] font-normal">({count}x)</span>
-                </p>
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={name}
+                  onClick={() => setBuyerFilter(isSelected ? 'all' : name)}
+                  className={`p-3.5 rounded-2xl text-left transition-all border cursor-pointer ${
+                    isSelected 
+                      ? 'bg-[#e8f4ed] dark:bg-[#1b3324] border-[#86c4a3] dark:border-[#387c56] ring-1 ring-[#86c4a3] dark:ring-[#387c56] shadow-xs' 
+                      : 'bg-[#f7faf8] dark:bg-[#111c15] hover:bg-[#edf5f0] dark:hover:bg-[#18291d] border-[#d6e9df] dark:border-[#1e382b]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-[#759183] dark:text-[#6b8a78] truncate max-w-[120px]">
+                      Mitra Langganan
+                    </span>
+                    {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-[#244b37] dark:text-[#86efac] shrink-0" />}
+                  </div>
+                  <p className="text-xs sm:text-sm font-bold text-[#192e22] dark:text-[#e4efe8] truncate">{name}</p>
+                  <p className="text-xs font-semibold text-[#244b37] dark:text-[#86efac] mt-1">
+                    {totalKg.toFixed(1)} Kg <span className="text-[#759183] dark:text-[#6b8a78] font-normal">({count}x)</span>
+                  </p>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 5. Riwayat Transaksi Penjualan Table Section */}
       <div className="bg-white dark:bg-[#142219] rounded-3xl p-6 border border-[#d6e9df] dark:border-[#1e382b] shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-5">
@@ -889,12 +950,13 @@ export default function SalesManagement() {
                 <th className="px-4 py-3.5 text-right">Total Omzet</th>
                 <th className="px-4 py-3.5">Petugas</th>
                 <th className="px-4 py-3.5">Catatan</th>
+                <th className="px-4 py-3.5 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#eef5f1] dark:divide-[#1a3023] bg-white dark:bg-[#142219]">
               {isLoadingSales ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
+                  <td colSpan={8} className="px-4 py-10 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#244b37] dark:text-[#86efac]" />
                     Memuat data transaksi penjualan...
                   </td>
@@ -943,11 +1005,27 @@ export default function SalesManagement() {
                       {s.notes || '-'}
                     </td>
 
+                    {/* Aksi */}
+                    <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setVoidTarget(s);
+                          setVoidReason('');
+                          setVoidError('');
+                        }}
+                        className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                        title="Batalkan (Void) Transaksi Penjualan"
+                      >
+                        <Ban className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-slate-400">
+                  <td colSpan={8} className="px-4 py-12 text-center text-slate-400">
                     <Banknote className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
                     <p className="font-semibold text-slate-600 dark:text-slate-300">Tidak ada transaksi penjualan ditemukan</p>
                     <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Coba sesuaikan filter waktu atau kata kunci pencarian lo.</p>
@@ -1075,43 +1153,33 @@ export default function SalesManagement() {
                   <label className="block text-xs font-bold uppercase tracking-wider text-[#192e22] dark:text-[#e4efe8]">
                     Nama Pembeli / Mitra Pengepul
                   </label>
-                  <span className="text-[11px] text-[#759183] dark:text-[#6b8a78]">Ketik manual atau pilih saran</span>
+                  <span className="text-[11px] text-[#759183] dark:text-[#6b8a78]">
+                    {rankedBuyers.length > 0 ? 'Ketik manual atau pilih peringkat mitra' : 'Ketik nama pembeli'}
+                  </span>
                 </div>
                 <input
                   type="text"
                   required
-                  placeholder="Misal: Bu Sari (Resto Jamur)"
+                  placeholder="Misal: Bu Sari"
                   value={buyerName}
                   onChange={(e) => setBuyerName(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-2xl bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] text-sm font-semibold text-[#192e22] dark:text-[#e4efe8] focus:outline-none focus:ring-1 focus:ring-[#244b37]"
                 />
-                {/* Quick Suggestion Chips (Dynamic Top Buyers) */}
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {topBuyers.length > 0
-                    ? topBuyers.map((b) => (
-                        <button
-                          type="button"
-                          key={b.buyer_name}
-                          onClick={() => setBuyerName(b.buyer_name)}
-                          className="text-[11px] px-2.5 py-1 rounded-xl bg-[#edf5f0] dark:bg-[#1b3324] hover:bg-[#e2f0e7] dark:hover:bg-[#244531] text-[#244b37] dark:text-[#86efac] font-semibold border border-[#d6e9df] dark:border-[#2a5a3d] transition-colors cursor-pointer flex items-center gap-1"
-                        >
-                          <span>{b.buyer_name}</span>
-                          <span className="text-[10px] text-[#759183] dark:text-[#6b8a78] font-normal">
-                            ({b.total_kg} kg)
-                          </span>
-                        </button>
-                      ))
-                    : BUYER_SUGGESTIONS.map((b) => (
-                        <button
-                          type="button"
-                          key={b.name}
-                          onClick={() => setBuyerName(b.name)}
-                          className="text-[11px] px-2.5 py-1 rounded-xl bg-[#edf5f0] dark:bg-[#1b3324] hover:bg-[#e2f0e7] dark:hover:bg-[#244531] text-[#244b37] dark:text-[#86efac] font-semibold border border-[#d6e9df] dark:border-[#2a5a3d] transition-colors cursor-pointer"
-                        >
-                          {b.name}
-                        </button>
-                      ))}
-                </div>
+                {/* Quick Suggestion Chips (Dynamic Ranked Buyers, Min 1 Transaksi, Paling Sering di Kiri, Tanpa Deskripsi) */}
+                {rankedBuyers.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {rankedBuyers.map((name) => (
+                      <button
+                        type="button"
+                        key={name}
+                        onClick={() => setBuyerName(name)}
+                        className="text-[11px] px-2.5 py-1 rounded-xl bg-[#edf5f0] dark:bg-[#1b3324] hover:bg-[#e2f0e7] dark:hover:bg-[#244531] text-[#244b37] dark:text-[#86efac] font-semibold border border-[#d6e9df] dark:border-[#2a5a3d] transition-colors cursor-pointer"
+                      >
+                        {name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Quantity & Price Inputs */}
@@ -1159,31 +1227,33 @@ export default function SalesManagement() {
 
               </div>
 
-              {/* Dynamic Price Presets */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[11px] font-semibold text-[#759183] dark:text-[#6b8a78]">
-                    Preset Harga Pasar:
-                  </span>
-                  {priceTrend && (
-                    <span className="text-[10px] text-emerald-700 dark:text-[#86efac] font-bold">
-                      Rata-rata: Rp {Math.round(priceTrend.avg_price).toLocaleString('id-ID')}
+              {/* Dynamic Price Presets (Murni Berdasarkan Histori Terakhir, Paling Baru di Kiri, Max 5, Tanpa Deskripsi) */}
+              {recentPricePresets.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[11px] font-semibold text-[#759183] dark:text-[#6b8a78]">
+                      Preset Harga Pasar:
                     </span>
-                  )}
+                    {metrics.displayAvgPrice > 0 && (
+                      <span className="text-[10px] text-emerald-700 dark:text-[#86efac] font-bold">
+                        Rerata: Rp {metrics.displayAvgPrice.toLocaleString('id-ID')}/Kg
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {recentPricePresets.map((p) => (
+                      <button
+                        type="button"
+                        key={p}
+                        onClick={() => setPricePerKg(p.toLocaleString('id-ID'))}
+                        className="text-[11px] px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-[#1b3324] hover:bg-emerald-100 dark:hover:bg-[#244531] text-slate-800 dark:text-[#86efac] font-bold transition-colors cursor-pointer border border-transparent hover:border-emerald-300"
+                      >
+                        Rp {p >= 1000 ? `${(p / 1000).toFixed(p % 1000 === 0 ? 0 : 1)}k` : p}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {(priceTrend?.recommended_presets || PRICE_PRESETS).map((p) => (
-                    <button
-                      type="button"
-                      key={p}
-                      onClick={() => setPricePerKg(p.toLocaleString('id-ID'))}
-                      className="text-[11px] px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-[#1b3324] hover:bg-emerald-100 dark:hover:bg-[#244531] text-slate-800 dark:text-[#86efac] font-bold transition-colors cursor-pointer border border-transparent hover:border-emerald-300"
-                    >
-                      Rp {(p / 1000).toFixed(0)}k
-                    </button>
-                  ))}
-                </div>
-              </div>
+              )}
 
               {/* Batch Baglog Asal Panen (Opsional untuk atribusi HPP) */}
               <div>
@@ -1263,6 +1333,103 @@ export default function SalesManagement() {
               </div>
 
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Konfirmasi Void Penjualan */}
+      {voidTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-[#14241a] border border-rose-200 dark:border-rose-900/60 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                <Ban className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Batalkan (Void) Transaksi Penjualan
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Tindakan ini akan membatalkan pencatatan omzet dan mengembalikan status ke kalkulasi keuangan.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-slate-50 dark:bg-[#101b13] rounded-2xl border border-slate-100 dark:border-[#1e382b] text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Tanggal:</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {formatDateIndo(voidTarget.sale_date)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Mitra / Pembeli:</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {voidTarget.buyer_name}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Volume:</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                  {Number(voidTarget.quantity_kg).toFixed(2)} Kg
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Total Omzet:</span>
+                <span className="font-bold text-slate-900 dark:text-slate-100">
+                  {formatCurrency(voidTarget.total_revenue)}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+                Alasan Pembatalan <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                value={voidReason}
+                onChange={(e) => {
+                  setVoidReason(e.target.value);
+                  if (voidError) setVoidError('');
+                }}
+                placeholder="Misal: Retur barang, salah harga satuan, duplikasi input..."
+                rows={3}
+                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-[#111c15] border border-slate-200 dark:border-[#1e382b] focus:border-rose-500 rounded-2xl text-xs font-medium text-slate-900 dark:text-slate-100 outline-none transition-all resize-none"
+              />
+              {voidError && (
+                <p className="text-[11px] text-rose-500 font-semibold mt-1">{voidError}</p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                disabled={voidMutation.isPending}
+                onClick={() => {
+                  setVoidTarget(null);
+                  setVoidReason('');
+                  setVoidError('');
+                }}
+                className="px-4 py-2 rounded-2xl text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={voidMutation.isPending || voidReason.trim().length < 5}
+                onClick={() => {
+                  if (voidReason.trim().length < 5) {
+                    setVoidError('Alasan pembatalan minimal 5 karakter.');
+                    return;
+                  }
+                  voidMutation.mutate({ id: voidTarget.id, reason: voidReason.trim() });
+                }}
+                className="px-4 py-2 rounded-2xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+              >
+                {voidMutation.isPending && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                <span>Konfirmasi Void</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

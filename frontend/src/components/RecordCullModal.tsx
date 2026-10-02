@@ -15,6 +15,7 @@ interface RecordCullModalProps {
   }>;
   initialBatchId?: number | null;
   initialSlotCode?: string;
+  maxQuantity?: number;
 }
 
 export default function RecordCullModal({
@@ -23,6 +24,7 @@ export default function RecordCullModal({
   batches,
   initialBatchId,
   initialSlotCode = '',
+  maxQuantity,
 }: RecordCullModalProps) {
   const queryClient = useQueryClient();
   const addToast = useToastStore((state) => state.addToast);
@@ -189,13 +191,18 @@ export default function RecordCullModal({
               <input
                 type="number"
                 min="1"
-                max="1000"
+                max={maxQuantity ? String(maxQuantity) : '20'}
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 placeholder="Contoh: 1"
                 className="w-full bg-[#fbfdfc] dark:bg-[#0c140e] border border-[#d6e9df] dark:border-[#1e382b] rounded-xl px-3.5 py-2.5 text-xs text-[#192e22] dark:text-[#e4efe8] font-semibold focus:ring-2 focus:ring-emerald-500 outline-hidden transition-all"
                 required
               />
+              {maxQuantity !== undefined && (
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block">
+                  Sisa aktif di slot: <strong>{maxQuantity}</strong> baglog
+                </span>
+              )}
             </div>
           </div>
 
@@ -229,6 +236,7 @@ export default function RecordCullModal({
                 <option value="BUSUK_BASAH">Busuk Basah (Bakteri)</option>
                 <option value="HAMA">Hama (Ulat / Serangga)</option>
                 <option value="KERING">Kering / Dehidrasi</option>
+                <option value="HABIS_PRODUKSI">Habis Masa Produksi</option>
                 <option value="LAINNYA">Lainnya</option>
               </select>
             </div>

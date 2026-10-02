@@ -1339,7 +1339,7 @@ export default function Dashboard() {
                   </span>
                   <span className="flex items-center gap-1.5 text-[#d97706] dark:text-amber-400">
                     <span className="w-2.5 h-2.5 rounded-full bg-[#eab308]"></span>
-                    Umur Batch: {stats?.latest_batches?.[0]?.age_days || 4} Hari
+                    Umur Batch: {stats?.latest_batches?.[0]?.age_days != null ? `${Math.round(Number(stats.latest_batches[0].age_days))} Hari` : '-'}
                   </span>
                   <span className="flex items-center gap-1.5 text-[#2563eb] dark:text-blue-400">
                     <span className="w-2.5 h-2.5 rounded-full bg-[#3b82f6]"></span>

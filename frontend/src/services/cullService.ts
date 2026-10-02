@@ -7,7 +7,7 @@ export interface BaglogCullItem {
   slot_code: string;
   cull_date: string;
   quantity: number;
-  reason: 'TRICHODERMA' | 'BUSUK_BASAH' | 'HAMA' | 'KERING' | 'LAINNYA';
+  reason: 'TRICHODERMA' | 'BUSUK_BASAH' | 'HAMA' | 'KERING' | 'HABIS_PRODUKSI' | 'LAINNYA';
   notes: string | null;
   created_at: string;
 }
@@ -17,7 +17,7 @@ export interface CreateCullPayload {
   slot_code: string;
   cull_date: string;
   quantity: number;
-  reason: 'TRICHODERMA' | 'BUSUK_BASAH' | 'HAMA' | 'KERING' | 'LAINNYA';
+  reason: 'TRICHODERMA' | 'BUSUK_BASAH' | 'HAMA' | 'KERING' | 'HABIS_PRODUKSI' | 'LAINNYA';
   notes?: string;
 }
 
@@ -38,6 +38,11 @@ export const cullService = {
     slot_active_capacity_remaining: number;
   }> {
     const res = await api.post('/baglog-culls', payload);
+    return res.data.data;
+  },
+
+  async voidCull(id: number, reason: string): Promise<BaglogCullItem> {
+    const res = await api.post(`/baglog-culls/${id}/void`, { reason });
     return res.data.data;
   },
 };
