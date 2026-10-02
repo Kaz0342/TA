@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Shroom SCM — Scan Akses HP</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background-color: #0c140e; color: #e4efe8; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; text-align: center; }
+    .card { background: #142219; border: 1px solid #1e382b; border-radius: 28px; padding: 32px; max-width: 420px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.5); display: flex; flex-direction: column; align-items: center; gap: 20px; }
+    h1 { font-size: 20px; font-weight: 800; color: #86efac; }
+    p { font-size: 13px; color: #a3c9b4; line-height: 1.5; }
+    .qr-box { background: #ffffff; padding: 16px; border-radius: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+    .qr-box img { display: block; width: 240px; height: 240px; }
+    .url-badge { background: #182c20; border: 1px solid #235839; color: #86efac; padding: 10px 16px; border-radius: 12px; font-size: 14px; font-weight: bold; word-break: break-all; }
+    .btn { background: #2e7d52; color: white; text-decoration: none; padding: 12px 24px; border-radius: 14px; font-weight: bold; font-size: 14px; transition: all 0.2s; display: inline-block; width: 100%; }
+    .btn:hover { background: #389664; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div style="font-size: 36px;">🍄</div>
+    <h1>Scan untuk Akses di HP</h1>
+    <p>Arahkan kamera HP lo ke kode QR di bawah ini untuk membuka <strong>Smart Shroom SCM</strong> di smartphone.</p>
+    
+    <div class="qr-box">
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=http://192.168.18.102:5173" alt="QR Code Akses HP">
+    </div>
+
+    <div class="url-badge">http://192.168.18.102:5173</div>
+
+    <p style="font-size: 11px; color: #759183;">Pastikan HP &amp; Laptop lo berada dalam 1 jaringan Wi-Fi yang sama.</p>
+
+    <a href="/" class="btn">Buka Aplikasi di Laptop</a>
+  </div>
+</body>
+</html>

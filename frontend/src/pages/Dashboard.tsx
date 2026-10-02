@@ -53,34 +53,7 @@ function processChartData(
   latestSensor?: { temperature?: number | string; humidity?: number | string; recorded_at?: string }
 ): ChartPoint[] {
   if (!rawData || rawData.length === 0) {
-    if (range === '6h') {
-      return [
-        { time: '16:51', temp: 27.5, humidity: 85.0 },
-        { time: '17:14', temp: 27.1, humidity: 86.2 },
-        { time: '17:36', temp: 26.8, humidity: 87.0 },
-        { time: '17:58', temp: 26.4, humidity: 87.6 },
-        { time: '18:21', temp: 26.0, humidity: 88.3 },
-        { time: '18:44', temp: 25.7, humidity: 88.9 },
-        { time: '21:22', temp: 25.0, humidity: 90.1 },
-        { time: '21:46', temp: 24.6, humidity: 91.0 },
-        { time: '22:09', temp: 24.2, humidity: 92.4 },
-        { time: '22:35', temp: 23.9, humidity: 93.2 },
-      ];
-    }
-    return [
-      { time: '00:00', temp: 26.0, humidity: 88.0 },
-      { time: '02:00', temp: 25.8, humidity: 89.2 },
-      { time: '04:00', temp: 25.5, humidity: 90.0 },
-      { time: '06:00', temp: 25.9, humidity: 88.5 },
-      { time: '08:00', temp: 26.8, humidity: 85.2 },
-      { time: '10:00', temp: 27.9, humidity: 82.1 },
-      { time: '12:00', temp: 29.2, humidity: 78.4 },
-      { time: '14:00', temp: 28.5, humidity: 81.0 },
-      { time: '16:00', temp: 27.8, humidity: 84.6 },
-      { time: '18:00', temp: 27.0, humidity: 86.2 },
-      { time: '20:00', temp: 26.5, humidity: 87.8 },
-      { time: '22:00', temp: 26.2, humidity: 88.4 },
-    ];
+    return [];
   }
 
   const formatTimeLabel = (dateStr?: string, fallback: string = '00:00'): string => {
@@ -298,15 +271,7 @@ export default function Dashboard() {
       kg: Number(h.total_kg) || 0,
       percentage: Math.min(100, Math.round(((Number(h.total_kg) || 0) / 15) * 100)),
     }))
-    : [
-      { label: 'Sen', kg: 4.5, percentage: 45 },
-      { label: 'Sel', kg: 6.2, percentage: 62 },
-      { label: 'Rab', kg: 5.8, percentage: 58 },
-      { label: 'Kam', kg: 8.4, percentage: 84 },
-      { label: 'Jum', kg: 7.1, percentage: 71 },
-      { label: 'Sab', kg: 9.8, percentage: 98 },
-      { label: 'Min', kg: 8.9, percentage: 89 },
-    ];
+    : [];
 
   // Dynamic Status Badges
   const isTempOptimal = tempVal >= tempMin && tempVal <= tempMax;
@@ -314,7 +279,7 @@ export default function Dashboard() {
   const hasThresholdWarning = !isTempOptimal || !isHumOptimal || (stats?.system_alerts && stats.system_alerts.length > 0);
 
   // Operational Baglog & Harvest Metrics
-  const activeBaglogs = stats?.active_baglogs ?? 2450;
+  const activeBaglogs = stats?.active_baglogs ?? 0;
   const maxCapacity = 3000;
   const baglogPercentage = Math.min(100, Math.round((activeBaglogs / maxCapacity) * 100));
 
@@ -550,7 +515,7 @@ export default function Dashboard() {
                 Kapasitas {baglogPercentage}% ({maxCapacity.toLocaleString('id-ID')} Max)
               </p>
               <p className="text-[11px] text-[#759183] dark:text-[#6b8a78] mt-2 font-medium">
-                {stats?.latest_batches?.length || 3} Batch aktif kumbung
+                {stats?.latest_batches?.length || 0} Batch aktif kumbung
               </p>
             </div>
             <SemiCircleGauge value={baglogPercentage} min={0} max={100} color="#499b70" />
@@ -659,6 +624,18 @@ export default function Dashboard() {
             {chartLoading ? (
               <div className="h-[300px] w-full flex items-center justify-center text-xs text-slate-400 font-medium">
                 Mengambil riwayat data mikroklimat kumbung...
+              </div>
+            ) : smoothedChart.length === 0 ? (
+              <div className="h-[300px] w-full flex flex-col items-center justify-center text-center p-6 space-y-3 border border-dashed border-[#d6e9df] dark:border-[#1e382b] rounded-2xl">
+                <div className="w-12 h-12 rounded-2xl bg-[#edf5f0] dark:bg-[#182c20] text-[#244b37] dark:text-[#86efac] flex items-center justify-center">
+                  <Activity className="w-6 h-6 stroke-[2]" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-[#192e22] dark:text-[#e4efe8]">Belum Ada Rekaman Data Sensor</h3>
+                  <p className="text-xs text-[#526a5e] dark:text-[#a3c9b4] mt-1 max-w-md">
+                    Database saat ini dalam kondisi bersih (0 data). Grafik akan otomatis membaca suhu &amp; kelembapan live sesuai jam lokal saat ESP32 atau IoT Simulator dinyalakan.
+                  </p>
+                </div>
               </div>
             ) : chartViewMode === 'split' ? (
               /* Mode A: Berdampingan (Persis Gambar 1 - Dua Grafik Terpisah) */
@@ -1348,8 +1325,15 @@ export default function Dashboard() {
                 </div>
 
                 <div className="h-[180px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={cropProgressData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  {cropProgressData.length === 0 ? (
+                    <div className="h-full w-full flex flex-col items-center justify-center text-center p-4 border border-dashed border-[#d6e9df] dark:border-[#1e382b] rounded-2xl">
+                      <Scale className="w-6 h-6 text-[#759183] dark:text-[#6b8a78] mb-1.5 opacity-60" />
+                      <p className="text-xs font-bold text-[#192e22] dark:text-[#e4efe8]">Belum Ada Riwayat Timbangan Panen</p>
+                      <p className="text-[11px] text-[#759183] dark:text-[#6b8a78] mt-0.5">Catat hasil panen pertama di modul Hasil Panen untuk melihat kurva tren produksi.</p>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={cropProgressData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                       <defs>
                         <linearGradient id="cropGradient" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#499b70" stopOpacity={0.25} />
@@ -1390,6 +1374,7 @@ export default function Dashboard() {
                       />
                     </AreaChart>
                   </ResponsiveContainer>
+                  )}
                 </div>
               </div>
             ) : (
