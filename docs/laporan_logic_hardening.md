@@ -1,5 +1,6 @@
 # 🛡️ Laporan Akhir Logic Hardening & Pengujian Kuantitatif
-**Smart Shroom SCM — Tugas Akhir Program Studi Sistem Informasi**
+**Judul Tugas Akhir:** *Sistem Informasi Supply Chain Management dan Spasial WMS pada Kumbung Jamur Terintegrasi dengan Otomasi dan Monitoring Mikroklimat IoT*  
+**Produk Sistem:** Smart Shroom SCM — Program Studi Sistem Informasi  
 
 - **Penyusun:** Benedictus Vio
 - **Branch:** `fix/logic-hardening` (turunan dari `develop`)

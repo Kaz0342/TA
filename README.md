@@ -1,6 +1,7 @@
 # Smart Shroom SCM 🍄
+### *Sistem Informasi Supply Chain Management dan Spasial WMS pada Kumbung Jamur Terintegrasi dengan Otomasi dan Monitoring Mikroklimat IoT*
 
-**Sistem Manajemen Rantai Pasok Jamur Kuping Berbasis IoT (Smart Shroom SCM)** adalah sistem informasi terintegrasi yang dirancang untuk memantau iklim mikro kumbung jamur secara *real-time* dan mendigitalisasi proses rantai pasok budidaya jamur kuping (*Auricularia auricula-judae*). Sistem mencakup siklus hidup media tanam (*baglog*), pencatatan panen, hingga perhitungan pendapatan (*revenue*) dan neraca rantai pasok secara otomatis. Proyek ini merupakan produk utama Tugas Akhir (TA) Program Studi Sistem Informasi.
+**Smart Shroom SCM** adalah sistem informasi yang dirancang untuk mendigitalisasi proses rantai pasok budidaya jamur kuping (*Auricularia auricula-judae*), manajemen tata letak inventaris rak gudang (Spasial WMS), dan otomasi pemeliharaan iklim mikro kumbung berbasis IoT secara *real-time*. Sistem mencakup siklus hidup baglog, pencatatan panen terhubung slot, perhitungan Harga Pokok Penjualan (HPP) dinamis, hingga neraca rantai pasok secara otomatis. Proyek ini merupakan produk utama Tugas Akhir (TA) Program Studi Sistem Informasi.
 
 ---
 

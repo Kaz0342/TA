@@ -40,4 +40,5 @@ export const Card = ({ className, children, ...props }: React.HTMLAttributes<HTM
 };
 
 export { ToastContainer } from './ToastContainer';
+export { ModalPortal } from './ModalPortal';
 

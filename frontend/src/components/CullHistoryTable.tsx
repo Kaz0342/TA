@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Trash2, Search, Ban, RefreshCw } from 'lucide-react';
 import { cullService, type BaglogCullItem } from '../services/cullService';
 import { useToastStore } from '../stores/toastStore';
+import { ModalPortal } from './ui';
 
 interface CullHistoryTableProps {
   onOpenRecordModal: () => void;
@@ -89,19 +90,18 @@ export default function CullHistoryTable({ onOpenRecordModal, isAdmin }: CullHis
   const totalCulledBags = culls.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
 
   return (
-    <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-6 shadow-xs space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h3 className="text-base font-bold text-[#192e22] dark:text-[#e4efe8] flex items-center gap-2">
-            <Trash2 className="w-4 h-4 text-rose-600" />
-            <span>Riwayat Baglog Rusak &amp; Kontaminasi</span>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
-              Total {totalCulledBags} baglog rusak
-            </span>
-          </h3>
-          <p className="text-xs text-[#526a5e] dark:text-[#a3c9b4] mt-0.5">
-            Log pembuangan media tanam rusak untuk analisis sanitasi kumbung
-          </p>
+    <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-4 sm:p-6 shadow-xs space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2">
+            <Trash2 className="w-4 h-4 text-rose-600 shrink-0" />
+            <h3 className="text-sm sm:text-base font-bold text-[#192e22] dark:text-[#e4efe8]">
+              Riwayat Baglog Rusak &amp; Kontaminasi
+            </h3>
+          </div>
+          <span className="text-[11px] sm:text-xs font-semibold px-2.5 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 whitespace-nowrap shrink-0">
+            {totalCulledBags} baglog rusak
+          </span>
         </div>
 
         <div className="flex items-center gap-2.5">
@@ -225,99 +225,101 @@ export default function CullHistoryTable({ onOpenRecordModal, isAdmin }: CullHis
 
       {/* Modal Konfirmasi Void Cull */}
       {voidTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-[#14241a] border border-rose-200 dark:border-rose-900/60 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
-                <Ban className="w-5 h-5" />
+        <ModalPortal>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+            <div className="bg-white dark:bg-[#14241a] border border-rose-200 dark:border-rose-900/60 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                  <Ban className="w-5 h-5" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    Batalkan (Void) Catatan Baglog Rusak
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Tindakan ini akan mengembalikan stok baglog ke slot/batch terkait dan membatalkan pencatatan afkir.
+                  </p>
+                </div>
               </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                  Batalkan (Void) Catatan Baglog Rusak
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Tindakan ini akan mengembalikan stok baglog ke slot/batch terkait dan membatalkan pencatatan afkir.
-                </p>
-              </div>
-            </div>
 
-            <div className="p-3 bg-slate-50 dark:bg-[#101b13] rounded-2xl border border-slate-100 dark:border-[#1e382b] text-xs space-y-1">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Tanggal:</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">
-                  {voidTarget.cull_date}
-                </span>
+              <div className="p-3 bg-slate-50 dark:bg-[#101b13] rounded-2xl border border-slate-100 dark:border-[#1e382b] text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Tanggal:</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {voidTarget.cull_date}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Batch / Slot:</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {voidTarget.batch_code} ({voidTarget.slot_code})
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Jumlah Rusak:</span>
+                  <span className="font-bold text-rose-600 dark:text-rose-400">
+                    {voidTarget.quantity} baglog
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Alasan:</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {reasonLabels[voidTarget.reason]?.label || voidTarget.reason}
+                  </span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Batch / Slot:</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">
-                  {voidTarget.batch_code} ({voidTarget.slot_code})
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Jumlah Rusak:</span>
-                <span className="font-bold text-rose-600 dark:text-rose-400">
-                  {voidTarget.quantity} baglog
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Alasan:</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">
-                  {reasonLabels[voidTarget.reason]?.label || voidTarget.reason}
-                </span>
-              </div>
-            </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">
-                Alasan Pembatalan <span className="text-rose-500">*</span>
-              </label>
-              <textarea
-                value={voidReason}
-                onChange={(e) => {
-                  setVoidReason(e.target.value);
-                  if (voidError) setVoidError('');
-                }}
-                placeholder="Misal: Salah slot saat input afkir, baglog masih sehat..."
-                rows={3}
-                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-[#111c15] border border-slate-200 dark:border-[#1e382b] focus:border-rose-500 rounded-2xl text-xs font-medium text-slate-900 dark:text-slate-100 outline-none transition-all resize-none"
-              />
-              {voidError && (
-                <p className="text-[11px] text-rose-500 font-semibold mt-1">{voidError}</p>
-              )}
-            </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+                  Alasan Pembatalan <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  value={voidReason}
+                  onChange={(e) => {
+                    setVoidReason(e.target.value);
+                    if (voidError) setVoidError('');
+                  }}
+                  placeholder="Misal: Salah slot saat input afkir, baglog masih sehat..."
+                  rows={3}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-[#111c15] border border-slate-200 dark:border-[#1e382b] focus:border-rose-500 rounded-2xl text-xs font-medium text-slate-900 dark:text-slate-100 outline-none transition-all resize-none"
+                />
+                {voidError && (
+                  <p className="text-[11px] text-rose-500 font-semibold mt-1">{voidError}</p>
+                )}
+              </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                disabled={voidMutation.isPending}
-                onClick={() => {
-                  setVoidTarget(null);
-                  setVoidReason('');
-                  setVoidError('');
-                }}
-                className="px-4 py-2 rounded-2xl text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 cursor-pointer"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                disabled={voidMutation.isPending || voidReason.trim().length < 5}
-                onClick={() => {
-                  if (voidReason.trim().length < 5) {
-                    setVoidError('Alasan pembatalan minimal 5 karakter.');
-                    return;
-                  }
-                  voidMutation.mutate({ id: voidTarget.id, reason: voidReason.trim() });
-                }}
-                className="px-4 py-2 rounded-2xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
-              >
-                {voidMutation.isPending && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-                <span>Konfirmasi Void</span>
-              </button>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  disabled={voidMutation.isPending}
+                  onClick={() => {
+                    setVoidTarget(null);
+                    setVoidReason('');
+                    setVoidError('');
+                  }}
+                  className="px-4 py-2 rounded-2xl text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  disabled={voidMutation.isPending || voidReason.trim().length < 5}
+                  onClick={() => {
+                    if (voidReason.trim().length < 5) {
+                      setVoidError('Alasan pembatalan minimal 5 karakter.');
+                      return;
+                    }
+                    voidMutation.mutate({ id: voidTarget.id, reason: voidReason.trim() });
+                  }}
+                  className="px-4 py-2 rounded-2xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+                >
+                  {voidMutation.isPending && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Konfirmasi Void</span>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
     </div>

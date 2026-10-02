@@ -1,4 +1,5 @@
 # PRD — Smart Shroom Supply Chain Management (SCM)
+**Judul Tugas Akhir:** *Sistem Informasi Supply Chain Management dan Spasial WMS pada Kumbung Jamur Terintegrasi dengan Otomasi dan Monitoring Mikroklimat IoT*  
 
 **Versi Dokumen:** 2.0 (Updated: Spatial Grid WMS, Ledger Afkir, HPP Dinamis, & IoT Rule Engine)  
 **Tanggal:** 27 September 2026  

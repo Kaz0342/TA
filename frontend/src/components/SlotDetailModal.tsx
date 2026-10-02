@@ -3,6 +3,7 @@ import { X, Info, Box, Leaf, TrendingUp, Calendar, Sparkles, AlertTriangle, Chec
 import { slotService, type SlotData } from '../services/slotService';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToastStore } from '../stores/toastStore';
+import { ModalPortal } from './ui';
 
 interface SlotDetailModalProps {
   isOpen: boolean;
@@ -47,7 +48,8 @@ export default function SlotDetailModal({ isOpen, onClose, slot, onRecordCull }:
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+    <ModalPortal>
+      <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-xs animate-in fade-in duration-200">
       <div className="bg-white dark:bg-[#142219] w-full max-w-sm rounded-t-3xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 flex flex-col max-h-[92vh] sm:max-h-[90vh]">
         
         {/* Header */}
@@ -260,5 +262,6 @@ export default function SlotDetailModal({ isOpen, onClose, slot, onRecordCull }:
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }

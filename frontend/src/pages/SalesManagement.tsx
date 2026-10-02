@@ -29,6 +29,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useToastStore } from '../stores/toastStore';
 import { useThemeStore } from '../stores/themeStore';
 import AnimatedNumber from '../components/AnimatedNumber';
+import { ModalPortal } from '../components/ui';
 
 interface SaleRecord {
   id: number;
@@ -483,116 +484,132 @@ export default function SalesManagement() {
         
         {/* Card 1: Omzet Bulan Ini */}
         <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] mb-2 sm:mb-3 gap-1">
-            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <div>
+            <div className="flex items-center justify-between">
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
                 <Banknote className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
               </div>
-              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Omzet Bulan Ini</span>
+              <span className="text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md bg-[#e8f4ed] dark:bg-[#1a3324] text-[#244b37] dark:text-[#86efac] shrink-0">
+                {metrics.monthTransactionsCount} Nota
+              </span>
             </div>
-            <span className="text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md bg-[#e8f4ed] dark:bg-[#1a3324] text-[#244b37] dark:text-[#86efac] shrink-0">
-              {metrics.monthTransactionsCount} Nota
+            <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] block leading-tight mt-2 sm:mt-2.5">
+              Omzet Bulan Ini
             </span>
           </div>
-          <div className="text-lg sm:text-3xl font-extrabold text-[#192e22] dark:text-[#e4efe8] tracking-tight truncate">
-            <AnimatedNumber
-              value={metrics.monthRevenue}
-              formatter={(val) => formatCurrency(val)}
-            />
-          </div>
-          <div className="mt-2 sm:mt-2.5 flex items-center justify-between text-[10px] sm:text-xs text-[#759183] dark:text-[#6b8a78] gap-1">
-            <span className="truncate">Rata-rata/Nota:</span>
-            <span className="font-semibold text-[#192e22] dark:text-[#e4efe8] shrink-0">
-              {formatCurrency(metrics.avgTransactionRevenue)}
-            </span>
+          <div className="mt-2.5 sm:mt-3">
+            <div className="text-lg sm:text-3xl font-extrabold text-[#192e22] dark:text-[#e4efe8] tracking-tight truncate">
+              <AnimatedNumber
+                value={metrics.monthRevenue}
+                formatter={(val) => formatCurrency(val)}
+              />
+            </div>
+            <div className="mt-2 sm:mt-2.5 flex items-center justify-between text-[10px] sm:text-xs text-[#759183] dark:text-[#6b8a78] gap-1">
+              <span className="truncate">Rata-rata/Nota:</span>
+              <span className="font-semibold text-[#192e22] dark:text-[#e4efe8] shrink-0">
+                {formatCurrency(metrics.avgTransactionRevenue)}
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Card 2: Volume Jamur Terjual */}
         <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] mb-2 sm:mb-3 gap-1">
-            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <div>
+            <div className="flex items-center justify-between">
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
                 <Scale className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
               </div>
-              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Volume Terjual</span>
+              <span className="text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md bg-[#e8f4ed] dark:bg-[#1a3324] text-[#244b37] dark:text-[#86efac] shrink-0">
+                Bulan Ini
+              </span>
             </div>
-            <span className="text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md bg-[#e8f4ed] dark:bg-[#1a3324] text-[#244b37] dark:text-[#86efac] shrink-0">
-              Bulan Ini
+            <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] block leading-tight mt-2 sm:mt-2.5">
+              Volume Terjual
             </span>
           </div>
-          <div className="text-lg sm:text-3xl font-extrabold text-[#192e22] dark:text-[#e4efe8] tracking-tight flex items-baseline gap-1">
-            <AnimatedNumber
-              value={metrics.monthVolumeKg}
-              decimals={0}
-            />
-            <span className="text-xs sm:text-base font-semibold text-[#759183] dark:text-[#6b8a78]">Kg</span>
-          </div>
-          <div className="mt-2 sm:mt-2.5 flex items-center justify-between text-[10px] sm:text-xs text-[#759183] dark:text-[#6b8a78] gap-1">
-            <span className="truncate">Kumulatif:</span>
-            <span className="font-semibold text-[#192e22] dark:text-[#e4efe8] shrink-0">
-              {metrics.totalAllVolumeKg.toLocaleString('id-ID')} Kg
-            </span>
+          <div className="mt-2.5 sm:mt-3">
+            <div className="text-lg sm:text-3xl font-extrabold text-[#192e22] dark:text-[#e4efe8] tracking-tight flex items-baseline gap-1">
+              <AnimatedNumber
+                value={metrics.monthVolumeKg}
+                decimals={0}
+              />
+              <span className="text-xs sm:text-base font-semibold text-[#759183] dark:text-[#6b8a78]">Kg</span>
+            </div>
+            <div className="mt-2 sm:mt-2.5 flex items-center justify-between text-[10px] sm:text-xs text-[#759183] dark:text-[#6b8a78] gap-1">
+              <span className="truncate">Kumulatif:</span>
+              <span className="font-semibold text-[#192e22] dark:text-[#e4efe8] shrink-0">
+                {metrics.totalAllVolumeKg.toLocaleString('id-ID')} Kg
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Card 3: Rata-Rata Harga Jual */}
         <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] mb-2 sm:mb-3 gap-1">
-            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <div>
+            <div className="flex items-center justify-between">
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
                 <Tag className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
               </div>
-              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Rerata Harga/Kg</span>
+              <span className="text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md bg-[#f7faf8] dark:bg-[#111c15] text-[#526a5e] dark:text-[#a3c9b4] border border-[#d6e9df] dark:border-[#1e382b] shrink-0">
+                Pasar &amp; Resto
+              </span>
             </div>
-            <span className="text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md bg-[#f7faf8] dark:bg-[#111c15] text-[#526a5e] dark:text-[#a3c9b4] border border-[#d6e9df] dark:border-[#1e382b] shrink-0">
-              Pasar &amp; Resto
+            <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] block leading-tight mt-2 sm:mt-2.5">
+              Rerata Harga/Kg
             </span>
           </div>
-          <div className="text-lg sm:text-3xl font-extrabold text-[#192e22] dark:text-[#e4efe8] tracking-tight flex items-baseline gap-1 truncate">
-            <AnimatedNumber
-              value={metrics.displayAvgPrice}
-              formatter={(val) => formatCurrency(val)}
-            />
-            <span className="text-xs font-medium text-[#759183] dark:text-[#6b8a78]">/Kg</span>
-          </div>
-          <div className="mt-2 sm:mt-2.5 flex items-center justify-between text-[10px] sm:text-xs text-[#759183] dark:text-[#6b8a78] gap-1">
-            <span className="truncate">Rentang:</span>
-            <span className="font-semibold text-[#192e22] dark:text-[#e4efe8] truncate text-[9px] sm:text-xs">
-              {metrics.totalTransactions > 0 && metrics.minPrice > 0
-                ? (metrics.minPrice === metrics.maxPrice
-                    ? formatCurrency(metrics.minPrice)
-                    : `${formatCurrency(metrics.minPrice)}–${formatCurrency(metrics.maxPrice)}`)
-                : '-'}
-            </span>
+          <div className="mt-2.5 sm:mt-3">
+            <div className="text-lg sm:text-3xl font-extrabold text-[#192e22] dark:text-[#e4efe8] tracking-tight flex items-baseline gap-1 truncate">
+              <AnimatedNumber
+                value={metrics.displayAvgPrice}
+                formatter={(val) => formatCurrency(val)}
+              />
+              <span className="text-xs font-medium text-[#759183] dark:text-[#6b8a78]">/Kg</span>
+            </div>
+            <div className="mt-2 sm:mt-2.5 flex items-center justify-between text-[10px] sm:text-xs text-[#759183] dark:text-[#6b8a78] gap-1">
+              <span className="truncate">Rentang:</span>
+              <span className="font-semibold text-[#192e22] dark:text-[#e4efe8] truncate text-[9px] sm:text-xs">
+                {metrics.totalTransactions > 0 && metrics.minPrice > 0
+                  ? (metrics.minPrice === metrics.maxPrice
+                      ? formatCurrency(metrics.minPrice)
+                      : `${formatCurrency(metrics.minPrice)}–${formatCurrency(metrics.maxPrice)}`)
+                  : '-'}
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Card 4: Neraca SCM Panen vs Terjual */}
         <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] mb-2 sm:mb-3 gap-1">
-            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <div>
+            <div className="flex items-center justify-between">
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
                 <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
               </div>
-              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Neraca SCM</span>
+              <span className="text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md bg-[#e8f4ed] dark:bg-[#1a3324] text-[#244b37] dark:text-[#86efac] shrink-0">
+                Mingguan
+              </span>
             </div>
-            <span className="text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md bg-[#e8f4ed] dark:bg-[#1a3324] text-[#244b37] dark:text-[#86efac] shrink-0">
-              Mingguan
+            <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] block leading-tight mt-2 sm:mt-2.5">
+              Neraca SCM
             </span>
           </div>
-          <div className="text-lg sm:text-3xl font-extrabold text-[#192e22] dark:text-[#e4efe8] tracking-tight flex items-baseline gap-1">
-            <AnimatedNumber
-              value={weeklyReport?.unsold_kg ?? 0}
-              decimals={2}
-            />
-            <span className="text-xs sm:text-base font-semibold text-[#759183] dark:text-[#6b8a78]">Kg Buffer</span>
-          </div>
-          <div className="mt-2 sm:mt-2.5 flex items-center justify-between text-[10px] sm:text-xs text-[#759183] dark:text-[#6b8a78] gap-1">
-            <span className="truncate">Supply:</span>
-            <span className="font-semibold text-[#192e22] dark:text-[#e4efe8] shrink-0">
-              {(weeklyReport?.total_harvest_kg ?? 0).toFixed(2)} Kg
-            </span>
+          <div className="mt-2.5 sm:mt-3">
+            <div className="text-lg sm:text-3xl font-extrabold text-[#192e22] dark:text-[#e4efe8] tracking-tight flex items-baseline gap-1">
+              <AnimatedNumber
+                value={weeklyReport?.unsold_kg ?? 0}
+                decimals={2}
+              />
+              <span className="text-xs sm:text-base font-semibold text-[#759183] dark:text-[#6b8a78]">Kg Buffer</span>
+            </div>
+            <div className="mt-2 sm:mt-2.5 flex items-center justify-between text-[10px] sm:text-xs text-[#759183] dark:text-[#6b8a78] gap-1">
+              <span className="truncate">Supply:</span>
+              <span className="font-semibold text-[#192e22] dark:text-[#e4efe8] shrink-0">
+                {(weeklyReport?.total_harvest_kg ?? 0).toFixed(2)} Kg
+              </span>
+            </div>
           </div>
         </div>
 
@@ -1184,32 +1201,36 @@ export default function SalesManagement() {
 
       {/* 6. Modal Input Transaksi Penjualan — Harmonious Sage Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div 
-            className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-6 max-w-lg w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <ModalPortal>
+          <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] animate-in fade-in duration-200">
+            <div 
+              className="bg-white dark:bg-[#142219] rounded-t-3xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 sm:p-6 max-w-lg w-full shadow-2xl space-y-4 animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 flex flex-col max-h-[85vh] sm:max-h-[90vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+            {/* Mobile Sheet Handle */}
+            <div className="w-12 h-1 bg-slate-300 dark:bg-[#2b503d] rounded-full mx-auto sm:hidden -mt-1 mb-1 shrink-0" />
+
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-[#e4efe8] dark:border-[#1e382b] pb-3.5 shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-2xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center">
+                <div className="w-9 h-9 rounded-2xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
                   <Banknote className="w-5 h-5 stroke-[2.2]" />
                 </div>
                 <div>
-                  <h2 className="text-base sm:text-lg font-bold text-[#192e22] dark:text-[#e4efe8]">Catat Transaksi Penjualan</h2>
+                  <h2 className="text-base sm:text-lg font-bold text-[#192e22] dark:text-[#e4efe8] leading-tight">Catat Transaksi Penjualan</h2>
                   <p className="text-[11px] text-[#526a5e] dark:text-[#a3c9b4]">Input nota distribusi hasil panen jamur kuping</p>
                 </div>
               </div>
               <button
                 onClick={() => { setIsModalOpen(false); resetForm(); }}
-                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-[#1b3324] text-slate-400 hover:text-slate-700 dark:hover:text-[#e4efe8] transition-colors"
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-[#1b3324] text-slate-400 hover:text-slate-700 dark:hover:text-[#e4efe8] transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Modal Form Body */}
-            <form onSubmit={handleSubmit} className="overflow-y-auto space-y-4 flex-1 pr-1">
+            <form onSubmit={handleSubmit} className="overflow-y-auto space-y-4 flex-1 pr-1.5 pt-2 pb-6">
               
               {formError && (
                 <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300 text-xs font-semibold flex items-center gap-2">
@@ -1220,7 +1241,7 @@ export default function SalesManagement() {
 
               {/* Tanggal Transaksi */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#192e22] dark:text-[#e4efe8] mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#192e22] dark:text-[#e4efe8] leading-normal pt-0.5 mb-1.5">
                   Tanggal Transaksi
                 </label>
                 <input
@@ -1234,8 +1255,8 @@ export default function SalesManagement() {
 
               {/* Nama Pembeli / Pengepul */}
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#192e22] dark:text-[#e4efe8]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#192e22] dark:text-[#e4efe8] leading-normal pt-0.5">
                     Nama Pembeli / Mitra Pengepul
                   </label>
                   <span className="text-[11px] text-[#759183] dark:text-[#6b8a78]">
@@ -1272,7 +1293,7 @@ export default function SalesManagement() {
                 
                 {/* Jumlah Kg */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#192e22] dark:text-[#e4efe8] mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#192e22] dark:text-[#e4efe8] leading-normal pt-0.5 mb-1.5">
                     Berat Panen (Kg)
                   </label>
                   <div className="relative">
@@ -1292,7 +1313,7 @@ export default function SalesManagement() {
 
                 {/* Harga per Kg */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#192e22] dark:text-[#e4efe8] mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#192e22] dark:text-[#e4efe8] leading-normal pt-0.5 mb-1.5">
                     Harga Jual / Kg
                   </label>
                   <div className="relative">
@@ -1315,8 +1336,8 @@ export default function SalesManagement() {
               {/* Dynamic Price Presets (Murni Berdasarkan Histori Terakhir, Paling Baru di Kiri, Max 5, Tanpa Deskripsi) */}
               {recentPricePresets.length > 0 && (
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[11px] font-semibold text-[#759183] dark:text-[#6b8a78]">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1.5">
+                    <span className="text-[11px] font-semibold text-[#759183] dark:text-[#6b8a78] leading-normal pt-0.5">
                       Preset Harga Pasar:
                     </span>
                     {metrics.displayAvgPrice > 0 && (
@@ -1342,7 +1363,7 @@ export default function SalesManagement() {
 
               {/* Batch Baglog Asal Panen (Opsional untuk atribusi HPP) */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#192e22] dark:text-[#e4efe8] mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#192e22] dark:text-[#e4efe8] leading-normal pt-0.5 mb-1.5">
                   Batch Baglog Asal (Opsional untuk Alokasi HPP)
                 </label>
                 <select
@@ -1377,7 +1398,7 @@ export default function SalesManagement() {
 
               {/* Catatan Transaksi */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#192e22] dark:text-[#e4efe8] mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#192e22] dark:text-[#e4efe8] leading-normal pt-0.5 mb-1.5">
                   Catatan Transaksi (Opsional)
                 </label>
                 <textarea
@@ -1390,18 +1411,18 @@ export default function SalesManagement() {
               </div>
 
               {/* Submit Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-2">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-3">
                 <button
                   type="button"
                   onClick={() => { setIsModalOpen(false); resetForm(); }}
-                  className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-[#1e382b] text-slate-700 dark:text-[#a3c9b4] font-semibold text-xs hover:bg-slate-50 dark:hover:bg-[#1b3324] transition-colors cursor-pointer"
+                  className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-[#1e382b] text-slate-700 dark:text-[#a3c9b4] font-semibold text-xs hover:bg-slate-50 dark:hover:bg-[#1b3324] transition-colors cursor-pointer text-center"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#244b37] hover:bg-[#1b3a2b] dark:bg-[#2e7d52] dark:hover:bg-[#246341] active:scale-[0.98] text-white font-bold text-xs transition-all shadow-xs hover:shadow disabled:opacity-50 cursor-pointer"
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-[#244b37] hover:bg-[#1b3a2b] dark:bg-[#2e7d52] dark:hover:bg-[#246341] active:scale-[0.98] text-white font-bold text-xs transition-all shadow-xs hover:shadow disabled:opacity-50 cursor-pointer"
                 >
                   {createMutation.isPending ? (
                     <>
@@ -1420,12 +1441,16 @@ export default function SalesManagement() {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Modal Konfirmasi Void Penjualan */}
       {voidTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-[#14241a] border border-rose-200 dark:border-rose-900/60 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <ModalPortal>
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-xs animate-in fade-in duration-150">
+            <div className="bg-white dark:bg-[#14241a] border border-rose-200 dark:border-rose-900/60 rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 w-full max-w-md shadow-2xl space-y-4 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
+              {/* Mobile Sheet Handle */}
+              <div className="w-12 h-1 bg-slate-300 dark:bg-[#2b503d] rounded-full mx-auto sm:hidden -mt-1 mb-1" />
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
                 <Ban className="w-5 h-5" />
@@ -1517,6 +1542,7 @@ export default function SalesManagement() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
     </div>

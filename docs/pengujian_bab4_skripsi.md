@@ -1,6 +1,7 @@
 # Bab 4: Hasil dan Pembahasan — Pengujian Sistem (Testing Matrix) 🍄
-**Smart Shroom SCM — Tugas Akhir Program Studi Sistem Informasi**
-
+**Judul Tugas Akhir:** *Sistem Informasi Supply Chain Management dan Spasial WMS pada Kumbung Jamur Terintegrasi dengan Otomasi dan Monitoring Mikroklimat IoT*  
+**Produk Sistem:** Smart Shroom SCM  
+**Program Studi:** Sistem Informasi  
 **Penyusun:** Benedictus Vio  
 **Topik:** Pengujian Fungsional (*Black-Box Testing*), Pengujian Otomatis (*Automated Feature/Unit Testing*), dan Pengujian Logika IoT  
 **Target:** Lampiran Resmi & Sub-Bab Pengujian Skripsi Bab 4  

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Grid as GridIcon, Map, Plus, Check, X, Box, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { slotService } from '../services/slotService';
@@ -8,6 +8,7 @@ import { useToastStore } from '../stores/toastStore';
 import { useAuthStore } from '../stores/authStore';
 import SlotDetailModal from '../components/SlotDetailModal';
 import RecordCullModal from '../components/RecordCullModal';
+import { ModalPortal } from '../components/ui';
 
 export default function KumbungGrid() {
   const user = useAuthStore((state) => state.user);
@@ -19,6 +20,17 @@ export default function KumbungGrid() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'occupied' | 'empty'>('all');
   const [viewMode, setViewMode] = useState<'physical' | 'heatmap'>('physical');
   const [selectedBay, setSelectedBay] = useState<number>(1);
+  const bayScrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll active bay pill into view when selectedBay changes
+  useEffect(() => {
+    if (bayScrollRef.current) {
+      const activeBtn = bayScrollRef.current.querySelector<HTMLButtonElement>(`[data-bay="${selectedBay}"]`);
+      if (activeBtn) {
+        activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }
+  }, [selectedBay]);
 
   // Allocation Selection State
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -170,10 +182,10 @@ export default function KumbungGrid() {
             : 'cursor-pointer hover:border-blue-400 dark:hover:border-blue-600'
         } ${
           isSelected
-            ? 'bg-emerald-50/50 dark:bg-emerald-900/20 border-emerald-500 ring-2 ring-emerald-500/20'
+            ? 'bg-emerald-50/70 dark:bg-emerald-900/20 border-emerald-500 ring-2 ring-emerald-500/20'
             : slot.is_occupied
-              ? 'bg-[#182c20]/40 border-[#1e382b]'
-              : 'bg-transparent border-dashed border-[#d6e9df] dark:border-[#3a5a48] opacity-100 hover:bg-slate-50 dark:hover:bg-[#111c15]'
+              ? 'bg-[#e8f4ed] dark:bg-[#182c20]/60 border-emerald-200 dark:border-[#1e382b]'
+              : 'bg-white/80 dark:bg-transparent border-dashed border-[#d6e9df] dark:border-[#3a5a48] opacity-100 hover:bg-slate-50 dark:hover:bg-[#111c15]'
         }`}
         style={{ minHeight: '64px' }}
       >
@@ -195,7 +207,7 @@ export default function KumbungGrid() {
               </span>
             </div>
             {/* Minimal Progress Bar */}
-            <div className="h-1 w-full bg-[#111c15] rounded-full overflow-hidden">
+            <div className="h-1 w-full bg-slate-200 dark:bg-[#111c15] rounded-full overflow-hidden">
               <div 
                 className="h-full bg-emerald-500" 
                 style={{ width: `${capacityPercent}%` }}
@@ -222,9 +234,9 @@ export default function KumbungGrid() {
     
     if (!heatData || heatData.total_kg === 0) {
       return (
-        <div key={slot.slot_code} className="flex flex-col items-center justify-center p-2 rounded-xl bg-transparent border border-dashed border-[#1e382b] opacity-30" style={{ minHeight: '64px' }}>
-          <span className="text-[8px] text-[#6b8a78]">{slot.slot_code}</span>
-          <span className="text-xs text-slate-600">-</span>
+        <div key={slot.slot_code} className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/50 dark:bg-transparent border border-dashed border-[#d6e9df] dark:border-[#1e382b] opacity-40" style={{ minHeight: '64px' }}>
+          <span className="text-[8px] text-[#759183] dark:text-[#6b8a78]">{slot.slot_code}</span>
+          <span className="text-xs text-slate-400 dark:text-slate-600">-</span>
         </div>
       );
     }
@@ -234,8 +246,8 @@ export default function KumbungGrid() {
     let textColor = '';
     
     if (i < 0.3) {
-      bgColor = 'bg-[#0f281e]';
-      textColor = 'text-[#86efac]';
+      bgColor = 'bg-emerald-100 dark:bg-[#0f281e] border border-emerald-200 dark:border-emerald-900';
+      textColor = 'text-emerald-800 dark:text-[#86efac]';
     } else if (i < 0.7) {
       bgColor = 'bg-[#10b981]';
       textColor = 'text-white';
@@ -403,11 +415,11 @@ export default function KumbungGrid() {
       {/* MOBILE-ONLY: Bay Inspector (lg:hidden) */}
       <div className="lg:hidden space-y-4">
         {/* Bay Selector Header Carousel */}
-        <div className="bg-[#142219] p-3.5 rounded-3xl border border-[#1e382b] space-y-3 shadow-md">
+        <div className="bg-white dark:bg-[#142219] p-3.5 rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] space-y-3 shadow-xs dark:shadow-md">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-[#86efac] uppercase tracking-wider">Bay Selector</span>
-              <span className="text-xs font-semibold text-[#a3c9b4]">
+              <span className="text-xs font-bold text-emerald-800 dark:text-[#86efac] uppercase tracking-wider">Bay Selector</span>
+              <span className="text-xs font-semibold text-[#526a5e] dark:text-[#a3c9b4]">
                 Rak {activeRow} • Bay {selectedBay.toString().padStart(2, '0')}
               </span>
             </div>
@@ -416,18 +428,18 @@ export default function KumbungGrid() {
                 onClick={() => setSelectedBay(Math.max(1, selectedBay - 1))}
                 disabled={selectedBay === 1}
                 aria-label="Bay Sebelumnya"
-                className="w-8 h-8 rounded-xl bg-[#182c20] disabled:opacity-30 border border-[#1e382b] text-[#86efac] flex items-center justify-center cursor-pointer disabled:cursor-not-allowed active:scale-95"
+                className="w-8 h-8 rounded-xl bg-[#edf5f0] dark:bg-[#182c20] hover:bg-[#d6e9df] dark:hover:bg-[#223b2b] disabled:opacity-30 border border-[#d6e9df] dark:border-[#1e382b] text-[#244b37] dark:text-[#86efac] flex items-center justify-center cursor-pointer disabled:cursor-not-allowed active:scale-95 transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="text-xs font-bold text-white px-1">
+              <span className="text-xs font-bold text-[#192e22] dark:text-white px-1">
                 {selectedBay}/10
               </span>
               <button
                 onClick={() => setSelectedBay(Math.min(10, selectedBay + 1))}
                 disabled={selectedBay === 10}
                 aria-label="Bay Selanjutnya"
-                className="w-8 h-8 rounded-xl bg-[#182c20] disabled:opacity-30 border border-[#1e382b] text-[#86efac] flex items-center justify-center cursor-pointer disabled:cursor-not-allowed active:scale-95"
+                className="w-8 h-8 rounded-xl bg-[#edf5f0] dark:bg-[#182c20] hover:bg-[#d6e9df] dark:hover:bg-[#223b2b] disabled:opacity-30 border border-[#d6e9df] dark:border-[#1e382b] text-[#244b37] dark:text-[#86efac] flex items-center justify-center cursor-pointer disabled:cursor-not-allowed active:scale-95 transition-colors"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -435,7 +447,7 @@ export default function KumbungGrid() {
           </div>
 
           {/* Bay Scrollable Pills */}
-          <div className="-mx-2 px-2 flex gap-2 overflow-x-auto no-scrollbar py-0.5">
+          <div ref={bayScrollRef} className="-mx-3.5 px-3.5 flex gap-2 overflow-x-auto no-scrollbar py-1 scroll-smooth">
             {bays.map((bay) => {
               const baySlots = slots.filter((s) => s.slot_code.startsWith(`${activeRow}-${bay.toString().padStart(2, '0')}-`));
               const occupiedCount = baySlots.filter((s) => s.is_occupied).length;
@@ -443,20 +455,23 @@ export default function KumbungGrid() {
               return (
                 <button
                   key={`mobile-bay-tab-${bay}`}
+                  data-bay={bay}
                   onClick={() => setSelectedBay(bay)}
-                  className={`shrink-0 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex flex-col items-center gap-0.5 cursor-pointer ${
+                  className={`shrink-0 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex flex-col items-center gap-0.5 cursor-pointer active:scale-95 ${
                     isCurrent
-                      ? 'bg-emerald-600 text-white shadow-lg ring-2 ring-emerald-400/50'
-                      : 'bg-[#182c20] text-[#a3c9b4] hover:bg-[#223b2b] border border-[#1e382b]'
+                      ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-400/50'
+                      : 'bg-[#f4faf6] dark:bg-[#182c20] text-[#244b37] dark:text-[#a3c9b4] hover:bg-[#e2f0e7] dark:hover:bg-[#223b2b] border border-[#d6e9df] dark:border-[#1e382b]'
                   }`}
                 >
                   <span>BAY {bay.toString().padStart(2, '0')}</span>
-                  <span className={`text-[10px] font-medium ${isCurrent ? 'text-emerald-100' : 'text-[#6b8a78]'}`}>
+                  <span className={`text-[10px] font-medium ${isCurrent ? 'text-emerald-100' : 'text-[#6b8a78] dark:text-[#6b8a78]'}`}>
                     {occupiedCount}/10 Isi
                   </span>
                 </button>
               );
             })}
+            {/* Trailing breathing space for smooth scrolling on mobile */}
+            <div className="shrink-0 w-3" aria-hidden="true" />
           </div>
         </div>
 
@@ -554,7 +569,7 @@ export default function KumbungGrid() {
       </div>
 
       {/* DESKTOP-ONLY: Full 300-Slot Grid Canvas (hidden lg:block) */}
-      <div className="hidden lg:block bg-[#0f1712] rounded-3xl py-5 overflow-x-auto relative shadow-inner border border-[#1e382b]">
+      <div className="hidden lg:block bg-white dark:bg-[#0f1712] rounded-3xl py-5 overflow-x-auto relative shadow-xs dark:shadow-inner border border-[#d6e9df] dark:border-[#1e382b]">
         
         {isSlotsLoading ? (
           <div className="h-96 flex items-center justify-center">
@@ -567,12 +582,12 @@ export default function KumbungGrid() {
           <div className="min-w-[850px] pr-6">
             {/* Headers (BAY X) */}
             <div className="flex mb-3 items-stretch">
-              <div className="w-16 shrink-0 sticky left-0 z-20 bg-[#0f1712] pl-5 pr-2 border-r border-[#1e382b] flex items-center justify-center">
-                <span className="text-[9px] font-bold text-[#526a5e] uppercase">TIER</span>
+              <div className="w-16 shrink-0 sticky left-0 z-20 bg-white dark:bg-[#0f1712] pl-5 pr-2 border-r border-[#d6e9df] dark:border-[#1e382b] flex items-center justify-center">
+                <span className="text-[9px] font-bold text-[#526a5e] dark:text-[#a3c9b4] uppercase">TIER</span>
               </div>
               <div className="flex-1 grid grid-cols-10 gap-2 pl-2">
                 {bays.map(bay => (
-                  <div key={`bay-${bay}`} className="text-center text-[10px] font-bold text-[#6b8a78] uppercase">
+                  <div key={`bay-${bay}`} className="text-center text-[10px] font-bold text-[#526a5e] dark:text-[#6b8a78] uppercase">
                     BAY {bay.toString().padStart(2, '0')}
                   </div>
                 ))}
@@ -584,7 +599,7 @@ export default function KumbungGrid() {
               {tiers.map(tier => (
                 <div key={`tier-${tier}`} className="flex items-stretch">
                   {/* Left Label (T-X) */}
-                  <div className="w-16 shrink-0 text-[10px] font-bold text-[#a3c9b4] flex items-center justify-center sticky left-0 z-20 bg-[#0f1712] pl-5 pr-2 border-r border-[#1e382b] shadow-[4px_0_10px_rgba(0,0,0,0.5)]">
+                  <div className="w-16 shrink-0 text-[10px] font-bold text-[#192e22] dark:text-[#a3c9b4] flex items-center justify-center sticky left-0 z-20 bg-white dark:bg-[#0f1712] pl-5 pr-2 border-r border-[#d6e9df] dark:border-[#1e382b] shadow-[4px_0_10px_rgba(0,0,0,0.03)] dark:shadow-[4px_0_10px_rgba(0,0,0,0.5)]">
                     T-{tier.toString().padStart(2, '0')}
                   </div>
                   
@@ -596,7 +611,7 @@ export default function KumbungGrid() {
                       
                       if (!slot) {
                         return <div key={code} className="bg-transparent border border-dashed border-slate-200 dark:border-[#1e382b] rounded-xl opacity-40 flex items-center justify-center" style={{ minHeight: '64px' }}>
-                          <span className="text-[9px] text-slate-300 dark:text-[#3f5c4c]">{code}</span>
+                          <span className="text-[9px] text-slate-400 dark:text-[#3f5c4c]">{code}</span>
                         </div>;
                       }
 
@@ -654,12 +669,15 @@ export default function KumbungGrid() {
 
       {/* Assign Modal */}
       {isAssignModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#111c15] rounded-3xl shadow-2xl w-full max-w-md border border-[#d6e9df] dark:border-[#1e382b] overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-[#edf5f0] dark:border-[#1e382b] flex justify-between items-center bg-[#f7faf8] dark:bg-[#142219] shrink-0">
+        <ModalPortal>
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 dark:bg-black/80 backdrop-blur-xs animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-[#111c15] rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md border border-[#d6e9df] dark:border-[#1e382b] overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[90vh]">
+              {/* Mobile Sheet Handle */}
+              <div className="w-12 h-1 bg-slate-300 dark:bg-[#2b503d] rounded-full mx-auto sm:hidden my-2 shrink-0" />
+            <div className="p-5 sm:p-6 border-b border-[#edf5f0] dark:border-[#1e382b] flex justify-between items-center bg-[#f7faf8] dark:bg-[#142219] shrink-0">
               <div>
-                <h3 className="text-lg font-bold text-[#192e22] dark:text-[#e4efe8]">Alokasi Batch ke Rak</h3>
-                <p className="text-xs text-[#759183] dark:text-[#a3c9b4] mt-1">Mengisi {selectedSlotCodes.size} slot dengan total {selectedSlotCodes.size * 10} baglog.</p>
+                <h3 className="text-base sm:text-lg font-bold text-[#192e22] dark:text-[#e4efe8]">Alokasi Batch ke Rak</h3>
+                <p className="text-xs text-[#759183] dark:text-[#a3c9b4] mt-0.5">Mengisi {selectedSlotCodes.size} slot dengan total {selectedSlotCodes.size * 10} baglog.</p>
               </div>
               <button
                 onClick={() => setIsAssignModalOpen(false)}
@@ -797,6 +815,7 @@ export default function KumbungGrid() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Detail Modal */}

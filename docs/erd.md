@@ -1,7 +1,7 @@
 # Entity Relationship Diagram (ERD) — Smart Shroom SCM 🍄
 
+**Judul Tugas Akhir:** *Sistem Informasi Supply Chain Management dan Spasial WMS pada Kumbung Jamur Terintegrasi dengan Otomasi dan Monitoring Mikroklimat IoT*  
 **Dokumen:** Desain Basis Data & Kamus Data (*Database Design & Data Dictionary*)  
-**Proyek:** Smart Shroom Supply Chain Management (SCM) Berbasis IoT  
 **Konteks:** Tugas Akhir Program Studi Sistem Informasi  
 **Penyusun:** Benedictus Vio  
 **Database Engine:** SQLite (Development / Testing) & PostgreSQL / Supabase (Production)  

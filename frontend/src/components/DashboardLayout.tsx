@@ -51,14 +51,14 @@ export default function DashboardLayout() {
       {/* Mobile Sidebar Overlay Backdrop */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 lg:hidden transition-opacity animate-in fade-in duration-200"
+          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-[60] lg:hidden transition-opacity animate-in fade-in duration-200"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar — Soft Sage / Forest Dark (Drawer di Mobile, Kolom Statis di Desktop) */}
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-50 bg-[#e4f3eb] dark:bg-[#111c15] border-r border-[#d2e8dc]/80 dark:border-[#1e382b] flex flex-col justify-between transition-all duration-300 ease-in-out lg:translate-x-0 lg:static w-72 lg:w-60 shrink-0",
+        "fixed inset-y-0 left-0 z-[70] bg-[#e4f3eb] dark:bg-[#111c15] border-r border-[#d2e8dc]/80 dark:border-[#1e382b] flex flex-col justify-between transition-all duration-300 ease-in-out lg:translate-x-0 lg:static w-72 lg:w-60 shrink-0",
         isSidebarOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
       )}>
         <div className="flex-1 overflow-y-auto">
@@ -199,7 +199,8 @@ export default function DashboardLayout() {
 
             {/* Hamburger Drawer Toggle */}
             <button
-              className="px-3 py-2 rounded-xl bg-white dark:bg-[#182c20] text-[#192e22] dark:text-[#e4efe8] border border-[#d2e8dc] dark:border-[#1e382b] shadow-2xs active:scale-90 transition-transform cursor-pointer flex items-center gap-1.5"
+              type="button"
+              className="px-3 py-2 rounded-xl bg-white dark:bg-[#182c20] text-[#192e22] dark:text-[#e4efe8] border border-[#d2e8dc] dark:border-[#1e382b] shadow-2xs active:scale-90 transition-transform cursor-pointer flex items-center gap-1.5 touch-manipulation select-none"
               onClick={() => setIsSidebarOpen(true)}
               aria-label="Buka menu lengkap"
             >

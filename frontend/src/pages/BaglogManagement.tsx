@@ -24,6 +24,7 @@ import AnimatedProgressBar from '../components/AnimatedProgressBar';
 import RecordCullModal from '../components/RecordCullModal';
 import CullHistoryTable from '../components/CullHistoryTable';
 import HppAnalysisCard from '../components/HppAnalysisCard';
+import { ModalPortal } from '../components/ui';
 
 // Data Contract Interface
 interface BaglogBatch {
@@ -386,19 +387,21 @@ export default function BaglogManagement() {
 
         {/* KPI 1: Baglog Aktif */}
         <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] gap-1">
-            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <div>
+            <div className="flex items-center justify-between">
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
                 <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
-              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Baglog Aktif</span>
+              <span className="text-[9px] sm:text-[11px] font-bold text-emerald-800 dark:text-emerald-300 bg-[#eaf5ef] dark:bg-[#163321] px-1.5 sm:px-2 py-0.5 rounded-md border border-[#a5d1b7] dark:border-[#235839] shrink-0">
+                {metrics.capacityPercentage}%
+              </span>
             </div>
-            <span className="text-[9px] sm:text-[11px] font-bold text-emerald-800 dark:text-emerald-300 bg-[#eaf5ef] dark:bg-[#163321] px-1.5 sm:px-2 py-0.5 rounded-md border border-[#a5d1b7] dark:border-[#235839] shrink-0">
-              {metrics.capacityPercentage}%
+            <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] block leading-tight mt-2 sm:mt-2.5">
+              Baglog Aktif
             </span>
           </div>
 
-          <div className="mt-3 sm:mt-4">
+          <div className="mt-2.5 sm:mt-4">
             <div className="flex items-baseline gap-1">
               <AnimatedNumber
                 value={metrics.activeQuantity}
@@ -417,19 +420,21 @@ export default function BaglogManagement() {
 
         {/* KPI 2: Total Batch Terdaftar */}
         <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] gap-1">
-            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <div>
+            <div className="flex items-center justify-between">
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
                 <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
-              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Batch Terdaftar</span>
+              <span className="text-[9px] sm:text-[11px] font-bold text-[#244b37] dark:text-[#86efac] bg-slate-100 dark:bg-[#1a2e22] px-1.5 sm:px-2 py-0.5 rounded-md shrink-0">
+                Siklus
+              </span>
             </div>
-            <span className="text-[9px] sm:text-[11px] font-bold text-[#244b37] dark:text-[#86efac] bg-slate-100 dark:bg-[#1a2e22] px-1.5 sm:px-2 py-0.5 rounded-md shrink-0">
-              Siklus
+            <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] block leading-tight mt-2 sm:mt-2.5">
+              Batch Terdaftar
             </span>
           </div>
 
-          <div className="mt-3 sm:mt-4">
+          <div className="mt-2.5 sm:mt-4">
             <div className="flex items-baseline gap-1">
               <AnimatedNumber
                 value={metrics.totalBatches}
@@ -448,19 +453,21 @@ export default function BaglogManagement() {
 
         {/* KPI 3: Rata-rata Umur Media */}
         <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] gap-1">
-            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <div>
+            <div className="flex items-center justify-between">
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
                 <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
-              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Rata-rata Umur</span>
+              <span className="text-[9px] sm:text-[11px] font-bold text-blue-800 dark:text-blue-300 bg-[#e8f4fd] dark:bg-[#0f283d] px-1.5 sm:px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-900 shrink-0">
+                Aktif
+              </span>
             </div>
-            <span className="text-[9px] sm:text-[11px] font-bold text-blue-800 dark:text-blue-300 bg-[#e8f4fd] dark:bg-[#0f283d] px-1.5 sm:px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-900 shrink-0">
-              Aktif
+            <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] block leading-tight mt-2 sm:mt-2.5">
+              Rata-rata Umur
             </span>
           </div>
 
-          <div className="mt-3 sm:mt-4">
+          <div className="mt-2.5 sm:mt-4">
             <div className="flex items-baseline gap-1">
               <AnimatedNumber
                 value={metrics.avgAge}
@@ -479,20 +486,22 @@ export default function BaglogManagement() {
 
         {/* KPI 4: Total Afkir & Terkontaminasi */}
         <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] gap-1">
-            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <div>
+            <div className="flex items-center justify-between">
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#fff1f2] dark:bg-[#381111] text-[#e11d48] dark:text-[#f87171] flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
-              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Media Rusak</span>
+              <span className={`text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md shrink-0 ${metrics.totalAfkir > 0 ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300' : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
+                }`}>
+                {metrics.totalAfkir > 0 ? 'Afkir' : 'Steril'}
+              </span>
             </div>
-            <span className={`text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md shrink-0 ${metrics.totalAfkir > 0 ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300' : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
-              }`}>
-              {metrics.totalAfkir > 0 ? 'Afkir' : 'Steril'}
+            <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] block leading-tight mt-2 sm:mt-2.5">
+              Media Rusak
             </span>
           </div>
 
-          <div className="mt-3 sm:mt-4">
+          <div className="mt-2.5 sm:mt-4">
             <div className="flex items-baseline gap-1">
               <AnimatedNumber
                 value={metrics.totalAfkir}
@@ -1027,11 +1036,14 @@ export default function BaglogManagement() {
 
       {/* Modal: Tambah Batch Baglog Baru (Modern Glassmorphism) */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-6 max-w-lg w-full shadow-2xl space-y-4 sm:space-y-5 animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] overflow-y-auto">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-[#142219] rounded-t-3xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 sm:p-6 max-w-lg w-full shadow-2xl space-y-4 sm:space-y-5 animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 flex flex-col max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
+              {/* Mobile Sheet Handle */}
+              <div className="w-12 h-1 bg-slate-300 dark:bg-[#2b503d] rounded-full mx-auto sm:hidden -mt-1 mb-1 shrink-0" />
 
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-[#e4efe8] dark:border-[#1e382b] pb-4">
+            <div className="flex items-center justify-between border-b border-[#e4efe8] dark:border-[#1e382b] pb-3.5">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-2xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center">
                   <Package className="w-5 h-5 stroke-[2.2]" />
@@ -1208,12 +1220,16 @@ export default function BaglogManagement() {
 
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Modal: Konfirmasi Ubah Status Batch */}
       {confirmModal.isOpen && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-6 max-w-md w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-[#142219] rounded-t-3xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 sm:p-6 max-w-md w-full shadow-2xl space-y-4 animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
+              {/* Mobile Sheet Handle */}
+              <div className="w-12 h-1 bg-slate-300 dark:bg-[#2b503d] rounded-full mx-auto sm:hidden -mt-1 mb-1" />
 
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${confirmModal.status === 'contaminated'
@@ -1292,6 +1308,7 @@ export default function BaglogManagement() {
 
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Record Cull Modal */}

@@ -106,10 +106,12 @@ export default function HarvestPauseWidget() {
             {isPaused ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 fill-current" />}
           </div>
           <div>
-            <h3 className="text-sm font-bold text-[#192e22] dark:text-[#e4efe8] flex items-center gap-2">
-              {isPaused ? 'Mode Panen Aktif (Otomasi Jeda)' : 'Kontrol Mode Panen'}
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <h3 className="text-sm font-bold text-[#192e22] dark:text-[#e4efe8]">
+                {isPaused ? 'Mode Panen Aktif (Otomasi Jeda)' : 'Kontrol Mode Panen'}
+              </h3>
               <span
-                className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider whitespace-nowrap shrink-0 ${
                   isPaused
                     ? 'bg-amber-200 text-amber-900 dark:bg-amber-900/60 dark:text-amber-200 border border-amber-300 dark:border-amber-700'
                     : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
@@ -117,8 +119,8 @@ export default function HarvestPauseWidget() {
               >
                 {isPaused ? 'Aktuator Mati' : 'Otomasi Normal'}
               </span>
-            </h3>
-            <p className="text-[11px] text-[#526a5e] dark:text-[#a3c9b4]">
+            </div>
+            <p className="text-[11px] text-[#526a5e] dark:text-[#a3c9b4] mt-0.5">
               {isPaused
                 ? 'Misting & Blower dinonaktifkan sementara agar petani tidak basah kuyup & aliran udara terjaga.'
                 : 'Jeda otomasi saat petani panen atau inspeksi kumbung.'}

@@ -21,7 +21,7 @@
 ## 1. Pendahuluan
 
 ### 1.1 Nama Sistem
-**Smart Shroom SCM** — Sistem Manajemen Rantai Pasok Jamur Kuping Berbasis IoT
+**Smart Shroom SCM** — *Sistem Informasi Supply Chain Management dan Spasial WMS pada Kumbung Jamur Terintegrasi dengan Otomasi dan Monitoring Mikroklimat IoT*
 
 ### 1.2 Tujuan Sistem
 Sistem ini dibangun sebagai produk utama **Tugas Akhir (TA)** bidang Sistem Informasi, dengan tujuan:

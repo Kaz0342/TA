@@ -24,6 +24,7 @@ import { useToastStore } from '../stores/toastStore';
 import { useThemeStore } from '../stores/themeStore';
 import AnimatedNumber from '../components/AnimatedNumber';
 import AnimatedProgressBar from '../components/AnimatedProgressBar';
+import { ModalPortal } from '../components/ui';
 
 interface HarvestRecord {
   id: number;
@@ -346,7 +347,7 @@ export default function HarvestManagement() {
             resetForm();
             setIsModalOpen(true);
           }}
-          className="self-end sm:self-auto bg-[#244b37] dark:bg-[#1f3a2b] hover:bg-[#1b3a2b] dark:hover:bg-[#2b503d] active:scale-[0.98] text-white px-4 py-2.5 rounded-2xl text-xs font-bold shadow-xs hover:shadow-md transition-all flex items-center gap-2 cursor-pointer"
+          className="self-end sm:self-auto bg-[#244b37] hover:bg-[#1b3a2b] dark:bg-[#2e7d52] dark:hover:bg-[#246341] active:scale-[0.98] text-white px-4 py-2.5 rounded-2xl text-xs font-bold shadow-xs hover:shadow-md transition-all flex items-center gap-2 cursor-pointer"
         >
           <Scale className="w-4 h-4 stroke-[2.2]" />
           <span>Input Timbangan Panen</span>
@@ -358,23 +359,25 @@ export default function HarvestManagement() {
         
         {/* KPI 1: Panen Hari Ini */}
         <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] gap-1">
-            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <div>
+            <div className="flex items-center justify-between">
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#182c20] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
                 <Scale className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
               </div>
-              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Panen Hari Ini</span>
+              <span className={`text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md shrink-0 ${
+                metrics.todayTotalKg > 0 
+                  ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300' 
+                  : 'bg-slate-100 dark:bg-[#1f382b] text-slate-600 dark:text-[#a3c9b4]'
+              }`}>
+                {metrics.todayTotalKg > 0 ? `${metrics.targetProgress}% Target` : 'Belum Ditimbang'}
+              </span>
             </div>
-            <span className={`text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md shrink-0 ${
-              metrics.todayTotalKg > 0 
-                ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300' 
-                : 'bg-slate-100 dark:bg-[#1f382b] text-slate-600 dark:text-[#a3c9b4]'
-            }`}>
-              {metrics.todayTotalKg > 0 ? `${metrics.targetProgress}% Target` : 'Belum Ditimbang'}
+            <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] block leading-tight mt-2 sm:mt-2.5">
+              Panen Hari Ini
             </span>
           </div>
 
-          <div className="mt-3 sm:mt-4">
+          <div className="mt-2.5 sm:mt-4">
             <div className="flex items-baseline gap-1">
               <AnimatedNumber
                 value={metrics.todayTotalKg}
@@ -394,19 +397,21 @@ export default function HarvestManagement() {
 
         {/* KPI 2: Total Panen Bulan Ini */}
         <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] gap-1">
-            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <div>
+            <div className="flex items-center justify-between">
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#182c20] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
                 <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
               </div>
-              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Bulan Berjalan</span>
+              <span className="text-[9px] sm:text-[11px] font-bold text-emerald-800 dark:text-emerald-300 bg-[#eaf5ef] dark:bg-emerald-950/60 px-1.5 sm:px-2 py-0.5 rounded-md border border-[#a5d1b7] dark:border-emerald-800 shrink-0">
+                Akumulasi
+              </span>
             </div>
-            <span className="text-[9px] sm:text-[11px] font-bold text-emerald-800 dark:text-emerald-300 bg-[#eaf5ef] dark:bg-emerald-950/60 px-1.5 sm:px-2 py-0.5 rounded-md border border-[#a5d1b7] dark:border-emerald-800 shrink-0">
-              Akumulasi
+            <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] block leading-tight mt-2 sm:mt-2.5">
+              Bulan Berjalan
             </span>
           </div>
 
-          <div className="mt-3 sm:mt-4">
+          <div className="mt-2.5 sm:mt-4">
             <div className="flex items-baseline gap-1">
               <AnimatedNumber
                 value={metrics.monthTotalKg}
@@ -427,19 +432,21 @@ export default function HarvestManagement() {
 
         {/* KPI 3: Rata-rata per Petik */}
         <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] gap-1">
-            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <div>
+            <div className="flex items-center justify-between">
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#182c20] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
                 <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
               </div>
-              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Rata-rata Petik</span>
+              <span className="text-[9px] sm:text-[11px] font-bold text-blue-800 dark:text-blue-300 bg-[#e8f4fd] dark:bg-blue-950/60 px-1.5 sm:px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800 shrink-0">
+                Per Sesi
+              </span>
             </div>
-            <span className="text-[9px] sm:text-[11px] font-bold text-blue-800 dark:text-blue-300 bg-[#e8f4fd] dark:bg-blue-950/60 px-1.5 sm:px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800 shrink-0">
-              Per Sesi
+            <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] block leading-tight mt-2 sm:mt-2.5">
+              Rata-rata Petik
             </span>
           </div>
 
-          <div className="mt-3 sm:mt-4">
+          <div className="mt-2.5 sm:mt-4">
             <div className="flex items-baseline gap-1">
               <AnimatedNumber
                 value={metrics.avgWeightKg}
@@ -459,19 +466,21 @@ export default function HarvestManagement() {
 
         {/* KPI 4: Batch Kontributor */}
         <div className="bg-white dark:bg-[#142219] rounded-2xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-3.5 sm:p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:shadow-md transition-all">
-          <div className="flex items-center justify-between text-[#192e22] dark:text-[#e4efe8] gap-1">
-            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <div>
+            <div className="flex items-center justify-between">
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#e8f4ed] dark:bg-[#182c20] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
                 <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
               </div>
-              <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate">Batch Produktif</span>
+              <span className="text-[9px] sm:text-[11px] font-bold text-emerald-800 dark:text-emerald-300 bg-[#eaf5ef] dark:bg-emerald-950/60 px-1.5 sm:px-2 py-0.5 rounded-md border border-[#a5d1b7] dark:border-emerald-800 shrink-0">
+                Kelompok Rak
+              </span>
             </div>
-            <span className="text-[9px] sm:text-[11px] font-bold text-emerald-800 dark:text-emerald-300 bg-[#eaf5ef] dark:bg-emerald-950/60 px-1.5 sm:px-2 py-0.5 rounded-md border border-[#a5d1b7] dark:border-emerald-800 shrink-0">
-              Kelompok Rak
+            <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] block leading-tight mt-2 sm:mt-2.5">
+              Batch Produktif
             </span>
           </div>
 
-          <div className="mt-3 sm:mt-4">
+          <div className="mt-2.5 sm:mt-4">
             <div className="flex items-baseline gap-1">
               <AnimatedNumber
                 value={metrics.contributingBatchesCount}
@@ -992,11 +1001,14 @@ export default function HarvestManagement() {
 
       {/* Modal: Input Timbangan Panen Baru (Modern Glassmorphism) */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-6 max-w-lg w-full shadow-2xl space-y-4 sm:space-y-5 animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] overflow-y-auto">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-[#142219] rounded-t-3xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 sm:p-6 max-w-lg w-full shadow-2xl space-y-4 sm:space-y-5 animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 flex flex-col max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
+              {/* Mobile Sheet Handle */}
+              <div className="w-12 h-1 bg-slate-300 dark:bg-[#2b503d] rounded-full mx-auto sm:hidden -mt-1 mb-1 shrink-0" />
             
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-[#e4efe8] dark:border-[#1e382b] pb-4">
+            <div className="flex items-center justify-between border-b border-[#e4efe8] dark:border-[#1e382b] pb-3.5">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-2xl bg-[#e8f4ed] dark:bg-[#182c20] text-[#244b37] dark:text-[#86efac] flex items-center justify-center">
                   <Scale className="w-5 h-5 stroke-[2.2]" />
@@ -1193,12 +1205,16 @@ export default function HarvestManagement() {
 
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Modal Konfirmasi Void Panen */}
       {voidTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-[#14241a] border border-rose-200 dark:border-rose-900/60 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <ModalPortal>
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-xs animate-in fade-in duration-150">
+            <div className="bg-white dark:bg-[#14241a] border border-rose-200 dark:border-rose-900/60 rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 w-full max-w-md shadow-2xl space-y-4 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
+            {/* Mobile Sheet Handle */}
+            <div className="w-12 h-1 bg-slate-300 dark:bg-[#2b503d] rounded-full mx-auto sm:hidden -mt-1 mb-1" />
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
                 <Ban className="w-5 h-5" />
@@ -1284,6 +1300,7 @@ export default function HarvestManagement() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
     </div>

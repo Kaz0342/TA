@@ -171,7 +171,7 @@ const LiveClock = memo(() => {
   }, []);
 
   return (
-    <div className="flex items-center gap-2.5 sm:gap-3 bg-white dark:bg-[#142219] border border-[#d6e9df] dark:border-[#1e382b] px-3 sm:px-4 py-1.5 rounded-2xl shadow-2xs">
+    <div className="flex items-center gap-2.5 sm:gap-3 bg-white dark:bg-[#142219] border border-[#d6e9df] dark:border-[#1e382b] px-3 sm:px-4 py-1.5 rounded-2xl shadow-2xs shrink-0">
       <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#e8f4ed] dark:bg-[#182c20] text-[#244b37] dark:text-[#86efac] flex items-center justify-center shrink-0">
         <CalendarDays className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
       </div>
@@ -335,11 +335,11 @@ export default function Dashboard() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3 self-start sm:self-auto">
+        <div className="flex items-center justify-between sm:justify-end gap-2.5 sm:gap-3 w-full sm:w-auto">
           <Link
             to="/settings"
             title="Klik untuk konfigurasi threshold fase di Modul Setting"
-            className="bg-[#cee8dc] dark:bg-[#182c20] hover:bg-[#bde0cf] dark:hover:bg-[#1f3a2b] text-[#244b37] dark:text-[#86efac] px-4 py-2 rounded-2xl text-xs font-semibold shadow-2xs transition-colors flex items-center gap-1.5"
+            className="bg-[#cee8dc] dark:bg-[#182c20] hover:bg-[#bde0cf] dark:hover:bg-[#1f3a2b] text-[#244b37] dark:text-[#86efac] px-3.5 sm:px-4 py-2 rounded-2xl text-xs font-semibold shadow-2xs transition-colors flex items-center gap-1.5 shrink-0"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
             Status: {thresholds?.phase_mode ? `Fase ${thresholds.phase_mode}` : 'Fase Growing'}
