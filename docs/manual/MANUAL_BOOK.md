@@ -10,7 +10,7 @@ Penulis: Benedictus Vio
 Program Studi Sistem Informasi
 
 Versi Manual: 1.0 · Oktober 2026
-Versi Sistem: Dashboard Web + Firmware ESP32 v3.5
+Versi Sistem: Dashboard Web + Firmware ESP32 v3.6
 
 </div>
 
@@ -506,19 +506,20 @@ Jika satu sensor gagal baca (NaN), bobot dihitung ulang secara dinamis dari sens
 - **Berhenti** saat kelembapan mencapai batas bawah + sedikit margin (maks. 3 %) dan suhu aman, atau habis waktu **90 detik**.
 - **Jeda penguapan** 150 detik setelah misting.
 - **Misting denyut 30 detik** bila rak atas sangat kering (lebih dari 10 % di bawah batas).
-- **Terkunci malam** pukul **17:00-06:00 WIB** (mencegah jamur basah).
+- **Terkunci malam (P2' Night Guard)** pukul **17:00-06:00 WIB** dengan jeda wajib minimal **10 menit (600 detik)** antar siklus darurat (mencegah jamur tidur basah kuyup).
+- **Pagar RH (P3)**: ditahan saat suhu panas jika kelembapan $\ge$ batas atas $- 3\%$ (udara jenuh tidak bisa mendinginkan), dan langsung berhenti seketika jika kelembapan $\ge$ batas atas $- 1\%$ (mencegah becek/genangan air di baglog).
 - Ditahan jika kelembapan sudah di atas batas atas, atau suhu kritis.
 
 ## 10.3 Exhaust Fan
 
 | Situasi | Perilaku |
 |---------|----------|
-| Siang, suhu > batas atas | Nyala sampai suhu turun 1,5 °C, maks. 180 detik, jeda 60 detik |
-| Suhu > batas atas + 2 °C | Dipaksa nyala (override) |
+| Siang, suhu > batas atas | Diuji 60 detik (P1 Probe). Jika suhu tidak turun $\ge 0,3^\circ\text{C}$, dikunci 15 menit. Jika efektif, nyala sampai suhu turun 1,5 °C (maks. 180s, jeda 60s) |
+| Suhu > batas atas + 2 °C | Dipaksa nyala (override, mem-bypass cooldown dan lockout probe) |
 | Selisih RH atas-bawah > 12 % | Homogenisasi 30 detik (jeda 15 menit) |
 | Malam, RH ≥ 96 % | Purge 45 detik (jeda 30 menit) |
 | Malam | Pembuangan CO2 45 detik tiap 60 menit |
-| Setelah misting | Tunda 60 detik |
+| Setelah misting | Tunda 60 detik (agar kabut mengendap) |
 
 Misting dan kipas saling mengunci (interlock) agar tidak bersamaan.
 

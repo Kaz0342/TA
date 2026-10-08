@@ -52,7 +52,7 @@ blockquote { margin: 12px 0; padding: 8px 14px; border-left: 4px solid #e0a82e;
 <p>Penulis: Benedictus Vio
 Program Studi Sistem Informasi</p>
 <p>Versi Manual: 1.0 · Oktober 2026
-Versi Sistem: Dashboard Web + Firmware ESP32 v3.5</p>
+Versi Sistem: Dashboard Web + Firmware ESP32 v3.6</p>
 </div><div class="pagebreak"></div><h1>Daftar Isi</h1>
 <ol>
 <li>Pengenalan Sistem</li>
@@ -739,7 +739,8 @@ Mortalitas              = jumlah afkir / jumlah baglog
 <li><strong>Berhenti</strong> saat kelembapan mencapai batas bawah + sedikit margin (maks. 3 %) dan suhu aman, atau habis waktu <strong>90 detik</strong>.</li>
 <li><strong>Jeda penguapan</strong> 150 detik setelah misting.</li>
 <li><strong>Misting denyut 30 detik</strong> bila rak atas sangat kering (lebih dari 10 % di bawah batas).</li>
-<li><strong>Terkunci malam</strong> pukul <strong>17:00-06:00 WIB</strong> (mencegah jamur basah).</li>
+<li><strong>Terkunci malam (P2&#39; Night Guard)</strong> pukul <strong>17:00-06:00 WIB</strong> dengan jeda wajib minimal <strong>10 menit (600 detik)</strong> antar siklus darurat (mencegah jamur tidur basah kuyup).</li>
+<li><strong>Pagar RH (P3)</strong>: ditahan saat suhu panas jika kelembapan $\ge$ batas atas $- 3%$ (udara jenuh tidak bisa mendinginkan), dan langsung berhenti seketika jika kelembapan $\ge$ batas atas $- 1%$ (mencegah becek/genangan air di baglog).</li>
 <li>Ditahan jika kelembapan sudah di atas batas atas, atau suhu kritis.</li>
 </ul>
 <h2>10.3 Exhaust Fan</h2>
@@ -752,11 +753,11 @@ Mortalitas              = jumlah afkir / jumlah baglog
 </thead>
 <tbody><tr>
 <td>Siang, suhu &gt; batas atas</td>
-<td>Nyala sampai suhu turun 1,5 °C, maks. 180 detik, jeda 60 detik</td>
+<td>Diuji 60 detik (P1 Probe). Jika suhu tidak turun $\ge 0,3^\circ\text{C}$, dikunci 15 menit. Jika efektif, nyala sampai suhu turun 1,5 °C (maks. 180s, jeda 60s)</td>
 </tr>
 <tr>
 <td>Suhu &gt; batas atas + 2 °C</td>
-<td>Dipaksa nyala (override)</td>
+<td>Dipaksa nyala (override, mem-bypass cooldown dan lockout probe)</td>
 </tr>
 <tr>
 <td>Selisih RH atas-bawah &gt; 12 %</td>
@@ -772,7 +773,7 @@ Mortalitas              = jumlah afkir / jumlah baglog
 </tr>
 <tr>
 <td>Setelah misting</td>
-<td>Tunda 60 detik</td>
+<td>Tunda 60 detik (agar kabut mengendap)</td>
 </tr>
 </tbody></table>
 <p>Misting dan kipas saling mengunci (interlock) agar tidak bersamaan.</p>

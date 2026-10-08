@@ -1,26 +1,28 @@
-# Bab 4: Hasil dan Pembahasan — Pengujian Sistem (Testing Matrix) 🍄
-**Judul Tugas Akhir:** *Sistem Informasi Supply Chain Management dan Spasial WMS pada Kumbung Jamur Terintegrasi dengan Otomasi dan Monitoring Mikroklimat IoT*  
+# Matriks Pengujian & Verifikasi Mutu Sistem (Testing Matrix) 🍄
+**Judul Proyek Akhir:** *Sistem Informasi Supply Chain Management dan Spasial WMS pada Kumbung Jamur Terintegrasi dengan Otomasi dan Monitoring Mikroklimat IoT*  
 **Produk Sistem:** Smart Shroom SCM  
 **Program Studi:** Sistem Informasi  
 **Penyusun:** Benedictus Vio  
 **Topik:** Pengujian Fungsional (*Black-Box Testing*), Pengujian Otomatis (*Automated Feature/Unit Testing*), dan Pengujian Logika IoT  
-**Target:** Lampiran Resmi & Sub-Bab Pengujian Skripsi Bab 4  
-**Terakhir Diperbarui:** Oktober 2026  
+**Target:** Dokumen Verifikasi Mutu & Pegangan Uji Sistem Proyek Akhir  
+**Terakhir Diperbarui:** Oktober 2026 (Sinkronisasi Firmware v3.6 & Validasi Iklim Muntilan)  
 
 ---
 
 ## 1. Metodologi Pengujian Perangkat Lunak
 
-Pengujian sistem **Smart Shroom SCM** menerapkan dua pendekatan utama untuk menjamin mutu perangkat lunak (*Software Quality Assurance*):
+Pengujian sistem **Smart Shroom SCM** menerapkan pendekatan menyeluruh untuk menjamin mutu perangkat lunak (*Software Quality Assurance*):
 1. **Black-Box Testing (Pengujian Kotak Hitam):**
    - Berfokus pada pengujian fungsionalitas sistem berdasarkan spesifikasi kebutuhan perangkat lunak (*Software Requirement Specification* / Use Case).
    - Menguji interaksi antarmuka pengguna (UI/UX) pada sisi web dashboard dan integrasi pertukaran data mikrokontroler ESP32 tanpa melihat alur internal baris kode.
    - Melibatkan **29 Use Cases** (`UC-01` s/d `UC-29`) yang mencakup seluruh siklus operasional kumbung jamur, manajemen spasial WMS, pembatalan audit trail non-destruktif, dan kontrol mikroklimat IoT.
 2. **Automated Testing (Pengujian Otomatis PHPUnit):**
    - Menerapkan metodologi *Test-Driven Development (TDD) & Logic Hardening* pada backend Laravel 12.
-   - Terdiri dari **168 skenario uji otomatis** dengan total **591 assertions** yang dieksekusi secara instan (`php artisan test`) dengan tingkat kelulusan **100% (Zero Failure)** dalam waktu ~4.4 detik.
-3. **Pengujian Termodinamika, Offline Resilience, & Rule Engine IoT (`iot_simulator.py` & `sim_harness.py`):**
-   - Verifikasi kestabilan algoritma kendali umpan-balik (*closed-loop hysteresis*), eliminasi *relay chatter* (turun 92%), deadband misting dinamis (timeout turun dari 97% ke 0%), mitigasi kegagalan jaringan (non-blocking offline loop), dan *failsafe interupsi* mode panen dalam kondisi cuaca stokastik monsun Indonesia.
+   - Terdiri dari **176 skenario uji otomatis** dengan total **632 assertions** yang dieksekusi secara instan (`php artisan test`) dengan tingkat kelulusan **100% (Zero Failure)** dalam waktu ~4.1 detik.
+3. **Pengujian Termodinamika, Validasi Iklim, & Rule Engine IoT (`iot_simulator.py`, `validasi_simulator_vs_iklim.py`, & `simulasi_amplop_kumbung.py`):**
+   - Verifikasi kurva diurnal ambient Muntilan 12 bulan (deviasi suhu rata-rata hanya 0.3°C – 0.5°C).
+   - Verifikasi arsitektur pertahanan iklim P1 (Uji Probe Kipas Siang 60s & Lockout 15m), P2' (Night Misting Guard jeda 600s), dan P3 (Pagar RH Hold/Stop).
+   - Verifikasi eliminasi *relay chatter* (turun 92%), deadband misting dinamis (timeout turun dari 97% ke 0%), mitigasi offline loop (non-blocking), dan *failsafe interupsi* mode panen.
 
 ---
 

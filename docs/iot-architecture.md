@@ -42,10 +42,10 @@ Sistem memanfaatkan protokol HTTP/HTTPS berbasis **REST API** (*stateless*). Pen
 ### 2.1 Skema Aliran Data
 1.  **Multi-Sensor Reading:** ESP32 secara periodik membaca nilai dari ketiga sensor SHT30/SHT31 via multiplexer TCA9548A (setiap 5 detik).
 2.  **Weighted Sensor Fusion:** ESP32 menghitung nilai rata-rata tertimbang (A=35%, B=40%, C=25%). Sensor error otomatis diabaikan.
-3.  **Local Closed-Loop Decision Engine:** Firmware v3.5 mengevaluasi histeresis misting/fan, Universal Guard, interlock keselamatan, dan cooldown sebelum memutuskan aktivasi relay.
-4.  **Transmission:** ESP32 melakukan request `HTTP POST` ke endpoint publik server: `POST /api/sensor-data`.
-5.  **Validation:** Laravel Backend menerima payload dan memvalidasinya menggunakan `StoreSensorDataRequest`.
-6.  **Storage:** Backend menyimpan data secara *immutable* ke dalam database (`DECIMAL(5,2)`).
+3.  **Local Closed-Loop Decision Engine:** Firmware v3.6 mengevaluasi histeresis misting/fan, arsitektur pertahanan iklim P1–P3 (Uji Probe Kipas Siang 60s, Night Guard 600s, Pagar RH), Universal Guard, interlock keselamatan, dan cooldown sebelum memutuskan aktivasi relay.
+4.  **Telemetry Transmission:** ESP32 melakukan request `HTTP POST` ke endpoint publik server: `POST /api/sensor-data` (data periodik tiap 60 detik) dan `POST /api/sprinkler-logs` (log aktivitas misting/fan sesaat setelah aktuator mati).
+5.  **Validation:** Laravel Backend menerima payload dan memvalidasinya menggunakan Form Request (`StoreSensorDataRequest` & `StoreSprinklerLogRequest`).
+6.  **Storage:** Backend menyimpan data secara *immutable* ke dalam database (`DECIMAL(5,2)` untuk sensor, integer detik + audit reason untuk log aktuator).
 
 ### 2.2 Format Payload Sensor (JSON)
 ```json
