@@ -1,0 +1,1905 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buku Manual Smart Shroom SCM</title>
+<style>/* Gaya buku manual: layar nyaman dibaca + siap cetak A4 */
+:root { --hijau: #2f6f4f; --abu: #555; --garis: #d9dfd9; --latar: #f4f7f4; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #e9eee9; color: #1d2520;
+  font: 11pt/1.6 "Segoe UI", Calibri, Arial, sans-serif; }
+.book { max-width: 210mm; margin: 16px auto; padding: 20mm; background: #fff;
+  box-shadow: 0 2px 12px rgba(0,0,0,.12); }
+h1 { color: var(--hijau); font-size: 22pt; border-bottom: 3px solid var(--hijau);
+  padding-bottom: 6px; margin-top: 0; page-break-after: avoid; }
+h2 { color: var(--hijau); font-size: 15pt; margin-top: 1.6em; page-break-after: avoid; }
+h3 { font-size: 12pt; page-break-after: avoid; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 9.5pt;
+  page-break-inside: auto; }
+tr { page-break-inside: avoid; }
+th { background: var(--hijau); color: #fff; text-align: left; }
+th, td { border: 1px solid var(--garis); padding: 5px 8px; vertical-align: top; }
+tbody tr:nth-child(even) { background: var(--latar); }
+code { background: #eef2ee; padding: 1px 5px; border-radius: 4px;
+  font: 9.5pt Consolas, "Courier New", monospace; }
+pre { background: #1f2a24; color: #e6f2e9; padding: 12px; border-radius: 8px;
+  overflow-x: auto; page-break-inside: avoid; }
+pre code { background: none; color: inherit; padding: 0; }
+blockquote { margin: 12px 0; padding: 8px 14px; border-left: 4px solid #e0a82e;
+  background: #fff8e6; color: #5a4a14; }
+.cover { text-align: center; padding-top: 60mm; min-height: 240mm; }
+.cover h1 { border: none; font-size: 30pt; }
+.cover h2 { border: none; font-size: 24pt; }
+.pagebreak { page-break-after: always; break-after: page; height: 0; }
+
+@page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+@media print {
+  body { background: #fff; font-size: 10.5pt; }
+  .book { max-width: none; margin: 0; padding: 0; box-shadow: none; }
+  th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  pre { -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    white-space: pre-wrap; }
+  a { color: inherit; text-decoration: none; }
+}
+@media (max-width: 800px) { .book { padding: 14px; margin: 0; } }
+</style>
+</head>
+<body>
+<main class="book"><div class="cover"><h1>BUKU MANUAL PENGGUNA</h1>
+<h2>Smart Shroom SCM</h2>
+<p><strong>Sistem Informasi Supply Chain Management dan Spasial WMS pada Kumbung Jamur Terintegrasi dengan Otomasi dan Monitoring Mikroklimat IoT</strong></p>
+<p>Penulis: Benedictus Vio
+Program Studi Sistem Informasi</p>
+<p>Versi Manual: 1.0 · Oktober 2026
+Versi Sistem: Dashboard Web + Firmware ESP32 v3.5</p>
+</div><div class="pagebreak"></div><h1>Daftar Isi</h1>
+<ol>
+<li>Pengenalan Sistem</li>
+<li>Persiapan dan Instalasi</li>
+<li>Login dan Navigasi</li>
+<li>Dashboard</li>
+<li>Manajemen Baglog</li>
+<li>Rak Kumbung (WMS Spasial)</li>
+<li>Hasil Panen</li>
+<li>Penjualan, Biaya, dan HPP (Admin)</li>
+<li>Pengaturan</li>
+<li>Cara Kerja Otomasi IoT</li>
+<li>Prosedur Operasional Harian, Mingguan, dan Siklus</li>
+<li>Penanganan Masalah (Troubleshooting)</li>
+<li>Pertanyaan Umum (FAQ)</li>
+<li>Glosarium</li>
+<li>Lampiran A: Spesifikasi Lengkap Sistem</li>
+<li>Lampiran B: Catatan Ketidaksesuaian Dokumen</li>
+</ol>
+<div class="pagebreak"></div><h1>1. Pengenalan Sistem</h1>
+<h2>1.1 Apa itu Smart Shroom SCM?</h2>
+<p>Smart Shroom SCM adalah dashboard web untuk mengelola <strong>kumbung (rumah) jamur tiram</strong> dari ujung ke ujung:</p>
+<ul>
+<li><strong>Monitoring mikroklimat</strong>: suhu dan kelembapan dibaca sensor ESP32 secara berkala.</li>
+<li><strong>Otomasi</strong>: pompa misting dan exhaust fan menyala sendiri sesuai batas yang Anda atur.</li>
+<li><strong>Supply chain</strong>: pembelian baglog, penempatan di rak, panen, afkir (cull), penjualan, sampai hitung HPP dan margin.</li>
+<li><strong>WMS spasial</strong>: 300 slot rak dengan kode unik, jadi Anda tahu baglog batch mana ada di rak mana.</li>
+</ul>
+<h2>1.2 Peran Pengguna</h2>
+<table>
+<thead>
+<tr>
+<th>Peran</th>
+<th>Jumlah maks.</th>
+<th>Boleh melakukan</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Admin</strong></td>
+<td>1</td>
+<td>Semua fitur: atur threshold, buat batch baglog, alokasi rak, catat/hapus biaya operasional, catat/void penjualan, daftarkan akun worker</td>
+</tr>
+<tr>
+<td><strong>Worker</strong></td>
+<td>5</td>
+<td>Lihat monitoring, lihat baglog, catat panen, catat afkir, void panen/afkir, jeda/lanjutkan otomasi saat panen, lihat rak</td>
+</tr>
+</tbody></table>
+<p>Worker <strong>tidak</strong> melihat menu Penjualan &amp; Cuan dan tidak bisa mengubah threshold.</p>
+<h2>1.3 Gambaran Alur Kerja</h2>
+<pre><code>Beli baglog (Admin) → Alokasi ke slot rak (Admin) → Inkubasi
+  → Fruiting (otomatis saat panen pertama) → Panen berulang (flush 1..7)
+  → Tutup siklus (baglog habis/rusak) → Penjualan &amp; HPP (Admin)
+</code></pre>
+<p>Sementara itu, ESP32 terus memantau iklim dan menyalakan misting/kipas tanpa Anda sentuh.</p>
+<div class="pagebreak"></div><h1>2. Persiapan dan Instalasi</h1>
+<blockquote>
+<p>Bagian ini untuk orang yang memasang sistem. Pengguna harian cukup lanjut ke Bab 3.</p>
+</blockquote>
+<h2>2.1 Kebutuhan</h2>
+<table>
+<thead>
+<tr>
+<th>Komponen</th>
+<th>Kebutuhan</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>PHP</td>
+<td>8.3 atau lebih baru</td>
+</tr>
+<tr>
+<td>Composer</td>
+<td>Terpasang</td>
+</tr>
+<tr>
+<td>Node.js dan npm</td>
+<td>Node 20+ (diuji di Node 25, npm 11)</td>
+</tr>
+<tr>
+<td>Database</td>
+<td>SQLite (pengembangan) atau PostgreSQL/Supabase (produksi)</td>
+</tr>
+<tr>
+<td>Perangkat keras</td>
+<td>ESP32 dan sensor (lihat Lampiran A.3)</td>
+</tr>
+</tbody></table>
+<h2>2.2 Menjalankan Backend (Laravel)</h2>
+<pre><code class="language-bash">cd backend
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate --seed
+php artisan serve --host=0.0.0.0 --port=8000
+</code></pre>
+<p>Perintah <code>--seed</code> mengisi data demo (akun, 5 batch baglog, data sensor 24 jam, panen dan penjualan 14 hari).</p>
+<h2>2.3 Menjalankan Frontend (React + Vite)</h2>
+<pre><code class="language-bash">cd frontend
+npm install
+npm run dev -- --host 0.0.0.0 --port 5173
+</code></pre>
+<p>Buka <code>http://localhost:5173</code>. Alamat API diatur di <code>frontend/.env.local</code>:</p>
+<pre><code>VITE_API_URL=http://localhost:8000/api
+</code></pre>
+<h2>2.4 Mengakses dari HP</h2>
+<ol>
+<li>Pastikan laptop server dan HP <strong>berada di Wi-Fi yang sama</strong>.</li>
+<li>Jalankan server dengan opsi <code>--host 0.0.0.0</code> (seperti di atas).</li>
+<li>Buka alamat <code>http://&lt;IP-laptop&gt;:5173</code> di HP, atau scan QR dari halaman <code>frontend/public/qr.html</code>.</li>
+<li>Jika tidak terbuka, izinkan port 5173 dan 8000 di Windows Firewall.</li>
+</ol>
+<h2>2.5 Perintah Berguna</h2>
+<table>
+<thead>
+<tr>
+<th>Perintah</th>
+<th>Fungsi</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>php artisan test</code></td>
+<td>Menjalankan seluruh tes backend (168 tes, 591 assertion)</td>
+</tr>
+<tr>
+<td><code>php artisan migrate:fresh --seed</code></td>
+<td>Reset database dan isi data demo (<strong>menghapus semua data</strong>)</td>
+</tr>
+<tr>
+<td><code>npm run build</code></td>
+<td>Build frontend untuk produksi</td>
+</tr>
+<tr>
+<td><code>npm run lint</code></td>
+<td>Cek kualitas kode frontend</td>
+</tr>
+<tr>
+<td><code>npm run preview</code></td>
+<td>Pratinjau hasil build</td>
+</tr>
+</tbody></table>
+<h2>2.6 Memasang Firmware ESP32</h2>
+<ol>
+<li>Buka <code>esp32_firmware/esp32_firmware.ino</code> di Arduino IDE.</li>
+<li>Isi <strong>SSID Wi-Fi</strong>, <strong>password</strong>, dan <strong>alamat API server</strong> di bagian konfigurasi atas file.</li>
+<li>Pilih board <em>ESP32 Dev Module</em>, lalu unggah (Upload).</li>
+<li>Buka Serial Monitor (115200 baud) untuk memastikan Wi-Fi tersambung dan data terkirim.</li>
+<li>Layar LCD 16x2 akan menampilkan suhu/kelembapan jika perakitan benar.</li>
+</ol>
+<blockquote>
+<p><strong>Penting:</strong> alamat API di firmware dan simulator pernah menunjuk ke <code>tugasakhir-lime.vercel.app</code>. Alamat itu saat ini tidak aktif (HTTP 402). Ganti ke alamat server Anda yang aktif.</p>
+</blockquote>
+<div class="pagebreak"></div><h1>3. Login dan Navigasi</h1>
+<h2>3.1 Login</h2>
+<ol>
+<li>Buka alamat dashboard. Anda diarahkan ke halaman <strong>Login</strong>.</li>
+<li>Isi <strong>email</strong> dan <strong>password</strong>. Ikon mata menampilkan/menyembunyikan password.</li>
+<li>Tekan tombol masuk.</li>
+</ol>
+<p>Tombol demo (Admin / Worker) di halaman login mengisi akun otomatis. Akun demo menggunakan password <code>password123</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Akun</th>
+<th>Email</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Admin demo</td>
+<td><code>admin@smartshroom.com</code></td>
+</tr>
+<tr>
+<td>Worker demo</td>
+<td><code>worker@smartshroom.com</code></td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>Seeder database membuat akun <code>admin@smartshroom.test</code> dan <code>worker@smartshroom.test</code>. Lihat Lampiran B. <strong>Ganti semua password demo sebelum dipakai sungguhan.</strong></p>
+</blockquote>
+<p>Batas percobaan login: <strong>15 kali per menit</strong>. Lebih dari itu akan diblokir sementara.</p>
+<h2>3.2 Menu Utama</h2>
+<table>
+<thead>
+<tr>
+<th>Halaman</th>
+<th>Alamat</th>
+<th>Siapa</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Dashboard</td>
+<td><code>/</code></td>
+<td>Semua</td>
+</tr>
+<tr>
+<td>Manajemen Baglog</td>
+<td><code>/baglogs</code></td>
+<td>Semua</td>
+</tr>
+<tr>
+<td>Rak Kumbung</td>
+<td><code>/kumbung</code></td>
+<td>Semua</td>
+</tr>
+<tr>
+<td>Hasil Panen</td>
+<td><code>/harvests</code></td>
+<td>Semua</td>
+</tr>
+<tr>
+<td>Penjualan &amp; Cuan</td>
+<td><code>/sales</code></td>
+<td><strong>Admin</strong></td>
+</tr>
+<tr>
+<td>Pengaturan</td>
+<td><code>/settings</code></td>
+<td>Semua (simpan threshold hanya Admin)</td>
+</tr>
+</tbody></table>
+<h2>3.3 Tampilan Desktop dan HP</h2>
+<ul>
+<li><strong>Desktop</strong>: menu berada di sisi layar.</li>
+<li><strong>HP</strong>: ada header atas berisi tombol tema (terang/gelap) dan tombol <strong>Menu</strong>. Menu membuka laci (drawer) berisi tautan halaman, kartu profil, tombol mode gelap/terang, dan <strong>Keluar Akun</strong>.</li>
+</ul>
+<h2>3.4 Tema</h2>
+<p>Terdapat dua tema: <strong>Terang (&quot;Clean Sage&quot;)</strong> dan <strong>Gelap (&quot;Forest Emerald&quot;)</strong>. Ganti lewat tombol tema atau halaman Pengaturan.</p>
+<h2>3.5 Keluar</h2>
+<p>Tekan <strong>Keluar Akun</strong>. Sesi (token Sanctum) dihapus dari server.</p>
+<div class="pagebreak"></div><h1>4. Dashboard</h1>
+<p>Dashboard adalah pusat pantauan. Dari atas ke bawah:</p>
+<ol>
+<li><strong>Sapaan</strong> &quot;Welcome, {nama}!&quot; dan <strong>badge Fase</strong> (Inkubasi/Primordia/Fruiting). Klik badge untuk membuka Pengaturan.</li>
+<li><strong>Jam digital</strong> (LiveClock).</li>
+<li><strong>Banner peringatan &quot;Peringatan Mikroklimat&quot;</strong> muncul saat suhu atau kelembapan di luar rentang. Pada malam hari muncul pesan bahwa misting ditahan.</li>
+<li><strong>Empat kartu KPI</strong>:</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Kartu</th>
+<th>Isi</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Suhu</td>
+<td>Nilai terkini, indikator rentang aman, tren per jam</td>
+</tr>
+<tr>
+<td>Kelembapan</td>
+<td>Gauge animasi, tren per jam</td>
+</tr>
+<tr>
+<td>Baglog Aktif</td>
+<td>Jumlah baglog aktif dan persen isi (maks. 3000)</td>
+</tr>
+<tr>
+<td>Panen Hari Ini</td>
+<td>Total kg hari ini terhadap target 15 kg/hari</td>
+</tr>
+</tbody></table>
+<ol start="5">
+<li><strong>Widget Jeda Panen</strong> (lihat 4.1).</li>
+<li><strong>Grafik Riwayat Iklim</strong>: tombol <strong>Split/Mix</strong>, rentang <strong>6 jam / 12 jam / 24 jam / 7 hari</strong>, pita zona aman, sumbu ganda suhu dan kelembapan.</li>
+<li><strong>Status otomasi</strong> dan <strong>progres panen 7 hari</strong>.</li>
+</ol>
+<p>Data diperbarui otomatis berkala. Jika data sensor tidak masuk, lihat Bab 12.</p>
+<h2>4.1 Widget Jeda Panen (Mode Panen)</h2>
+<p>Saat Anda masuk kumbung untuk memanen, misting dan kipas sebaiknya dimatikan agar Anda tidak basah dan tidak terganggu.</p>
+<ol>
+<li>Pilih durasi: <strong>2, 4, 6, atau 8 jam</strong>.</li>
+<li>Otomasi ESP32 berhenti selama durasi itu.</li>
+<li>Setelah selesai tekan <strong>&quot;Selesai Panen (Nyalakan Otomasi)&quot;</strong> untuk melanjutkan lebih awal.</li>
+</ol>
+<p>Aturan: durasi maksimum <strong>8 jam</strong>, minimum 60 detik. ESP32 mengecek perintah ini tiap <strong>8 detik</strong>, jadi ada jeda singkat sebelum alat berhenti/menyala.</p>
+<blockquote>
+<p>Jangan lupa menekan &quot;Selesai Panen&quot;. Jika lupa, otomasi baru menyala kembali saat durasi habis.</p>
+</blockquote>
+<div class="pagebreak"></div><h1>5. Manajemen Baglog</h1>
+<p>Halaman <code>/baglogs</code> mengelola <strong>batch</strong> baglog (satu pembelian = satu batch).</p>
+<h2>5.1 Melihat Batch</h2>
+<p>Daftar batch menampilkan kode, tanggal masuk, jumlah, pemasok, umur (hari), status, dan ringkasan HPP.</p>
+<h2>5.2 Menambah Batch (Admin)</h2>
+<ol>
+<li>Tekan tombol tambah batch.</li>
+<li>Isi form:</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Kolom</th>
+<th>Wajib</th>
+<th>Aturan</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Tanggal masuk</td>
+<td>Ya</td>
+<td>Tanggal pembelian</td>
+</tr>
+<tr>
+<td>Jumlah</td>
+<td>Ya</td>
+<td>Bilangan bulat, minimal 1</td>
+</tr>
+<tr>
+<td>Pemasok</td>
+<td>Ya</td>
+<td>Maks. 100 karakter</td>
+</tr>
+<tr>
+<td>Harga per baglog</td>
+<td>Tidak</td>
+<td>Minimal 0</td>
+</tr>
+<tr>
+<td>Catatan</td>
+<td>Tidak</td>
+<td>Bebas</td>
+</tr>
+</tbody></table>
+<ol start="3">
+<li>Simpan. Kode batch dibuat otomatis: <code>BL-TTTTBBHH-XXX</code> (contoh <code>BL-20261004-001</code>).</li>
+</ol>
+<h2>5.3 Status Batch</h2>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Arti</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>active</code></td>
+<td>Sedang dipakai/produktif</td>
+</tr>
+<tr>
+<td><code>contaminated</code></td>
+<td>Terkontaminasi</td>
+</tr>
+<tr>
+<td><code>disposed</code></td>
+<td>Dibuang</td>
+</tr>
+<tr>
+<td><code>completed</code></td>
+<td>Selesai (otomatis saat semua penempatan selesai)</td>
+</tr>
+</tbody></table>
+<p>Ubah status lewat aksi di baris batch.</p>
+<h2>5.4 Umur dan Siklus</h2>
+<ul>
+<li>Siklus standar: <strong>120 hari</strong>.</li>
+<li>Fase umur: inkubasi sampai ±35 hari, produktif sampai ±110 hari, akhir sekitar 130 hari.</li>
+<li>Maksimal <strong>7 flush</strong> (panen) per baglog.</li>
+</ul>
+<h2>5.5 Ringkasan HPP</h2>
+<p>Lihat Bab 8.4. Ringkasan HPP per batch juga tersedia dari halaman ini.</p>
+<div class="pagebreak"></div><h1>6. Rak Kumbung (WMS Spasial)</h1>
+<p>Halaman <code>/kumbung</code> menampilkan denah fisik rak.</p>
+<h2>6.1 Struktur Rak</h2>
+<ul>
+<li><strong>Rak default: A, B, C</strong> (dan dapat diperluas dengan Rak D, E, dst. lewat tombol <code>+ Tambah Rak</code>).</li>
+<li>Tiap rak memiliki dimensi standar seragam: <strong>10 bay (01-10)</strong> dan <strong>10 tingkat (01-10)</strong> = <strong>100 slot per rak</strong>.</li>
+<li>Kapasitas standar: <strong>10 baglog per slot</strong> (1.000 baglog per rak).</li>
+<li>Kode slot: <code>RAK-BAY-TINGKAT</code>, contoh <strong><code>A-01-01</code></strong>, <strong><code>D-05-10</code></strong>.</li>
+</ul>
+<h3>6.1.1 Menambah &amp; Mengelola Rak (Admin)</h3>
+<ol>
+<li>Tekan tombol <strong>&quot;+ Tambah Rak&quot;</strong> di samping deretan tombol pilihan rak.</li>
+<li>Sistem akan menyarankan huruf alfabet berikutnya (contoh: <strong>Rak D</strong> jika A, B, dan C sudah ada).</li>
+<li>Anda dapat langsung menekan <strong>&quot;Buat Rak&quot;</strong> atau mengubah huruf rak (A-Z).</li>
+<li>Sistem otomatis membuat <strong>100 slot koordinat baru</strong> dengan konfigurasi 10 bay × 10 tier dan kapasitas 1.000 baglog.</li>
+<li><strong>Menghapus Rak:</strong> Khusus rak yang seluruh slotnya masih kosong dan belum pernah memiliki catatan alokasi/panen, Admin dapat menghapusnya melalui modal Kelola Rak.</li>
+</ol>
+<h2>6.2 Mode Tampilan</h2>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Fungsi</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Grid Fisik</strong></td>
+<td>Denah slot dan isinya</td>
+</tr>
+<tr>
+<td><strong>Peta Panen</strong></td>
+<td>Heatmap hasil panen: hijau muda (rendah), hijau (sedang), kuning/amber (tinggi), tampil dalam kg</td>
+</tr>
+</tbody></table>
+<p>Filter: <strong>Semua</strong>, <strong>Terisi</strong>, <strong>Kosong</strong>.</p>
+<p>Di HP tersedia <strong>Bay Inspector</strong>: carousel BAY 01-10, menampilkan isi <code>x/10</code> dan tingkat dari T-10 sampai T-01.</p>
+<h2>6.3 Mengalokasikan Baglog ke Slot (Admin)</h2>
+<ol>
+<li>Tekan <strong>&quot;Alokasikan Baglog&quot;</strong> (masuk mode seleksi).</li>
+<li>Pilih satu atau beberapa slot <strong>kosong</strong>.</li>
+<li>Pilih batch, jumlah awal per slot, tanggal penempatan, dan tahap miselium awal.</li>
+<li>Konfirmasi.</li>
+</ol>
+<p>Aturan yang dijaga sistem:</p>
+<ul>
+<li>Jumlah awal per slot: <strong>1 sampai 20</strong>, tetapi tidak boleh melebihi kapasitas slot (10).</li>
+<li>Slot yang sudah terisi tidak bisa dialokasi.</li>
+<li>Total yang ditempatkan tidak boleh melebihi jumlah batch.</li>
+<li>Tanggal penempatan tidak boleh sebelum tanggal masuk batch, dan tidak boleh di masa depan.</li>
+</ul>
+<p>Tahap miselium awal: <strong>LEVEL_1</strong> (kurang dari 50%), <strong>LEVEL_2</strong> (50-80%), <strong>LEVEL_3</strong> (lebih dari 80%).</p>
+<p>Widget batch menampilkan &quot;Total Beli&quot;, &quot;Belum di Rak: N&quot;, atau &quot;100% Baglog di Rak&quot;.</p>
+<h2>6.4 Fase Penempatan</h2>
+<pre><code>INCUBATION → FRUITING → COMPLETED
+</code></pre>
+<ul>
+<li>Panen pertama otomatis mengubah <strong>INCUBATION menjadi FRUITING</strong>.</li>
+<li>Perpindahan lain mengikuti matriks transisi; status mundur yang tidak diizinkan akan ditolak.</li>
+</ul>
+<h2>6.5 Detail Slot</h2>
+<p>Klik slot untuk membuka <strong>Detail Slot</strong>: isi, batch, umur, riwayat panen/afkir, serta aksi:</p>
+<ul>
+<li><strong>Catat afkir</strong> (Bab 6.6).</li>
+<li><strong>Tutup siklus</strong> (Bab 6.7).</li>
+</ul>
+<h2>6.6 Mencatat Afkir (Cull)</h2>
+<p>Afkir = baglog rusak yang dikeluarkan.</p>
+<table>
+<thead>
+<tr>
+<th>Kolom</th>
+<th>Aturan</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Jumlah</td>
+<td>Minimal 1, tidak melebihi isi aktif slot</td>
+</tr>
+<tr>
+<td>Tanggal</td>
+<td>Tidak di masa depan, tidak sebelum tanggal penempatan</td>
+</tr>
+<tr>
+<td>Alasan</td>
+<td>TRICHODERMA (default), BUSUK_BASAH, HAMA, KERING, LAINNYA, HABIS_PRODUKSI</td>
+</tr>
+</tbody></table>
+<p>Jika isi aktif slot menjadi 0, slot otomatis <strong>COMPLETED (EXHAUSTED)</strong>.</p>
+<p><strong>Membatalkan afkir (void)</strong> wajib menyertakan alasan minimal 5 karakter. Kapasitas dikembalikan, dan slot dibuka kembali bila sebelumnya otomatis selesai.</p>
+<h2>6.7 Menutup Siklus</h2>
+<p>Gunakan saat baglog di slot sudah tidak produktif. Pilih alasan: <strong>EXHAUSTED, CONTAMINATED, DISPOSED, MANUAL</strong>. Sisa baglog otomatis dicatat sebagai afkir alasan HABIS_PRODUKSI. Jika semua penempatan batch selesai, batch otomatis <code>completed</code>.</p>
+<h2>6.8 Menghapus Penempatan (Admin)</h2>
+<p>Hanya bisa jika penempatan <strong>belum punya panen atau afkir</strong>. Jika sudah ada, tutup siklus saja.</p>
+<div class="pagebreak"></div><h1>7. Hasil Panen</h1>
+<p>Halaman <code>/harvests</code> untuk mencatat dan melihat panen.</p>
+<h2>7.1 Mencatat Panen</h2>
+<table>
+<thead>
+<tr>
+<th>Kolom</th>
+<th>Aturan</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Tanggal panen</td>
+<td>Tidak di masa depan</td>
+</tr>
+<tr>
+<td>Berat (kg)</td>
+<td>Minimal 0,01</td>
+</tr>
+<tr>
+<td>Batch</td>
+<td>Opsional</td>
+</tr>
+<tr>
+<td>Kode slot</td>
+<td>Opsional, otomatis huruf besar</td>
+</tr>
+<tr>
+<td>Grade</td>
+<td><strong>A</strong> (default), <strong>B</strong>, atau <strong>REJECT</strong></td>
+</tr>
+<tr>
+<td>Flush ke-</td>
+<td>Otomatis bertambah 1 per batch/slot (rentang 1-10)</td>
+</tr>
+<tr>
+<td>Catatan</td>
+<td>Opsional</td>
+</tr>
+</tbody></table>
+<p>Cara cepat: tombol panen cepat tersedia dari Dashboard/slot.</p>
+<h2>7.2 Batas Flush</h2>
+<p>Sistem membatasi <strong>maks. 7 flush</strong>. Jika terlampaui, muncul pesan agar Anda <strong>menutup siklus</strong> slot tersebut.</p>
+<h2>7.3 Pesan Kesalahan Umum</h2>
+<table>
+<thead>
+<tr>
+<th>Pesan/Penyebab</th>
+<th>Solusi</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Slot tanpa batch aktif</td>
+<td>Alokasikan baglog ke slot dulu</td>
+</tr>
+<tr>
+<td>Kapasitas slot 0</td>
+<td>Slot sudah kosong/selesai</td>
+</tr>
+<tr>
+<td>Panen sebelum tanggal penempatan</td>
+<td>Perbaiki tanggal panen</td>
+</tr>
+<tr>
+<td>Flush melebihi batas</td>
+<td>Tutup siklus slot (Bab 6.7)</td>
+</tr>
+</tbody></table>
+<h2>7.4 Membatalkan Panen (Void)</h2>
+<p>Salah input? Gunakan <strong>Void</strong>, bukan hapus. Wajib isi alasan <strong>5 sampai 255 karakter</strong>. Data void tetap tersimpan sebagai jejak audit, tetapi <strong>tidak dihitung</strong> di total, grafik, dan HPP.</p>
+<div class="pagebreak"></div><h1>8. Penjualan, Biaya, dan HPP (Admin)</h1>
+<p>Halaman <code>/sales</code> hanya untuk Admin.</p>
+<h2>8.1 Mencatat Penjualan</h2>
+<table>
+<thead>
+<tr>
+<th>Kolom</th>
+<th>Aturan</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Tanggal</td>
+<td>Tanggal transaksi</td>
+</tr>
+<tr>
+<td>Batch</td>
+<td>Opsional</td>
+</tr>
+<tr>
+<td>Jumlah (kg)</td>
+<td>Minimal 0,1</td>
+</tr>
+<tr>
+<td>Harga per kg</td>
+<td>Minimal Rp 1.000</td>
+</tr>
+<tr>
+<td>Nama pembeli</td>
+<td>Wajib, maks. 100 karakter</td>
+</tr>
+<tr>
+<td>Catatan</td>
+<td>Opsional</td>
+</tr>
+</tbody></table>
+<p>Pendapatan dihitung presisi desimal (bukan float).</p>
+<h2>8.2 Void Penjualan</h2>
+<p>Sama dengan panen: wajib alasan, data tetap tersimpan namun tidak dihitung.</p>
+<h2>8.3 Laporan dan Analisis</h2>
+<ul>
+<li><strong>Cari pembeli / catatan</strong>: kotak pencarian.</li>
+<li><strong>Laporan mingguan</strong>.</li>
+<li><strong>Peringkat pembeli</strong>.</li>
+<li><strong>Tren harga</strong>.</li>
+<li><strong>Kartu analisis HPP</strong>.</li>
+</ul>
+<h2>8.4 Biaya Operasional dan HPP</h2>
+<p>Catat biaya di panel biaya operasional.</p>
+<table>
+<thead>
+<tr>
+<th>Kategori (UI)</th>
+<th>Contoh</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>NUTRISI</td>
+<td>Pupuk/nutrisi</td>
+</tr>
+<tr>
+<td>LABOR</td>
+<td>Upah</td>
+</tr>
+<tr>
+<td>PACKAGING</td>
+<td>Kemasan</td>
+</tr>
+<tr>
+<td>LAINNYA</td>
+<td>Lain-lain</td>
+</tr>
+</tbody></table>
+<p>Nominal minimal Rp 1.000 (UI). Biaya <strong>tanpa batch</strong> dialokasikan <strong>prorata</strong> ke semua batch aktif.</p>
+<p><strong>Rumus:</strong></p>
+<pre><code>Biaya operasional batch = biaya langsung + bagian prorata biaya umum
+Total biaya             = modal awal (harga x jumlah) + biaya operasional
+Margin kontribusi       = omzet - total biaya
+HPP per kg              = total biaya / total kg panen
+BEP (kg)                = total biaya / harga rata-rata jual
+Mortalitas              = jumlah afkir / jumlah baglog
+</code></pre>
+<p>Jika belum ada penjualan, BEP memakai harga acuan <strong>Rp 25.000/kg</strong>.</p>
+<div class="pagebreak"></div><h1>9. Pengaturan</h1>
+<p>Halaman <code>/settings</code>.</p>
+<h2>9.1 Preset Fase</h2>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Suhu</th>
+<th>Kelembapan</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Inkubasi</td>
+<td>26-30 °C</td>
+<td>65-75 %</td>
+</tr>
+<tr>
+<td>Primordia</td>
+<td>24-28 °C</td>
+<td>85-90 %</td>
+</tr>
+<tr>
+<td>Fruiting</td>
+<td>24-32 °C</td>
+<td>85-95 %</td>
+</tr>
+</tbody></table>
+<p>Pilih <strong>Custom</strong> untuk nilai sendiri.</p>
+<h2>9.2 Aturan Validasi Threshold</h2>
+<ul>
+<li>Suhu 0-50 °C, kelembapan 0-100 %.</li>
+<li>Nilai maksimum harus lebih besar atau sama dengan minimum.</li>
+<li><strong>Selisih kelembapan min-maks minimal 4 %.</strong></li>
+</ul>
+<p>Hanya <strong>Admin</strong> yang dapat menekan <strong>&quot;Simpan Konfigurasi&quot;</strong>. ESP32 mengambil ulang threshold setiap <strong>30 detik</strong>, jadi perubahan berlaku tanpa restart.</p>
+<h2>9.3 Log Aktuator</h2>
+<p>Menampilkan kejadian pompa/kipas: filter <strong>semua / misting / kipas</strong>, 10 data terakhir, diperbarui tiap 10 detik.</p>
+<h2>9.4 Status Perangkat dan Tema</h2>
+<p>Status perangkat ESP32 dan pilihan tema Terang/Gelap ada di halaman ini.</p>
+<h2>9.5 Mendaftarkan Akun (Admin)</h2>
+<p>Hanya Admin yang dapat mendaftarkan pengguna baru, dengan batas <strong>1 Admin dan 5 Worker</strong>.</p>
+<div class="pagebreak"></div><h1>10. Cara Kerja Otomasi IoT</h1>
+<p>Bagian ini menjelaskan keputusan ESP32 agar Anda tidak kaget saat alat menyala/mati sendiri.</p>
+<h2>10.1 Pembacaan Sensor</h2>
+<p>Tiga sensor suhu &amp; kelembapan presisi tinggi <strong>SHT30 / SHT31 Probe IP68 Waterproof</strong> dipasang bertingkat (terhubung via modul multiplexer TCA9548A). Nilai digabung dengan <strong>bobot</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Sensor</th>
+<th>Posisi</th>
+<th>Tinggi</th>
+<th>Kanal TCA</th>
+<th>Bobot</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A</td>
+<td>Atas</td>
+<td>2,5 m</td>
+<td>Channel 0</td>
+<td>35 %</td>
+</tr>
+<tr>
+<td>B</td>
+<td>Tengah</td>
+<td>1,5 m</td>
+<td>Channel 1</td>
+<td>40 %</td>
+</tr>
+<tr>
+<td>C</td>
+<td>Bawah</td>
+<td>0,5 m</td>
+<td>Channel 2</td>
+<td>25 %</td>
+</tr>
+</tbody></table>
+<p>Jika satu sensor gagal baca (NaN), bobot dihitung ulang secara dinamis dari sensor yang sehat.</p>
+<h2>10.2 Misting (Pompa)</h2>
+<ul>
+<li><strong>Mulai</strong> saat kelembapan &lt; batas bawah.</li>
+<li><strong>Berhenti</strong> saat kelembapan mencapai batas bawah + sedikit margin (maks. 3 %) dan suhu aman, atau habis waktu <strong>90 detik</strong>.</li>
+<li><strong>Jeda penguapan</strong> 150 detik setelah misting.</li>
+<li><strong>Misting denyut 30 detik</strong> bila rak atas sangat kering (lebih dari 10 % di bawah batas).</li>
+<li><strong>Terkunci malam</strong> pukul <strong>17:00-06:00 WIB</strong> (mencegah jamur basah).</li>
+<li>Ditahan jika kelembapan sudah di atas batas atas, atau suhu kritis.</li>
+</ul>
+<h2>10.3 Exhaust Fan</h2>
+<table>
+<thead>
+<tr>
+<th>Situasi</th>
+<th>Perilaku</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Siang, suhu &gt; batas atas</td>
+<td>Nyala sampai suhu turun 1,5 °C, maks. 180 detik, jeda 60 detik</td>
+</tr>
+<tr>
+<td>Suhu &gt; batas atas + 2 °C</td>
+<td>Dipaksa nyala (override)</td>
+</tr>
+<tr>
+<td>Selisih RH atas-bawah &gt; 12 %</td>
+<td>Homogenisasi 30 detik (jeda 15 menit)</td>
+</tr>
+<tr>
+<td>Malam, RH ≥ 96 %</td>
+<td>Purge 45 detik (jeda 30 menit)</td>
+</tr>
+<tr>
+<td>Malam</td>
+<td>Pembuangan CO2 45 detik tiap 60 menit</td>
+</tr>
+<tr>
+<td>Setelah misting</td>
+<td>Tunda 60 detik</td>
+</tr>
+</tbody></table>
+<p>Misting dan kipas saling mengunci (interlock) agar tidak bersamaan.</p>
+<h2>10.4 Ketahanan Saat Offline</h2>
+<ul>
+<li>Wi-Fi disambung ulang tanpa menghentikan kontrol (percobaan tiap 15 detik).</li>
+<li>Data yang gagal terkirim disimpan di antrean RAM (10 slot) lalu dikirim saat online.</li>
+<li>Data lama lebih dari 15 detik disaring.</li>
+<li>Relay dimulai dalam kondisi OFF saat boot.</li>
+</ul>
+<h2>10.5 Jadwal Siklus Perangkat</h2>
+<table>
+<thead>
+<tr>
+<th>Aktivitas</th>
+<th>Interval</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Baca sensor</td>
+<td>5 detik</td>
+</tr>
+<tr>
+<td>Kirim ke server</td>
+<td>60 detik</td>
+</tr>
+<tr>
+<td>Ambil threshold</td>
+<td>30 detik</td>
+</tr>
+<tr>
+<td>Cek perintah jeda</td>
+<td>8 detik</td>
+</tr>
+</tbody></table>
+<div class="pagebreak"></div><h1>11. Prosedur Operasional (SOP)</h1>
+<h2>11.1 Harian</h2>
+<ol>
+<li>Buka Dashboard, cek banner peringatan dan nilai suhu/RH.</li>
+<li>Cek status perangkat dan log aktuator terakhir.</li>
+<li>Sebelum masuk kumbung: <strong>aktifkan Jeda Panen</strong>.</li>
+<li>Panen, lalu <strong>catat</strong> hasil di Hasil Panen (segera, jangan ditunda).</li>
+<li>Afkir baglog rusak dan <strong>catat</strong> di Detail Slot.</li>
+<li>Selesai: tekan <strong>Selesai Panen</strong>.</li>
+</ol>
+<h2>11.2 Mingguan</h2>
+<ol>
+<li>Tinjau grafik riwayat 7 hari.</li>
+<li>Cek Peta Panen untuk slot berproduksi rendah.</li>
+<li>(Admin) Catat biaya operasional minggu ini.</li>
+<li>(Admin) Tinjau laporan mingguan dan harga jual.</li>
+</ol>
+<h2>11.3 Per Siklus</h2>
+<ol>
+<li>(Admin) Catat batch baru, alokasikan ke rak.</li>
+<li>Atur preset <strong>Inkubasi</strong>. Saat miselium penuh pindah ke <strong>Primordia</strong>, lalu <strong>Fruiting</strong>.</li>
+<li>Panen sampai maksimal 7 flush.</li>
+<li>Tutup siklus slot yang habis.</li>
+<li>(Admin) Tinjau HPP, margin, dan mortalitas batch.</li>
+</ol>
+<h2>11.4 Perawatan Perangkat</h2>
+<ul>
+<li>Bersihkan probe sensor SHT30/SHT31 dari debu spora secara berkala (gunakan sikat halus kering).</li>
+<li>Cek nozzle misting dan selang dari penyumbatan (bersihkan cartridge sedimen filter).</li>
+<li>Pastikan box panel IP65 tertutup rapat dan kabel terlindung konduit.</li>
+</ul>
+<div class="pagebreak"></div><h1>12. Penanganan Masalah (Troubleshooting)</h1>
+<h2>12.1 Dashboard dan Akun</h2>
+<table>
+<thead>
+<tr>
+<th>Gejala</th>
+<th>Kemungkinan Penyebab</th>
+<th>Solusi</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Tidak bisa login</td>
+<td>Email/password salah atau akun belum ada</td>
+<td>Cek ejaan; pakai akun dari seeder; minta Admin mendaftarkan</td>
+</tr>
+<tr>
+<td>&quot;Terlalu banyak percobaan&quot;</td>
+<td>Melebihi 15 percobaan/menit</td>
+<td>Tunggu 1 menit</td>
+</tr>
+<tr>
+<td>Tiba-tiba kembali ke login</td>
+<td>Token kedaluwarsa/dihapus</td>
+<td>Login ulang</td>
+</tr>
+<tr>
+<td>Menu Penjualan tidak ada</td>
+<td>Anda login sebagai Worker</td>
+<td>Normal, fitur khusus Admin</td>
+</tr>
+<tr>
+<td>Tombol Simpan Konfigurasi gagal</td>
+<td>Bukan Admin</td>
+<td>Gunakan akun Admin</td>
+</tr>
+<tr>
+<td>Muncul data &quot;salinan offline&quot; di HP</td>
+<td>Server tidak terjangkau, tampil cache</td>
+<td>Cek Wi-Fi dan alamat server (Bab 2.4)</td>
+</tr>
+</tbody></table>
+<h2>12.2 Data Sensor dan Grafik</h2>
+<table>
+<thead>
+<tr>
+<th>Gejala</th>
+<th>Penyebab</th>
+<th>Solusi</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Grafik kosong</td>
+<td>Belum ada data pada rentang itu</td>
+<td>Pilih rentang lebih panjang; cek ESP32 online</td>
+</tr>
+<tr>
+<td>Angka tidak berubah</td>
+<td>ESP32 mati/Wi-Fi putus</td>
+<td>Cek listrik dan Serial Monitor</td>
+</tr>
+<tr>
+<td>Satu sensor NaN</td>
+<td>Kabel longgar, sambungan lepas, atau probe rusak</td>
+<td>Cek jalur kanal TCA9548A dan sambungan kabel Cat5e; sistem tetap jalan dengan sensor sisa</td>
+</tr>
+<tr>
+<td>Nilai lompat aneh</td>
+<td>Sensor basah/terkena semprotan nozzle langsung</td>
+<td>Pastikan posisi moncong menghadap bawah dan jauh dari semprotan nozzle</td>
+</tr>
+<tr>
+<td>Data terlambat</td>
+<td>Interval kirim 60 detik</td>
+<td>Tunggu, itu normal</td>
+</tr>
+</tbody></table>
+<h2>12.3 Otomasi</h2>
+<table>
+<thead>
+<tr>
+<th>Gejala</th>
+<th>Penyebab</th>
+<th>Solusi</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Misting tidak menyala malam hari</td>
+<td>Kunci malam 17:00-06:00</td>
+<td>Normal, bukan kerusakan</td>
+</tr>
+<tr>
+<td>Misting tidak menyala siang</td>
+<td>RH sudah cukup, atau jeda penguapan 150 detik, atau suhu kritis</td>
+<td>Tunggu, cek threshold</td>
+</tr>
+<tr>
+<td>Kipas nyala sendiri</td>
+<td>Homogenisasi, purge, atau flush CO2</td>
+<td>Normal, lihat Bab 10.3</td>
+</tr>
+<tr>
+<td>Otomasi tidak jalan setelah panen</td>
+<td>Lupa tekan &quot;Selesai Panen&quot;</td>
+<td>Tekan tombolnya</td>
+</tr>
+<tr>
+<td>Threshold baru tidak berlaku</td>
+<td>ESP32 mengambil tiap 30 detik</td>
+<td>Tunggu 30 detik</td>
+</tr>
+<tr>
+<td>Relay bunyi/berkedip</td>
+<td>Catu daya kurang</td>
+<td>Gunakan adaptor 5V 2A yang stabil</td>
+</tr>
+<tr>
+<td>Jam salah/NTP gagal</td>
+<td>Internet tidak ada</td>
+<td>Pastikan Wi-Fi punya akses internet</td>
+</tr>
+</tbody></table>
+<h2>12.4 Pesan Validasi (HTTP 422)</h2>
+<table>
+<thead>
+<tr>
+<th>Pesan</th>
+<th>Arti</th>
+<th>Solusi</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Kapasitas slot tidak cukup</td>
+<td>Isi melebihi 10</td>
+<td>Kurangi jumlah</td>
+</tr>
+<tr>
+<td>Slot sudah terisi</td>
+<td>Slot tidak kosong</td>
+<td>Pilih slot lain</td>
+</tr>
+<tr>
+<td>Melebihi jumlah batch</td>
+<td>Total alokasi lebih dari pembelian</td>
+<td>Kurangi jumlah</td>
+</tr>
+<tr>
+<td>Tanggal sebelum batch masuk</td>
+<td>Tanggal penempatan salah</td>
+<td>Perbaiki tanggal</td>
+</tr>
+<tr>
+<td>Flush maksimal tercapai</td>
+<td>Sudah 7 kali panen</td>
+<td>Tutup siklus</td>
+</tr>
+<tr>
+<td>Selisih kelembapan terlalu sempit</td>
+<td>Max-min kurang dari 4 %</td>
+<td>Lebarkan rentang</td>
+</tr>
+<tr>
+<td>Alasan void terlalu pendek</td>
+<td>Kurang dari 5 karakter</td>
+<td>Tulis alasan lengkap</td>
+</tr>
+<tr>
+<td>Afkir melebihi isi</td>
+<td>Jumlah afkir lebih dari isi aktif</td>
+<td>Kurangi jumlah</td>
+</tr>
+<tr>
+<td>Penempatan tidak bisa dihapus</td>
+<td>Sudah punya panen/afkir</td>
+<td>Tutup siklus</td>
+</tr>
+</tbody></table>
+<h2>12.5 Server dan Jaringan</h2>
+<table>
+<thead>
+<tr>
+<th>Gejala</th>
+<th>Solusi</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>HP tidak bisa buka alamat</td>
+<td>Satu Wi-Fi? Server pakai <code>--host 0.0.0.0</code>? Firewall?</td>
+</tr>
+<tr>
+<td>Error 401</td>
+<td>Login ulang</td>
+</tr>
+<tr>
+<td>Error 403</td>
+<td>Fitur khusus Admin</td>
+</tr>
+<tr>
+<td>Error 429</td>
+<td>Terlalu banyak permintaan, tunggu sebentar</td>
+</tr>
+<tr>
+<td>Error 500</td>
+<td>Cek <code>backend/storage/logs/laravel.log</code></td>
+</tr>
+<tr>
+<td>Vercel menampilkan 402</td>
+<td>Kuota/akun habis; deploy ulang di layanan lain dan ganti alamat API</td>
+</tr>
+<tr>
+<td>Port 8000/5173 sudah dipakai</td>
+<td>Tutup proses lama atau ganti port</td>
+</tr>
+</tbody></table>
+<h2>12.6 Jika Semua Gagal</h2>
+<ol>
+<li>Restart server backend dan frontend.</li>
+<li>Restart ESP32 (cabut dan colok daya).</li>
+<li>Hanya <strong>data demo</strong>: <code>php artisan migrate:fresh --seed</code> (<strong>menghapus semua data</strong>).</li>
+<li>Salin pesan error dan log, lalu hubungi pengembang.</li>
+</ol>
+<div class="pagebreak"></div><h1>13. Pertanyaan Umum (FAQ)</h1>
+<p><strong>Apakah salah input bisa dihapus?</strong> Tidak dihapus, tetapi di-<strong>void</strong> dengan alasan. Datanya tetap tercatat dan tidak dihitung.</p>
+<p><strong>Kenapa nggak ada tombol edit panen?</strong> Demi jejak audit. Void lalu catat ulang.</p>
+<p><strong>Berapa baglog maksimal?</strong> 3.000 (300 slot x 10).</p>
+<p><strong>Bisa lebih dari 1 Admin?</strong> Tidak, batas sistem 1 Admin dan 5 Worker.</p>
+<p><strong>Apakah bisa dipakai tanpa ESP32?</strong> Fitur supply chain dan WMS tetap jalan. Monitoring iklim butuh data dari ESP32 (atau simulator).</p>
+<p><strong>Kenapa misting berhenti padahal masih kering?</strong> Lihat kunci malam, jeda penguapan, dan batas waktu 90 detik di Bab 10.2.</p>
+<p><strong>Apa beda Inkubasi, Primordia, dan Fruiting?</strong> Inkubasi: miselium tumbuh (lebih hangat, kurang lembap). Primordia: calon jamur muncul (lembap tinggi). Fruiting: panen (lembap tinggi, suhu lebih toleran).</p>
+<p><strong>Bagaimana mencetak manual ini?</strong> Buka <code>MANUAL_BOOK.html</code> di browser, tekan Ctrl+P, pilih Save as PDF atau printer. Lihat <code>README.md</code> di folder yang sama.</p>
+<div class="pagebreak"></div><h1>14. Glosarium</h1>
+<table>
+<thead>
+<tr>
+<th>Istilah</th>
+<th>Arti</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Baglog</td>
+<td>Kantong media tanam jamur</td>
+</tr>
+<tr>
+<td>Batch</td>
+<td>Satu kelompok pembelian baglog</td>
+</tr>
+<tr>
+<td>Kumbung</td>
+<td>Rumah/ruang budidaya jamur</td>
+</tr>
+<tr>
+<td>Slot</td>
+<td>Satu posisi rak, kode <code>A-01-01</code></td>
+</tr>
+<tr>
+<td>Flush</td>
+<td>Satu gelombang panen dari baglog</td>
+</tr>
+<tr>
+<td>Cull / Afkir</td>
+<td>Baglog rusak yang dibuang</td>
+</tr>
+<tr>
+<td>Void</td>
+<td>Pembatalan data dengan alasan (soft delete)</td>
+</tr>
+<tr>
+<td>Miselium</td>
+<td>Jaringan benang jamur di media</td>
+</tr>
+<tr>
+<td>Primordia</td>
+<td>Calon tubuh buah jamur</td>
+</tr>
+<tr>
+<td>Fruiting</td>
+<td>Fase pembentukan dan panen tubuh buah</td>
+</tr>
+<tr>
+<td>Trichoderma</td>
+<td>Jamur kontaminan (hijau)</td>
+</tr>
+<tr>
+<td>HPP</td>
+<td>Harga Pokok Produksi per kg</td>
+</tr>
+<tr>
+<td>BEP</td>
+<td>Break Even Point, titik impas</td>
+</tr>
+<tr>
+<td>WMS</td>
+<td>Warehouse Management System</td>
+</tr>
+<tr>
+<td>SCM</td>
+<td>Supply Chain Management</td>
+</tr>
+<tr>
+<td>RH</td>
+<td>Kelembapan relatif</td>
+</tr>
+<tr>
+<td>Misting</td>
+<td>Penyemprotan kabut air</td>
+</tr>
+<tr>
+<td>Relay</td>
+<td>Saklar elektronik pengendali pompa/kipas</td>
+</tr>
+<tr>
+<td>Threshold</td>
+<td>Batas atas/bawah suhu dan kelembapan</td>
+</tr>
+<tr>
+<td>Sanctum</td>
+<td>Sistem autentikasi token Laravel</td>
+</tr>
+</tbody></table>
+<div class="pagebreak"></div><h1>15. Lampiran A: Spesifikasi Lengkap Sistem</h1>
+<!-- AUTO-GENERATED: diekstrak dari kode sumber (composer.json, package.json, routes/api.php, config/baglog.php, esp32_firmware.ino) --><h2>A.1 Arsitektur</h2>
+<pre><code> ESP32 (3x SHT30, TCA9548A, relay)  &lt;--HTTPS/JSON--&gt;  Laravel API (Sanctum)  &lt;---&gt;  SQLite / PostgreSQL
+                                                    ^
+                                                    |  REST + token
+                                            React SPA (Dashboard)
+</code></pre>
+<p>Pola: <strong>monolit terpisah frontend/backend</strong>, REST JSON, logika bisnis (perhitungan, pengelompokan, filter) berada di backend.</p>
+<h2>A.2 Tech Stack</h2>
+<table>
+<thead>
+<tr>
+<th>Lapisan</th>
+<th>Teknologi</th>
+<th>Versi</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Backend</td>
+<td>Laravel Framework</td>
+<td>13.x (terpasang 13.24.0)</td>
+</tr>
+<tr>
+<td>Bahasa</td>
+<td>PHP</td>
+<td>8.3 (diuji 8.3.26)</td>
+</tr>
+<tr>
+<td>Autentikasi</td>
+<td>Laravel Sanctum</td>
+<td>4</td>
+</tr>
+<tr>
+<td>Tes backend</td>
+<td>PHPUnit</td>
+<td>12</td>
+</tr>
+<tr>
+<td>Frontend</td>
+<td>React</td>
+<td>19.2</td>
+</tr>
+<tr>
+<td>Build tool</td>
+<td>Vite</td>
+<td>8</td>
+</tr>
+<tr>
+<td>Bahasa</td>
+<td>TypeScript</td>
+<td>~6.0</td>
+</tr>
+<tr>
+<td>CSS</td>
+<td>Tailwind CSS</td>
+<td>3.4</td>
+</tr>
+<tr>
+<td>Data fetching</td>
+<td>TanStack Query</td>
+<td>5</td>
+</tr>
+<tr>
+<td>State</td>
+<td>Zustand</td>
+<td>5</td>
+</tr>
+<tr>
+<td>Grafik</td>
+<td>Recharts</td>
+<td>3</td>
+</tr>
+<tr>
+<td>Routing</td>
+<td>react-router-dom</td>
+<td>7</td>
+</tr>
+<tr>
+<td>Lain-lain</td>
+<td>axios, lucide-react, date-fns, oxlint</td>
+<td>-</td>
+</tr>
+<tr>
+<td>Database dev/test</td>
+<td>SQLite</td>
+<td>-</td>
+</tr>
+<tr>
+<td>Database produksi</td>
+<td>PostgreSQL (Supabase)</td>
+<td>-</td>
+</tr>
+<tr>
+<td>Mikrokontroler</td>
+<td>ESP32 DevKit V1, firmware</td>
+<td>v3.5</td>
+</tr>
+</tbody></table>
+<h2>A.3 Perangkat Keras</h2>
+<table>
+<thead>
+<tr>
+<th>Komponen</th>
+<th>Keterangan</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Mikrokontroler</td>
+<td>ESP32 DevKit V1 (30-pin) + Terminal Shield Expansion Board</td>
+</tr>
+<tr>
+<td>Sensor suhu/RH</td>
+<td>3x SHT30 / SHT31 Probe IP68 Waterproof</td>
+</tr>
+<tr>
+<td>I2C Multiplexer</td>
+<td>Modul TCA9548A (8-Kanal, alamat 0x70)</td>
+</tr>
+<tr>
+<td>Relay</td>
+<td>Modul Relay 4-Channel 5V Optocoupler (aktif LOW, JD-VCC terisolasi)</td>
+</tr>
+<tr>
+<td>Pompa</td>
+<td>Pompa diafragma high-pressure DC 12V (130–160 PSI)</td>
+</tr>
+<tr>
+<td>Solenoid</td>
+<td>Solenoid valve kuningan 12V DC drat 1/2&quot; NC</td>
+</tr>
+<tr>
+<td>Kipas</td>
+<td>Exhaust fan 10&quot; AC 220V</td>
+</tr>
+<tr>
+<td>Nozzle misting</td>
+<td>14x Brass 0.3mm + Tee slip-lock 6mm</td>
+</tr>
+<tr>
+<td>Catu daya</td>
+<td>SMPS 12V 10A (120W) + Buck Converter LM2596 (set ke 5.0V)</td>
+</tr>
+<tr>
+<td>Box panel</td>
+<td>Box Panel Outdoor Waterproof IP65 + MCB 2A</td>
+</tr>
+<tr>
+<td>Kabel sensor</td>
+<td>Cat5e FTP/UTP twisted-pair (jalur dinding ±7–8 m)</td>
+</tr>
+<tr>
+<td>Tampilan</td>
+<td>LCD I2C 16x2 (opsional, alamat 0x27)</td>
+</tr>
+</tbody></table>
+<p>Ruang kumbung: <strong>5 x 7 x 3,5 m (122,5 m3)</strong>.</p>
+<h3>Pemetaan Pin &amp; Kanal</h3>
+<table>
+<thead>
+<tr>
+<th>Fungsi</th>
+<th>Pin ESP32 / Kanal TCA</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Bus I2C Utama</td>
+<td>GPIO 21 (SDA) / GPIO 22 (SCL)</td>
+</tr>
+<tr>
+<td>SHT30 A (Atas, 2.5m)</td>
+<td>TCA9548A Channel 0 (I2C addr 0x44)</td>
+</tr>
+<tr>
+<td>SHT30 B (Tengah, 1.5m)</td>
+<td>TCA9548A Channel 1 (I2C addr 0x44)</td>
+</tr>
+<tr>
+<td>SHT30 C (Bawah, 0.5m)</td>
+<td>TCA9548A Channel 2 (I2C addr 0x44)</td>
+</tr>
+<tr>
+<td>Relay pompa misting</td>
+<td>GPIO 26</td>
+</tr>
+<tr>
+<td>Relay solenoid valve</td>
+<td>GPIO 25</td>
+</tr>
+<tr>
+<td>Relay exhaust fan</td>
+<td>GPIO 33</td>
+</tr>
+<tr>
+<td>LCD I2C 16x2 (opsional)</td>
+<td>GPIO 21 / 22 (I2C addr 0x27)</td>
+</tr>
+</tbody></table>
+<h2>A.4 Parameter Firmware v3.5</h2>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Nilai</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ID perangkat</td>
+<td><code>ESP32-KUMBUNG-01</code></td>
+</tr>
+<tr>
+<td>Baca sensor</td>
+<td>5 s</td>
+</tr>
+<tr>
+<td>Kirim API</td>
+<td>60 s</td>
+</tr>
+<tr>
+<td>Ambil threshold</td>
+<td>30 s</td>
+</tr>
+<tr>
+<td>Poll perintah</td>
+<td>8 s</td>
+</tr>
+<tr>
+<td>Timeout misting</td>
+<td>90 s</td>
+</tr>
+<tr>
+<td>Cooldown penguapan</td>
+<td>150 s</td>
+</tr>
+<tr>
+<td>Misting denyut</td>
+<td>30 s</td>
+</tr>
+<tr>
+<td>Kunci malam misting</td>
+<td>17:00-06:00 WIB</td>
+</tr>
+<tr>
+<td>Kipas siang maks.</td>
+<td>180 s, cooldown 60 s</td>
+</tr>
+<tr>
+<td>Override kipas</td>
+<td>Suhu &gt; batas atas + 2 °C</td>
+</tr>
+<tr>
+<td>Homogenisasi</td>
+<td>30 s bila selisih RH &gt; 12 %, cooldown 15 menit</td>
+</tr>
+<tr>
+<td>Purge malam</td>
+<td>RH ≥ 96 %, 45 s, cooldown 30 menit</td>
+</tr>
+<tr>
+<td>Flush CO2 malam</td>
+<td>45 s tiap 60 menit</td>
+</tr>
+<tr>
+<td>Jeda setelah misting</td>
+<td>60 s</td>
+</tr>
+<tr>
+<td>Antrean offline</td>
+<td>10 entri (RAM)</td>
+</tr>
+<tr>
+<td>Filter data basi</td>
+<td>15 s</td>
+</tr>
+<tr>
+<td>Default threshold</td>
+<td>suhu 24-32 °C, RH 80-95 %</td>
+</tr>
+</tbody></table>
+<h2>A.5 Batas dan Konfigurasi Sistem</h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Nilai</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Jumlah slot</td>
+<td>300+ (3+ rak x 10 bay x 10 tingkat, kelipatan 100/rak)</td>
+</tr>
+<tr>
+<td>Kapasitas per slot</td>
+<td>10 baglog</td>
+</tr>
+<tr>
+<td>Kapasitas total</td>
+<td>3.000+ baglog (kelipatan 1.000/rak)</td>
+</tr>
+<tr>
+<td>Admin maks.</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Worker maks.</td>
+<td>5</td>
+</tr>
+<tr>
+<td>Maks. flush</td>
+<td>7</td>
+</tr>
+<tr>
+<td>Durasi siklus</td>
+<td>120 hari</td>
+</tr>
+<tr>
+<td>Jeda panen</td>
+<td>60 detik sampai 8 jam</td>
+</tr>
+<tr>
+<td>Target panen harian</td>
+<td>15 kg</td>
+</tr>
+<tr>
+<td>Rate limit login</td>
+<td>15 permintaan/menit</td>
+</tr>
+<tr>
+<td>Rate limit endpoint ESP32</td>
+<td>20 permintaan/menit</td>
+</tr>
+</tbody></table>
+<h2>A.6 Model Data Utama</h2>
+<table>
+<thead>
+<tr>
+<th>Entitas</th>
+<th>Atribut penting</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Pengguna</td>
+<td>nama, email, password (hash), peran (admin/worker)</td>
+</tr>
+<tr>
+<td>Batch baglog</td>
+<td>kode <code>BL-YYYYMMDD-XXX</code>, entry_date, quantity, supplier, price_per_baglog, status, notes</td>
+</tr>
+<tr>
+<td>Slot</td>
+<td>kode <code>A-01-01</code>, rak, bay, tingkat, max_capacity (10), status</td>
+</tr>
+<tr>
+<td>Penempatan batch-slot</td>
+<td>batch, slot, initial_quantity, tahap miselium, status (INCUBATION/FRUITING/COMPLETED), assigned_at</td>
+</tr>
+<tr>
+<td>Panen</td>
+<td>harvest_date, weight_kg, batch, slot_code, flush_number, quality_grade (A/B/REJECT), kolom void</td>
+</tr>
+<tr>
+<td>Penjualan</td>
+<td>sale_date, quantity_kg, price_per_kg, buyer_name, batch, kolom void</td>
+</tr>
+<tr>
+<td>Afkir</td>
+<td>batch, slot_code, cull_date, quantity, reason, kolom void</td>
+</tr>
+<tr>
+<td>Biaya operasional</td>
+<td>kategori, amount, tanggal, batch (opsional)</td>
+</tr>
+<tr>
+<td>Data sensor</td>
+<td>suhu, kelembapan, device_id, waktu</td>
+</tr>
+<tr>
+<td>Log sprinkler/aktuator</td>
+<td>aktuator, aksi, waktu</td>
+</tr>
+<tr>
+<td>Threshold</td>
+<td>suhu min/maks, RH min/maks, fase</td>
+</tr>
+</tbody></table>
+<p>Aturan integritas: uang memakai tipe <strong>Decimal</strong> (bukan float); kolom void: <code>voided_at</code>, <code>voided_by</code>, <code>void_reason</code>; indeks pada pengguna dan tanggal transaksi.</p>
+<h2>A.7 Referensi Endpoint API</h2>
+<p>Dasar: <code>{VITE_API_URL}</code> (contoh <code>http://localhost:8000/api</code>). Autentikasi: header <code>Authorization: Bearer &lt;token&gt;</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Metode</th>
+<th>Endpoint</th>
+<th>Akses</th>
+<th>Fungsi</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>POST</td>
+<td><code>/login</code></td>
+<td>Publik</td>
+<td>Masuk, dapat token</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/logout</code></td>
+<td>Auth</td>
+<td>Keluar</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/me</code></td>
+<td>Auth</td>
+<td>Profil</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/register</code></td>
+<td>Admin</td>
+<td>Daftarkan akun</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/sensor-data</code></td>
+<td>Perangkat</td>
+<td>Kirim data sensor</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/sprinkler-logs</code></td>
+<td>Perangkat</td>
+<td>Kirim log aktuator</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/sensor-data/latest</code></td>
+<td>Auth</td>
+<td>Data terbaru</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/sensor-data/chart</code></td>
+<td>Auth</td>
+<td>Data grafik</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/dashboard/stats</code></td>
+<td>Auth</td>
+<td>Statistik dashboard &amp; kapasitas total</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/sprinkler-logs</code></td>
+<td>Auth</td>
+<td>Log aktuator (limit, filter)</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/thresholds/active</code></td>
+<td>Publik</td>
+<td>Threshold aktif (untuk ESP32)</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/thresholds</code></td>
+<td>Admin</td>
+<td>Daftar threshold</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/thresholds</code></td>
+<td>Admin</td>
+<td>Ubah threshold</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/device/command</code></td>
+<td>Publik</td>
+<td>Perintah jeda (untuk ESP32)</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/device/pause</code></td>
+<td>Auth</td>
+<td>Jeda otomasi</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/device/resume</code></td>
+<td>Auth</td>
+<td>Lanjutkan otomasi</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/racks</code></td>
+<td>Auth</td>
+<td>Daftar seluruh rak &amp; statistik okupansi</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/racks</code></td>
+<td>Admin</td>
+<td>Tambah rak baru (100 slot)</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/racks/{row}</code></td>
+<td>Admin</td>
+<td>Hapus rak kosong</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/baglogs</code></td>
+<td>Auth</td>
+<td>Daftar batch</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/baglogs</code></td>
+<td>Admin</td>
+<td>Buat batch</td>
+</tr>
+<tr>
+<td>PATCH</td>
+<td><code>/baglogs/{id}/status</code></td>
+<td>Auth</td>
+<td>Ubah status</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/baglogs/hpp-summary</code></td>
+<td>Auth</td>
+<td>Ringkasan HPP</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/baglogs/{id}/hpp</code></td>
+<td>Auth</td>
+<td>HPP satu batch</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/harvests</code></td>
+<td>Auth</td>
+<td>Daftar panen</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/harvests</code></td>
+<td>Auth</td>
+<td>Catat panen</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/harvests/{id}/void</code></td>
+<td>Auth</td>
+<td>Void panen</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/harvests/today-total</code></td>
+<td>Auth</td>
+<td>Total hari ini</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/harvests/chart</code></td>
+<td>Auth</td>
+<td>Grafik panen</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/sales</code></td>
+<td>Admin</td>
+<td>Daftar penjualan</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/sales</code></td>
+<td>Admin</td>
+<td>Catat penjualan</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/sales/{id}/void</code></td>
+<td>Admin</td>
+<td>Void penjualan</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/sales/weekly-report</code></td>
+<td>Admin</td>
+<td>Laporan mingguan</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/sales/buyer-ranking</code></td>
+<td>Admin</td>
+<td>Peringkat pembeli</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/sales/price-trend</code></td>
+<td>Admin</td>
+<td>Tren harga</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/slots</code></td>
+<td>Auth</td>
+<td>Daftar slot</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/slots/heatmap</code></td>
+<td>Auth</td>
+<td>Peta panen</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/slots/{code}</code></td>
+<td>Auth</td>
+<td>Detail slot</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/baglog-culls</code></td>
+<td>Auth</td>
+<td>Daftar afkir</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/baglog-culls</code></td>
+<td>Auth</td>
+<td>Catat afkir</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/baglog-culls/{id}/void</code></td>
+<td>Auth</td>
+<td>Void afkir</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/operational-expenses</code></td>
+<td>Auth</td>
+<td>Daftar biaya</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/operational-expenses</code></td>
+<td>Admin</td>
+<td>Tambah biaya</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/operational-expenses/{id}</code></td>
+<td>Admin</td>
+<td>Hapus biaya</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/batch-slot-assignments</code></td>
+<td>Admin</td>
+<td>Alokasi baglog ke slot</td>
+</tr>
+<tr>
+<td>PATCH</td>
+<td><code>/batch-slot-assignments/{id}/status</code></td>
+<td>Admin</td>
+<td>Ubah status penempatan</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/batch-slot-assignments/{id}/complete</code></td>
+<td>Admin</td>
+<td>Tutup siklus</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/batch-slot-assignments/{id}</code></td>
+<td>Admin</td>
+<td>Hapus penempatan</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>Hak akses dirangkum dari <code>routes/api.php</code> dan middleware <code>RoleCheck</code>. Jika ada beda dengan perilaku aplikasi, kode adalah acuan utama.</p>
+</blockquote>
+<h2>A.8 Keamanan</h2>
+<ul>
+<li>Autentikasi token <strong>Laravel Sanctum</strong>, otorisasi peran lewat middleware <code>RoleCheck</code>.</li>
+<li>Rate limiting pada login dan endpoint perangkat.</li>
+<li>Password disimpan ter-hash.</li>
+<li>Rute utilitas <code>/make-admin</code> dan <code>/seed-db</code> hanya aktif di lingkungan <code>local</code>.</li>
+<li>Validasi input di backend untuk seluruh form.</li>
+</ul>
+<h2>A.9 Pengujian</h2>
+<p>Backend: <code>php artisan test</code> menghasilkan <strong>168 tes dan 591 assertion lulus</strong>. Frontend: lint dengan <code>npm run lint</code> dan build dengan <code>npm run build</code> (belum ada kerangka tes frontend).</p>
+<h2>A.10 Data Demo (Seeder)</h2>
+<p>288 pembacaan sensor, 5 batch (3 aktif, 1 terkontaminasi, 1 dibuang), data panen dan penjualan 14 hari, 5 log aktuator.</p>
+<!-- /AUTO-GENERATED --><div class="pagebreak"></div><h1>16. Lampiran B: Catatan Ketidaksesuaian Dokumen</h1>
+<p>Hal-hal berikut ditemukan saat menyusun manual ini dan perlu diselesaikan pengembang:</p>
+<table>
+<thead>
+<tr>
+<th>No</th>
+<th>Temuan</th>
+<th>Keterangan</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>Versi di README</td>
+<td>README menyebut Laravel 12, React 18, PHP 8.2. Kode sebenarnya Laravel 13, React 19, PHP 8.3</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Akun demo</td>
+<td>Tombol login memakai <code>@smartshroom.com</code>, seeder membuat <code>@smartshroom.test</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Alamat produksi</td>
+<td><code>tugasakhir-lime.vercel.app</code> mengembalikan HTTP 402, tertulis di simulator, firmware, dan dokumen</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Kategori biaya</td>
+<td>UI: NUTRISI/LABOR/PACKAGING/LAINNYA. Backend juga menerima LISTRIK/AIR. Konstanta model: LISTRIK/MISTING/PLASTIK/LAINNYA</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Komentar firmware</td>
+<td>Header menulis timeout misting 60 s, konstanta aktual 90 s (manual ini memakai 90 s)</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Daftar belanja hardware</td>
+<td>Menyebut RTC/blackbox/SPIFFS, sedangkan firmware v3.5 memakai antrean RAM dan NTP</td>
+</tr>
+</tbody></table>
+<hr>
+<p><em>Akhir buku manual. Dokumen sumber: <code>docs/manual/MANUAL_BOOK.md</code>.</em></p>
+</main>
+</body>
+</html>

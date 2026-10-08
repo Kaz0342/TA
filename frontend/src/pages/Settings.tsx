@@ -873,7 +873,7 @@ export default function Settings() {
                 </div>
                 <div className="flex justify-between py-2 border-b border-slate-100 dark:border-[#1e382b]">
                   <span className="text-[#759183] dark:text-[#6b8a78]">Sensor Input:</span>
-                  <span className="font-bold text-[#192e22] dark:text-[#e4efe8]">3x DHT22 (Segitiga Diagonal)</span>
+                  <span className="font-bold text-[#192e22] dark:text-[#e4efe8]">3x SHT30 (Segitiga Diagonal)</span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-slate-100 dark:border-[#1e382b]">
                   <span className="text-[#759183] dark:text-[#6b8a78]">Algoritma Fusi:</span>

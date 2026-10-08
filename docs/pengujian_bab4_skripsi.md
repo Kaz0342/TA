@@ -96,9 +96,9 @@ Pengujian fungsional kotak hitam dilakukan pada peramban web (*Google Chrome & M
 | No. | Kode UC | Skenario Pengujian | Data Uji / Tindakan | Hasil yang Diharapkan | Hasil Pengujian Aktual | Kesimpulan |
 |---|---|---|---|---|---|:---:|
 | 29 | **UC-24** | Aktivasi Mode Jeda Panen (Failsafe Timer) | Menekan tombol preset `[ 2 Jam ]` pada widget jeda panen di dashboard | Command `PAUSE` aktif selama 7.200 detik, pompa misting dan kipas mati seketika. | Widget menampilkan countdown live, ESP32 mematikan relay misting dan fan (Fluid Dynamics Guard). | **Valid** |
-| 30 | **UC-25** | Akhiri jeda lebih awal (Resume to AUTO) | Menekan tombol "Akhiri Jeda & Balik ke AUTO" | Status kembali ke `AUTO`, ESP32 seketika melakukan *instant-read* sensor DHT22. | Mode jeda nonaktif seketika, kontrol aktuator kembali dievaluasi otomatis. | **Valid** |
+| 30 | **UC-25** | Akhiri jeda lebih awal (Resume to AUTO) | Menekan tombol "Akhiri Jeda & Balik ke AUTO" | Status kembali ke `AUTO`, ESP32 seketika melakukan *instant-read* sensor SHT30. | Mode jeda nonaktif seketika, kontrol aktuator kembali dievaluasi otomatis. | **Valid** |
 | 31 | **UC-15** | Konfigurasi ambang batas iklim & validasi deadband | Memilih preset "Fruiting" dan mencoba set RH spread < 4% | Sistem menolak jika selisih RH < 4% (mencegah osilasi pompa misting). | Validasi HTTP 422: *"Selisih RH Max dan Min harus minimal 4%"*. | **Valid** |
-| 32 | **UC-16** | Ingesti telemetri fusi sensor vertikal dari ESP32 | ESP32 mengirim JSON payload rata-rata tertimbang 3x DHT22 | Data diterima dengan status HTTP 201 Created dan tersimpan permanen (*immutable*). | Database mencatat suhu, kelembapan, CO2, dan lux dengan presisi `DECIMAL(5,2)`. | **Valid** |
+| 32 | **UC-16** | Ingesti telemetri fusi sensor vertikal dari ESP32 | ESP32 mengirim JSON payload rata-rata tertimbang 3x SHT30 | Data diterima dengan status HTTP 201 Created dan tersimpan permanen (*immutable*). | Database mencatat suhu, kelembapan, CO2, dan lux dengan presisi `DECIMAL(5,2)`. | **Valid** |
 | 33 | **UC-16** | Pengujian Rate Limiting (Anti-Spam IoT) | Mengirimkan 21 request sensor data dalam rentang waktu < 1 menit | Request ke-21 ditolak oleh middleware Throttle dengan kode status `429 Too Many Requests`. | Server membatasi spamming perangkat dan mencegah overload CPU. | **Valid** |
 
 ---
@@ -202,7 +202,7 @@ Berdasarkan pengujian simulasi fisik stokastik (`sim_harness.py`) dan pengujian 
 | **Persistensi State Vercel** | Keberlanjutan Mode Jeda Panen | State hilang (*array cache*) | **Persisten (*database cache*)** | Jeda panen tidak ter-reset saat serverless berganti container |
 
 ### 4. Ketahanan Terhadap Kerusakan Sensor (Fault-Tolerant Fusion)
-- Saat salah satu pin sensor DHT22 dilepas atau mengembalikan nilai `NaN`, algoritma *Weighted Sensor Fusion* pada `esp32_firmware.ino` dan `iot_simulator.py` secara otomatis menormalisasi bobot dari sensor yang tersisa (misal jika sensor B mati, bobot dinormalisasi ulang menjadi $A = 58.3\%$ dan $C = 41.7\%$). Jika seluruh sensor mati ($>15$ detik tanpa bacaan valid), sistem masuk ke *Safe State* (mematikan misting untuk biosekuriti).
+- Saat salah satu kanal sensor SHT30 dilepas atau mengembalikan nilai `NaN`, algoritma *Weighted Sensor Fusion* pada `esp32_firmware.ino` dan `iot_simulator.py` secara otomatis menormalisasi bobot dari sensor yang tersisa (misal jika sensor B mati, bobot dinormalisasi ulang menjadi $A = 58.3\%$ dan $C = 41.7\%$). Jika seluruh sensor mati ($>15$ detik tanpa bacaan valid), sistem masuk ke *Safe State* (mematikan misting untuk biosekuriti).
 
 ---
 

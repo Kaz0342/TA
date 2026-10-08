@@ -31,7 +31,7 @@
 
 ### 3. IoT Edge Device & Simulasi (Firmware v3.6)
 - **Mikrokontroler:** ESP32 (Dual Core 240MHz, Wi-Fi 802.11 b/g/n) dengan arsitektur **Offline-First Non-Blocking**
-- **Formasi Sensor:** 3x DHT22 dalam konfigurasi **Segitiga Diagonal** (Zona Atas 2.5m, Tengah 1.5m, Bawah 0.5m)
+- **Formasi Sensor:** 3x SHT30 / SHT31 Probe IP68 Waterproof dalam konfigurasi **Segitiga Diagonal** (Zona Atas 2.5m, Tengah 1.5m, Bawah 0.5m via TCA9548A Multiplexer)
 - **Sensor Fusion:** *Weighted Stratification Fusion* (35% Atas, 40% Tengah, 25% Bawah)
 - **Aktuator & Relay:**
   - Relay Pompa Misting Nozzle (12V) + Solenoid Valve
@@ -86,18 +86,22 @@
 
 ---
 
-## 📂 Struktur Direktori
+## 📂 Struktur Direktori & Dokumentasi
 
 ```text
 📦 TA_vio
- ┣ 📂 backend          # Laravel 12 API (Clean Architecture, Repositories, Tests)
- ┣ 📂 frontend         # React 18 + Vite SPA (Harmonious Modern Sage UI, Pages, Components)
+ ┣ 📂 backend          # Laravel 13 API (Clean Architecture, Repositories, Tests)
+ ┣ 📂 frontend         # React 19 + Vite SPA (Harmonious Modern Sage UI, Pages, Components)
  ┣ 📂 esp32_firmware   # Source code C++ Arduino ESP32 Firmware v3.5
  ┣ 📂 docs             # Dokumentasi arsitektur, PRD, ERD, Use Case, dan Logika Aktuator
+ ┃ ┗ 📂 manual         # 📖 Buku Manual Pengguna (Markdown & HTML Siap Cetak A4)
  ┣ 📜 iot_simulator.py # Python IoT Simulator v3.5 (Termodinamika Kumbung 122.5 m³)
  ┣ 📜 DESIGN.md        # Master Design System Specification & Token Manifest
  ┗ 📜 README.md        # Ringkasan Proyek
 ```
+
+> 📖 **Buku Manual Pengguna Lengkap:** Silakan buka [MANUAL_BOOK.md](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/manual/MANUAL_BOOK.md) atau buka [MANUAL_BOOK.html](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/manual/MANUAL_BOOK.html) di browser untuk langsung dicetak (`Ctrl+P` → Save as PDF).
+
 
 ---
 

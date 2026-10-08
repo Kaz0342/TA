@@ -46,12 +46,12 @@ if sys.platform == 'win32':
 # KONFIGURASI
 # ============================================================
 API_BASE_URL = "https://tugasakhir-lime.vercel.app/api"
-DEVICE_ID = "ESP32-KUMBUNG-01"
+DEVICE_ID = os.getenv("DEVICE_ID", "SIM-KUMBUNG-01")
 
 # Interval pengiriman data (detik)
 SENSOR_SEND_INTERVAL = 60       # Kirim data sensor tiap 60 detik (1 menit)
 THRESHOLD_FETCH_INTERVAL = 30   # Fetch threshold dari web tiap 30 detik
-MAX_MISTING_DURATION = 60       # Safety timeout misting (detik) — 60s maksimal agar baglog tidak tergenang/becek
+MAX_MISTING_DURATION = 90       # Safety timeout misting (detik) — 90s maksimal agar target tercapai tanpa banjir (F-12)
 MISTING_COOLDOWN = 150          # Jeda wajib setelah misting OFF (detik) — waktu evaporasi & difusi kabut
 POST_MISTING_FAN_DELAY = 60     # Jeda wajib setelah misting OFF sebelum fan boleh nyala (detik) — waktu kabut mengendap
 FAN_HOMOGENIZE_COOLDOWN = 900   # Jeda wajib setelah fan homogenisasi OFF (detik) — 15 menit relaksasi udara & sirkulasi
@@ -60,6 +60,7 @@ CRITICAL_TEMP_OFFSET = 2.0      # Safety Override: jika SATU sensor > tempMax + 
 MAX_FAN_COOLING_DURATION = 180  # 180 detik (3 menit) timeout maksimal fan pendinginan siang (cegah dehidrasi)
 FAN_COOLING_COOLDOWN = 60       # 60 detik (1 menit) cooldown anti-chattering jeda fan pendinginan siang
 TEMP_HYSTERESIS = 1.5           # Histeresis stop fan pendinginan (temp_max - 1.5°C)
+CONTROL_INTERVAL_S = 5          # Cadence evaluasi kontrol (detik) — samakan dengan sensorInterval firmware 5000ms (F-13)
 
 # Konstanta Night Mode (Malam Hari: 17:00 - 06:00 WIB)
 NIGHT_START_HOUR = 17           # 17:00 WIB: Mulai mode malam (Misting lockout)
@@ -143,33 +144,22 @@ SENSOR_ZONES = {
 # ============================================================
 # Status Cuaca Siang Hari (06:00 - 17:00 WIB)
 DAY_WEATHER_STATES = {
+    # temp_shift (K) = anomali suhu udara luar; hum_shift (K!) = anomali TITIK EMBUN (bukan RH lagi). Durasi: jam-an.
     'CERAH_TERIK': {
-        'label': '☀️ Cerah Terik (Panas)',
-        'temp_shift': +1.8,    # Radiasi matahari kuat menaikkan suhu
-        'hum_shift': -6.0,     # RH turun karena udara memuai panas
-        'duration_min_sec': 120,
-        'duration_max_sec': 300,
+        'label': '☀️ Cerah Terik (Panas)', 'temp_shift': +0.6, 'hum_shift': -0.6,
+        'duration_min_sec': 3600, 'duration_max_sec': 10800,
     },
     'BERAWAN_MENDUNG': {
-        'label': '⛅ Berawan / Mendung',
-        'temp_shift': -0.8,    # Radiasi terhalang awan
-        'hum_shift': +4.0,     # RH naik
-        'duration_min_sec': 90,
-        'duration_max_sec': 240,
+        'label': '⛅ Berawan / Mendung', 'temp_shift': -0.4, 'hum_shift': +0.2,
+        'duration_min_sec': 1800, 'duration_max_sec': 7200,
     },
     'HUJAN_SEDANG': {
-        'label': '🌧️ Hujan Sedang',
-        'temp_shift': -2.5,    # Hujan mendinginkan atap kumbung
-        'hum_shift': +10.0,    # RH melonjak tinggi
-        'duration_min_sec': 60,
-        'duration_max_sec': 180,
+        'label': '🌧️ Hujan Sedang', 'temp_shift': -1.0, 'hum_shift': +0.6,
+        'duration_min_sec': 1200, 'duration_max_sec': 3600,
     },
     'HUJAN_LEBAT': {
-        'label': '⛈️ Hujan Lebat / Badai',
-        'temp_shift': -3.8,    # Sangat dingin
-        'hum_shift': +15.0,    # Mendekati titik jenuh 98-99%
-        'duration_min_sec': 45,
-        'duration_max_sec': 120,
+        'label': '⛈️ Hujan Lebat / Badai', 'temp_shift': -1.5, 'hum_shift': +0.9,
+        'duration_min_sec': 600, 'duration_max_sec': 2400,
     },
 }
 
@@ -177,83 +167,85 @@ DAY_WEATHER_STATES = {
 # Jamur kuping di malam hari: tidak ada matahari, pendinginan radiatif ke langit malam
 NIGHT_WEATHER_STATES = {
     'MALAM_CERAH': {
-        'label': '🌙 Malam Cerah (Sejuk)',
-        'temp_shift': -1.2,    # Langit bersih = radiasi bumi lepas ke angkasa, suhu lebih dingin alami
-        'hum_shift': +4.0,     # Suhu turun membuat RH alami naik mendekati embun
-        'duration_min_sec': 150,
-        'duration_max_sec': 360,
+        'label': '🌙 Malam Cerah (Sejuk)', 'temp_shift': -0.5, 'hum_shift': -0.3,
+        'duration_min_sec': 7200, 'duration_max_sec': 18000,
     },
     'MALAM_BERAWAN': {
-        'label': '☁️ Malam Berawan (Stabil)',
-        'temp_shift': -0.2,    # Awan menahan radiasi balik, suhu sejuk stabil
-        'hum_shift': +2.0,     # RH stabil nyaman
-        'duration_min_sec': 120,
-        'duration_max_sec': 300,
+        'label': '☁️ Malam Berawan (Stabil)', 'temp_shift': +0.2, 'hum_shift': +0.3,
+        'duration_min_sec': 7200, 'duration_max_sec': 14400,
     },
     'HUJAN_MALAM': {
-        'label': '🌧️ Hujan Malam (Dingin Basah)',
-        'temp_shift': -2.2,    # Hujan malam membuat kumbung dingin
-        'hum_shift': +9.0,     # RH mendekati titik jenuh 96-98%
-        'duration_min_sec': 90,
-        'duration_max_sec': 240,
+        'label': '🌧️ Hujan Malam (Dingin Basah)', 'temp_shift': -0.8, 'hum_shift': +0.6,
+        'duration_min_sec': 1800, 'duration_max_sec': 5400,
     },
 }
 
 # Probabilitas Monsun Iklim Indonesia Siang Hari
 DAY_SEASON_CONFIGS = {
-    'MUSIM_HUJAN': {
-        'name': 'Musim Hujan (Monsun Barat)',
-        'weights': {
-            'CERAH_TERIK': 0.15,
-            'BERAWAN_MENDUNG': 0.35,
-            'HUJAN_SEDANG': 0.35,
-            'HUJAN_LEBAT': 0.15,
-        }
-    },
-    'MUSIM_KEMARAU': {
-        'name': 'Musim Kemarau (Monsun Timur)',
-        'weights': {
-            'CERAH_TERIK': 0.70,
-            'BERAWAN_MENDUNG': 0.22,
-            'HUJAN_SEDANG': 0.07,
-            'HUJAN_LEBAT': 0.01,
-        }
-    },
-    'PANCAROBA': {
-        'name': 'Musim Pancaroba (Transisi)',
-        'weights': {
-            'CERAH_TERIK': 0.45,
-            'BERAWAN_MENDUNG': 0.30,
-            'HUJAN_SEDANG': 0.20,
-            'HUJAN_LEBAT': 0.05,
-        }
-    }
+    'MUSIM_HUJAN': {'name': 'Musim Hujan (Monsun Barat)', 'weights': {'CERAH_TERIK': 0.1827, 'BERAWAN_MENDUNG': 0.5652, 'HUJAN_SEDANG': 0.1644, 'HUJAN_LEBAT': 0.0877}},
+    'PANCAROBA': {'name': 'Musim Pancaroba (Transisi)', 'weights': {'CERAH_TERIK': 0.3566, 'BERAWAN_MENDUNG': 0.5021, 'HUJAN_SEDANG': 0.107, 'HUJAN_LEBAT': 0.0342}},
+    'MUSIM_KEMARAU': {'name': 'Musim Kemarau (Monsun Timur)', 'weights': {'CERAH_TERIK': 0.6037, 'BERAWAN_MENDUNG': 0.3555, 'HUJAN_SEDANG': 0.0327, 'HUJAN_LEBAT': 0.008}},
 }
 
 # Probabilitas Monsun Iklim Indonesia Malam Hari (17:00 - 06:00 WIB)
 NIGHT_SEASON_CONFIGS = {
-    'MUSIM_HUJAN': {
-        'weights': {
-            'MALAM_CERAH': 0.20,
-            'MALAM_BERAWAN': 0.40,
-            'HUJAN_MALAM': 0.40,
-        }
-    },
-    'MUSIM_KEMARAU': {
-        'weights': {
-            'MALAM_CERAH': 0.70,   # Kemarau malam hari di Jawa (Bediding) langit sangat cerah dan dingin
-            'MALAM_BERAWAN': 0.25,
-            'HUJAN_MALAM': 0.05,
-        }
-    },
-    'PANCAROBA': {
-        'weights': {
-            'MALAM_CERAH': 0.45,
-            'MALAM_BERAWAN': 0.35,
-            'HUJAN_MALAM': 0.20,
-        }
-    }
+    'MUSIM_HUJAN': {'weights': {'MALAM_CERAH': 0.184, 'MALAM_BERAWAN': 0.5583, 'HUJAN_MALAM': 0.2577}},
+    'PANCAROBA': {'weights': {'MALAM_CERAH': 0.3724, 'MALAM_BERAWAN': 0.4828, 'HUJAN_MALAM': 0.1448}},
+    'MUSIM_KEMARAU': {'weights': {'MALAM_CERAH': 0.6729, 'MALAM_BERAWAN': 0.2944, 'HUJAN_MALAM': 0.0327}},
 }
+
+
+# === [S1] AMBIENT DARI NORMAL IKLIM BULANAN (menggantikan AMBIENT_TEMP/HUM_MIN/MAX yang dikarang) ===
+# bulan: (Tmin, Tmax, RH rata-rata harian, curah hujan mm)  - Muntilan 1991-2020, proksi Salam/Jumoyo (+-400 mdpl)
+CLIMATE_MONTHLY = {
+    1: (20.2, 27.9, 80, 400.4), 2: (20.1, 28.2, 81, 390.1), 3: (20.4, 28.6, 79, 399.3), 4: (20.8, 28.7, 77, 297.2),
+    5: (20.6, 28.7, 72, 193.3), 6: (19.7, 28.6, 71, 117.4), 7: (18.9, 28.0, 70, 50.1), 8: (18.9, 28.2, 70, 37.2),
+    9: (19.7, 28.5, 71, 66.1), 10: (20.6, 29.0, 75, 157.1), 11: (20.6, 28.4, 79, 313.5), 12: (20.3, 27.8, 80, 406.0),
+}
+
+
+def season_from_rain(month):
+    """musim dari curah hujan bulanan data (bukan dari kalender 12-1-2 / 6-7-8)"""
+    rain = CLIMATE_MONTHLY[month][3]
+    return 'MUSIM_HUJAN' if rain >= 250 else ('MUSIM_KEMARAU' if rain < 130 else 'PANCAROBA')
+
+
+def _esat(t):
+    return 6.112 * math.exp(17.62 * t / (243.12 + t))
+
+
+def _diurnal(hf, t_sr=6.0, t_pk=14.0):
+    """0 = Tmin (06:00), 1 = Tmax (14:00); bentuk sama seperti kurva lama (naik cosinus, turun pangkat 0.7)"""
+    if t_sr <= hf <= t_pk:
+        return (1.0 - math.cos((hf - t_sr) / (t_pk - t_sr) * math.pi)) / 2.0
+    dt = (hf - t_pk) if hf >= t_pk else (hf + 24.0 - t_pk)
+    return (1.0 + math.cos(((dt / 16.0) ** 0.7) * math.pi)) / 2.0
+
+
+_DEW_CACHE = {}
+
+
+def dewpoint_for_month(month):
+    """Titik embun harian (dianggap konstan) s.t. rata-rata RH harian = RH data bulan itu (RH dipotong 100%)."""
+    if month not in _DEW_CACHE:
+        tmin, tmax, rh_mean, _ = CLIMATE_MONTHLY[month]
+        temps = [tmin + (tmax - tmin) * _diurnal(i * 0.25) for i in range(96)]
+        lo, hi = -5.0, 30.0
+        for _ in range(50):
+            mid = (lo + hi) / 2
+            avg = sum(min(100.0, 100.0 * _esat(min(mid, t)) / _esat(t)) for t in temps) / len(temps)
+            lo, hi = (mid, hi) if avg < rh_mean else (lo, mid)
+        _DEW_CACHE[month] = (lo + hi) / 2
+    return _DEW_CACHE[month]
+
+
+def ambient_climate(month, now, d_temp=0.0, d_dew=0.0):
+    """(T, RH) udara luar. T dari Tmin/Tmax bulan itu; RH diturunkan dari titik embun -> RH turun saat siang secara fisik."""
+    tmin, tmax, _, _ = CLIMATE_MONTHLY[month]
+    hf = now.hour + now.minute / 60.0 + now.second / 3600.0
+    t = tmin + (tmax - tmin) * _diurnal(hf) + d_temp
+    td = min(dewpoint_for_month(month) + d_dew, t)
+    return t, min(HUM_MAX_PHYSICAL, 100.0 * _esat(td) / _esat(t))
 
 
 class WeatherGenerator:
@@ -266,14 +258,11 @@ class WeatherGenerator:
         now = get_wib_now()
         month = custom_month if (1 <= custom_month <= 12) else now.month
 
-        if month in [12, 1, 2]:
-            self.season_code = 'MUSIM_HUJAN'
-        elif month in [6, 7, 8]:
-            self.season_code = 'MUSIM_KEMARAU'
-        else:
-            self.season_code = 'PANCAROBA'
+        self.month = month
+        self.season_code = season_from_rain(month)
 
         self.season_name = DAY_SEASON_CONFIGS[self.season_code]['name']
+        self._off_t, self._off_d = self._centering()
         self.current_state = ''
         self.is_currently_night = self._check_is_night()
         self.state_end_time = 0.0
@@ -283,6 +272,21 @@ class WeatherGenerator:
         self.target_hum_shift = 0.0
 
         self._pick_state()
+
+    def _centering(self):
+        """Anomali cuaca harus rata-rata 0 (normal iklim sudah memuat rata-rata cuaca): hitung bias berbobot waktu."""
+        tot_t = tot_d = 0.0
+        for states, weights, hours in ((DAY_WEATHER_STATES, DAY_SEASON_CONFIGS[self.season_code]['weights'], 11.0),
+                                       (NIGHT_WEATHER_STATES, NIGHT_SEASON_CONFIGS[self.season_code]['weights'], 13.0)):
+            wt = {k: weights[k] * 0.5 * (states[k]['duration_min_sec'] + states[k]['duration_max_sec']) for k in states}
+            z = sum(wt.values())
+            tot_t += hours / 24.0 * sum(wt[k] / z * states[k]['temp_shift'] for k in states)
+            tot_d += hours / 24.0 * sum(wt[k] / z * states[k]['hum_shift'] for k in states)
+        return tot_t, tot_d
+
+    def ambient(self, now):
+        """(T, RH) udara luar sekarang = normal iklim bulan ini + anomali cuaca (tanpa bias)."""
+        return ambient_climate(self.month, now, self.current_temp_shift - self._off_t, self.current_hum_shift - self._off_d)
 
     def _check_is_night(self) -> bool:
         h = get_wib_now().hour
@@ -377,8 +381,7 @@ class KumbungState:
 
         # Inisialisasi dari kondisi ambient WIB saat ini
         now = get_wib_now()
-        base_temp = self._get_ambient_temp(now) + self.weather_gen.current_temp_shift
-        base_hum = self._get_ambient_hum(now) + self.weather_gen.current_hum_shift
+        base_temp, base_hum = self.weather_gen.ambient(now)
 
         # State per-sensor (suhu & kelembaban masing-masing zona)
         self.sensors = {}
@@ -429,7 +432,7 @@ class KumbungState:
         self.hum_min = 80.0
         self.hum_max = 95.0
         self.rh_trigger_low = 80.0       # = hum_min
-        self.rh_trigger_high = 90.0      # Histeresis stop realistis (90.0% di siang hari menghasilkan kurva landai & mencegah short-cycling)
+        self.rh_trigger_high = self.hum_min + min(3.0, 0.5 * (self.hum_max - self.hum_min))  # Histeresis stop realistis (F-12)
 
     @staticmethod
     def _get_ambient_temp(now: datetime.datetime) -> float:
@@ -487,9 +490,9 @@ class KumbungState:
         self.hum_max = thresholds['humidity_max']
         self.phase_mode = thresholds.get('phase_mode', 'fruiting')
         self.rh_trigger_low = self.hum_min
-        # Histeresis stop realistis: deadband 5% (misal 85% ON -> 90% OFF) menghasilkan kurva melengkung landai (smooth wave).
-        # Mencegah short-cycling (osilasi cepat 2-3 menit yang membuat grafik lancip) sekaligus menjaga baglog tetap di zona aman.
-        self.rh_trigger_high = min(self.hum_max - 4.0, self.hum_min + 5.0)  # Misal 85 + 5 = 90.0%
+        # Histeresis stop realistis: deadband proporsional = hum_min + min(3.0, 0.5 * rentang) (F-12)
+        # Mencegah misting selalu mati karena safety timeout 90s, sehingga target stop benar-benar tercapai secara termodinamika.
+        self.rh_trigger_high = self.hum_min + min(3.0, 0.5 * (self.hum_max - self.hum_min))
 
         # Baca perintah kontrol perangkat (PRD Section 3.A)
         cmd_info = thresholds.get('device_command', {})
@@ -529,12 +532,7 @@ class KumbungState:
                 print("\n   ▶️  [SIMULATOR] TIMER JEDA PANEN HABIS! Otomatis kembali ke Mode AUTO.")
 
         now = get_wib_now()
-        base_ambient_temp = self._get_ambient_temp(now)
-        base_ambient_hum = self._get_ambient_hum(now)
-
-        # Modifikasi cuaca stokastik (hujan, terik, mendung)
-        ambient_temp = base_ambient_temp + self.weather_gen.current_temp_shift
-        ambient_hum = base_ambient_hum + self.weather_gen.current_hum_shift
+        ambient_temp, ambient_hum = self.weather_gen.ambient(now)
 
         # Batas fisik
         ambient_temp = max(TEMP_MIN_PHYSICAL, min(TEMP_MAX_PHYSICAL, ambient_temp))
@@ -660,7 +658,7 @@ def control_misting(state: KumbungState):
     """
     temp, hum = state.get_readings()
     min_hum = state.get_min_hum()
-    critical_low_rh = 75.0  # Batas darurat dehidrasi rak tunggal (75.0%), membiarkan Tier 1 mengontrol rata-rata dengan stabil
+    critical_low_rh = state.hum_min - 10.0  # Batas darurat dehidrasi rak tunggal proporsional terhadap hum_min (F-11)
 
     now_dt = get_wib_now()
     hour = now_dt.hour
@@ -683,10 +681,14 @@ def control_misting(state: KumbungState):
         if state.is_fan_active:
             return
 
+        # [F-10b] Jangan mulai misting saat kondisi kritis (override fan akan langsung memotongnya)
+        if state.get_max_temp() > state.temp_max + CRITICAL_TEMP_OFFSET:
+            return
+
         # 0. NIGHT LOCKOUT (17:00 - 06:00 WIB): Misting DILARANG nyala agar jamur tidak tidur basah kuyup
         if is_night:
-            # Pengecualian darurat ekstrem: hanya boleh nyala jika terjadi dehidrasi parah (RH rata-rata < 70% atau sensor < 65%)
-            if hum >= 70.0 and min_hum >= 65.0:
+            # Pengecualian darurat ekstrem: hanya boleh nyala jika terjadi dehidrasi parah (relatif terhadap hum_min)
+            if hum >= state.hum_min - 15.0 and min_hum >= state.hum_min - 20.0:
                 return
 
         # Cooldown guard: cegah short-cycling sebelum kabut dari siklus sebelumnya evaporasi penuh
@@ -847,6 +849,17 @@ def control_fan(state: KumbungState):
             return
         return  # Masih berjalan di malam hari (< 45s), tahan agar tidak dievaluasi logika siang
 
+    # [F-10a] Histeresis stop Safety Override berlaku 24 jam (siang DAN malam)
+    if state.is_fan_active and getattr(state, 'is_critical_override', False):
+        if max_temp <= (critical_threshold - 1.0) and temp <= state.temp_max:
+            state.is_fan_active = False
+            state.is_critical_override = False
+            state.fan_cooling_last_stop_time = time.time()
+            duration = int(time.time() - (state.fan_start_time or time.time()))
+            stop_reason = f"Suhu kritis teratasi (Max {max_temp}C <= {critical_threshold - 1.0}C)"
+            send_actuator_log(max(1, duration), state.fan_trigger_reason, stop_reason, "fan")
+        return
+
     if is_night:
         # Failsafe 2: Jika ada fan siang yang masih aktif saat transisi jam 17:00, matikan segera!
         if state.is_fan_active and not getattr(state, 'is_night_fan', False):
@@ -949,8 +962,8 @@ def control_fan(state: KumbungState):
             send_actuator_log(max(1, duration), state.fan_trigger_reason, stop_reason, "fan")
             return
 
-    # Safety Watchdog Fan Siang (Timeout 180s cegah dehidrasi kumbung)
-    if state.is_fan_active and not is_homo and not getattr(state, 'is_night_fan', False):
+    # Safety Watchdog Fan Siang (Timeout 180s cegah dehidrasi kumbung — tidak berlaku untuk Safety Override)
+    if state.is_fan_active and not is_homo and not getattr(state, 'is_night_fan', False) and not getattr(state, 'is_critical_override', False):
         elapsed = time.time() - (state.fan_start_time or time.time())
         if elapsed >= MAX_FAN_COOLING_DURATION:
             state.is_fan_active = False
@@ -1157,9 +1170,10 @@ def main():
             # Simulasikan perubahan mikroklimat (interval 1 detik per tick)
             state.simulate_tick(dt_seconds=1.0)
 
-            # Jalankan logika kontrol aktuator (setiap tick, seperti firmware)
-            control_misting(state)
-            control_fan(state)
+            # Jalankan logika kontrol aktuator (tiap CONTROL_INTERVAL_S detik untuk paritas dengan sensorInterval firmware)
+            if tick_count % CONTROL_INTERVAL_S == 0:
+                control_misting(state)
+                control_fan(state)
 
             # Kirim data sensor ke API setiap send_interval detik
             if now - last_sensor_send >= send_interval:

@@ -10,7 +10,7 @@
  * FITUR UTAMA:
  * [IoT]       WiFi + HTTP POST data sensor ke Laravel API
  * [IoT]       Fetch threshold dinamis dari Web Dashboard
- * [Hardware]  3x DHT22 (Segitiga Diagonal), LCD I2C 16x2, 3x Relay Module
+ * [Hardware]  3x SHT30/SHT31 Probe IP68 via TCA9548A (atau 3x DHT22 Wokwi), LCD I2C 16x2, 3x Relay Module
  * [Fusion]    Weighted Sensor Fusion (35% Atas, 40% Tengah, 25% Bawah)
  * [Control]   Dual Cooldown Guard (Misting 150s & Fan Homogenisasi 900s)
  * [Safety]    Pulse Misting (30s) untuk Rak Atas kering kritis
@@ -19,24 +19,30 @@
  * [Safety]    Timeout darurat misting maks 60 detik per siklus (cegah baglog menggenang)
  * [Design]    Non-blocking millis() — ESP32 stabil 24/7 tanpa freeze
  * 
- * PIN ASSIGNMENT (3 Sensor DHT22 — Segitiga Diagonal):
- *   GPIO 4   → DHT22-A (Zona Atas, dekat pintu, 2.5m)
- *   GPIO 15  → DHT22-B (Zona Tengah, pusat kumbung, 1.5m)
- *   GPIO 2   → DHT22-C (Zona Bawah, pojok belakang, 0.5m)
+ * PIN ASSIGNMENT (Hardware As-Built — 3x SHT30 + TCA9548A):
+ *   GPIO 21  → SDA (I2C Bus Utama ke TCA9548A & LCD 16x2)
+ *   GPIO 22  → SCL (I2C Bus Utama ke TCA9548A & LCD 16x2)
+ *   TCA CH0  → SHT30-A (Zona Atas, 2.5m, Addr 0x44)
+ *   TCA CH1  → SHT30-B (Zona Tengah, 1.5m, Addr 0x44)
+ *   TCA CH2  → SHT30-C (Zona Bawah, 0.5m, Addr 0x44)
  *   GPIO 26  → Relay Pompa Misting (12V)
  *   GPIO 25  → Relay Solenoid Valve (12V)
  *   GPIO 33  → Relay Exhaust Fan (220V)
- *   GPIO 21  → SDA (LCD I2C 16x2)
- *   GPIO 22  → SCL (LCD I2C 16x2)
+ * 
+ * PIN ASSIGNMENT (Legacy / Simulasi Wokwi — 3x DHT22):
+ *   GPIO 4   → DHT22-A (Zona Atas, 2.5m)
+ *   GPIO 15  → DHT22-B (Zona Tengah, 1.5m)
+ *   GPIO 2   → DHT22-C (Zona Bawah, 0.5m)
  * 
  * API CONTRACT (Laravel Backend):
  *   POST /api/sensor-data      → { device_id, temperature, humidity, co2_level }
  *   POST /api/sprinkler-logs   → { device_id, actuator, duration_seconds, trigger_reason, stop_reason }
  *   GET  /api/thresholds/active → response.data.{ temp_max, temp_min, humidity_min, humidity_max }
  * 
+ * @see docs/rancangan_hardware_kumbung.md untuk detail skema wiring
  * @see docs/penempatan_sensor.md untuk detail strategi penempatan
  * @see iot_simulator.py untuk verifikasi model termodinamika
- * @version 3.5.0 (Weighted Fusion + Dual Cooldown + Homogenisasi)
+ * @version 3.6.0 (SHT30 TCA9548A Support + Weighted Fusion + Dual Cooldown)
  */
 
 #include <WiFi.h>
@@ -44,8 +50,35 @@
 #include <HTTPClient.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
-#include "DHT.h"
 #include <ArduinoJson.h>
+
+// ============================================================
+// PILIHAN TIPE SENSOR
+// 1 = SHT30 / SHT31 Probe IP68 via TCA9548A (Hardware As-Built)
+// 0 = 3x DHT22 langsung ke GPIO 4, 15, 2 (Simulasi Wokwi)
+// ============================================================
+#define USE_SHT30 1
+
+#if USE_SHT30
+  #include <Adafruit_SHT31.h>
+  Adafruit_SHT31 sht;
+  #define TCA_ADDR 0x70
+
+  void tcaSelect(uint8_t channel) {
+    if (channel > 7) return;
+    Wire.beginTransmission(TCA_ADDR);
+    Wire.write(1 << channel);
+    Wire.endTransmission();
+  }
+#else
+  #include "DHT.h"
+  const int PIN_DHT_A = 4;   // GPIO 4  → DHT22-A
+  const int PIN_DHT_B = 15;  // GPIO 15 → DHT22-B
+  const int PIN_DHT_C = 2;   // GPIO 2  → DHT22-C
+  DHT dhtA(PIN_DHT_A, DHT22);
+  DHT dhtB(PIN_DHT_B, DHT22);
+  DHT dhtC(PIN_DHT_C, DHT22);
+#endif
 
 // ============================================================
 // KONFIGURASI JARINGAN & BACKEND
@@ -63,11 +96,8 @@ bool ntpStarted = false;
 inline bool wifiUp() { return !DEBUG_FORCE_OFFLINE && WiFi.status() == WL_CONNECTED; }
 
 // ============================================================
-// PIN ASSIGNMENT
+// PIN ASSIGNMENT AKTUATOR (Relay 5V Optocoupler)
 // ============================================================
-const int PIN_DHT_A          = 4;   // GPIO 4  → DHT22-A (Zona Atas, 2.5m)
-const int PIN_DHT_B          = 15;  // GPIO 15 → DHT22-B (Zona Tengah, 1.5m)
-const int PIN_DHT_C          = 2;   // GPIO 2  → DHT22-C (Zona Bawah, 0.5m)
 const int PIN_RELAY_PUMP     = 26;  // GPIO 26 → Pompa Misting (12V)
 const int PIN_RELAY_SOLENOID = 25;  // GPIO 25 → Solenoid Valve (12V)
 const int PIN_RELAY_FAN      = 33;  // GPIO 33 → Exhaust Fan (220V)
@@ -86,11 +116,12 @@ const float WEIGHT_SENSOR_B = 0.40;  // Zona Tengah (referensi inti kumbung)
 const float WEIGHT_SENSOR_C = 0.25;  // Zona Bawah (paling dingin & lembab)
 
 // ============================================================
-// KONSTANTA JEDA & SAFETY TIMEOUT (Anti Short-Cycling & Night Mode)
+// KONSTANTA JEDA & SAFETY TIMEOUT (Anti Short-Cycling & P1/P2'/P3 Guard)
 // ============================================================
 const unsigned long MAX_MISTING_DURATION_MS     = 90000;   // 90 detik timeout darurat misting (cegah baglog menggenang/becek) (F-12)
 const unsigned long PULSE_MISTING_DURATION_MS   = 30000;   // 30 detik pulse misting sensor kering
 const unsigned long MISTING_COOLDOWN_MS         = 150000;  // 150 detik (2.5 menit) jeda evaporasi kabut
+const unsigned long NIGHT_MISTING_INTERVAL_MS   = 600000;  // 600 detik (10 menit) jeda wajib night misting guard (P2')
 const unsigned long POST_MISTING_FAN_DELAY_MS   = 60000;   // 60 detik jeda kabut mengendap sebelum fan boleh ON
 const unsigned long FAN_HOMOGENIZE_DURATION_MS  = 30000;   // 30 detik durasi fan homogenisasi siang
 const unsigned long FAN_HOMOGENIZE_COOLDOWN_MS  = 900000;  // 15 menit (900 detik) jeda relaksasi sirkulasi siang
@@ -102,16 +133,16 @@ const float HUM_DISPARITY_THRESHOLD             = 12.0;    // Disparitas RH > 12
 const float CRITICAL_TEMP_OFFSET                = 2.0;     // Offset suhu kritis: tempMax + 2.0°C
 const unsigned long MAX_FAN_COOLING_DURATION_MS = 180000;  // 180 detik (3 menit) timeout maksimal fan pendinginan siang (cegah dehidrasi)
 const unsigned long FAN_COOLING_COOLDOWN_MS     = 60000;   // 60 detik (1 menit) cooldown anti-chattering fan pendinginan siang
+const unsigned long FAN_PROBE_DURATION_MS       = 60000;   // 60 detik evaluasi uji probe pendinginan siang (P1)
+const unsigned long FAN_LOCKOUT_DURATION_MS     = 900000;  // 15 menit (900 detik) lockout jika probe 60s gagal (P1)
+const float FAN_PROBE_MIN_TEMP_DROP             = 0.3;     // Minimal penurunan suhu 0.3°C dalam 60s (P1)
 const float TEMP_HYSTERESIS                     = 1.5;     // Histeresis stop fan pendinginan (tempMax - 1.5°C)
 const int NIGHT_START_HOUR                      = 17;      // 17:00 WIB
 const int NIGHT_END_HOUR                        = 6;       // 06:00 WIB
 
 // ============================================================
-// INISIALISASI SENSOR & LCD
+// INISIALISASI LCD
 // ============================================================
-DHT dhtA(PIN_DHT_A, DHT22);
-DHT dhtB(PIN_DHT_B, DHT22);
-DHT dhtC(PIN_DHT_C, DHT22);
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // ============================================================
@@ -165,6 +196,19 @@ unsigned long fanCoolingLastStopTime     = 0;  // Tracking cooldown anti-chatter
 unsigned long lastNightPeriodicFanTime   = 0;
 unsigned long lastNightPurgeFanTime      = 0;
 unsigned long lastNightFanStopTime       = 0;  // Timestamp terakhir night fan berhenti (independen dari cooldown homogenisasi)
+
+// P1 Probe Evaluation & Lockout Tracking (Opsi B)
+unsigned long fanLockoutUntilMs          = 0;  // Batas millis lockout 15 menit jika uji probe 60s gagal
+unsigned long fanProbeStartTime          = 0;  // Timestamp awal evaluasi probe 60s
+float fanProbeStartTemp                  = 0.0; // Suhu awal saat fan dinyalakan untuk probe
+bool fanIneffective                      = false;
+
+inline bool isFanUseful(unsigned long now) {
+  if (fanLockoutUntilMs > 0 && now < fanLockoutUntilMs) {
+    return false;
+  }
+  return true;
+}
 
 String mistingTriggerReason = "";
 String fanTriggerReason     = "";
@@ -249,8 +293,12 @@ inline bool isNightHour(int h) {
 void setup() {
   Serial.begin(115200);
   Serial.println("\n============================================================");
-  Serial.println("  🍄 Smart Shroom Controller (SSC) v3.5");
-  Serial.println("  Hardware: ESP32 + 3x DHT22 + LCD 16x2 + 3x Relay");
+  Serial.println("  🍄 Smart Shroom Controller (SSC) v3.6");
+#if USE_SHT30
+  Serial.println("  Hardware: ESP32 + 3x SHT30 IP68 (TCA9548A) + LCD 16x2 + 3x Relay");
+#else
+  Serial.println("  Hardware: ESP32 + 3x DHT22 (Wokwi Sim) + LCD 16x2 + 3x Relay");
+#endif
   Serial.println("  Logika: Weighted Fusion + Dual Cooldown Guard");
   Serial.println("============================================================\n");
 
@@ -260,14 +308,31 @@ void setup() {
   lcd.setCursor(0, 0);
   lcd.print("Smart Shroom SCM");
   lcd.setCursor(0, 1);
-  lcd.print("ESP32 v3.5 Ready");
+  lcd.print("ESP32 v3.6 Ready");
   delay(2000);
   lcd.clear();
 
-  // Inisialisasi Sensor DHT22
+  // Inisialisasi Sensor Mikroklimat
+#if USE_SHT30
+  Wire.begin(21, 22);
+  Wire.setClock(50000);   // 50 kHz I2C clock untuk kabel panjang Cat5e (>7m)
+  Wire.setTimeOut(100);   // Non-blocking I2C timeout (100ms) cegah bus freeze jika kabel sensor copot
+  Serial.println("[I2C] Inisialisasi Bus I2C @ 50kHz & TCA9548A Multiplexer...");
+  for (uint8_t i = 0; i < 3; i++) {
+    tcaSelect(i);
+    delay(10);
+    if (!sht.begin(0x44)) {
+      Serial.printf("[SHT30] ⚠️ Gagal mendeteksi SHT30 pada TCA Channel %d (Addr 0x44)!\n", i);
+    } else {
+      Serial.printf("[SHT30] ✅ SHT30 Channel %d terdeteksi & siap.\n", i);
+    }
+  }
+#else
+  // Inisialisasi Sensor DHT22 (Simulasi Wokwi)
   dhtA.begin();
   dhtB.begin();
   dhtC.begin();
+#endif
 
   // Inisialisasi Relay (Semua OFF saat cold start — precharge latch HIGH sebelum OUTPUT cegah LOW spike) (F-15d)
   digitalWrite(PIN_RELAY_PUMP, RELAY_OFF);
@@ -343,12 +408,29 @@ void loop() {
   if (now - lastSensorReadTime >= sensorInterval) {
     lastSensorReadTime = now;
 
+#if USE_SHT30
+    tcaSelect(0);
+    delay(10);
+    float tA = sht.readTemperature();
+    float hA = sht.readHumidity();
+
+    tcaSelect(1);
+    delay(10);
+    float tB = sht.readTemperature();
+    float hB = sht.readHumidity();
+
+    tcaSelect(2);
+    delay(10);
+    float tC = sht.readTemperature();
+    float hC = sht.readHumidity();
+#else
     float tA = dhtA.readTemperature();
     float hA = dhtA.readHumidity();
     float tB = dhtB.readTemperature();
     float hB = dhtB.readHumidity();
     float tC = dhtC.readTemperature();
     float hC = dhtC.readHumidity();
+#endif
 
     // Validasi pembacaan sensor
     bool validA = !isnan(tA) && !isnan(hA);
@@ -414,9 +496,9 @@ void loop() {
       controlFan(lastTemp, maxSensorTemp, humDisparity, lastHum);
       updateLCD(lastTemp, lastHum, isMistingActive, isFanActive);
     } else {
-      Serial.println("[FATAL] SEMUA sensor DHT22 gagal membaca! Matikan misting cegah kebanjiran.");
+      Serial.println("[FATAL] SEMUA sensor mikroklimat gagal membaca! Matikan misting cegah kebanjiran.");
       if (isMistingActive) {
-        stopMisting("Safety: Semua sensor DHT22 gagal membaca");
+        stopMisting("Safety: Semua sensor mikroklimat gagal membaca");
       }
       lcd.setCursor(0, 0);
       lcd.print("ALL SENSOR ERR! ");
@@ -506,6 +588,24 @@ void loop() {
     }
   }
 
+  // ── G1. EVALUASI UJI PROBE FAN SIANG (60s) (P1) ───────────
+  if (isFanActive && !isHomogenizing && !isNightFan && !isCriticalOverride && fanProbeStartTime > 0) {
+    unsigned long probeElapsed = now - fanProbeStartTime;
+    if (probeElapsed >= FAN_PROBE_DURATION_MS) {
+      float tempDrop = fanProbeStartTemp - lastTemp;
+      fanProbeStartTime = 0; // Evaluasi probe selesai
+      if (tempDrop < FAN_PROBE_MIN_TEMP_DROP) {
+        fanIneffective = true;
+        fanLockoutUntilMs = now + FAN_LOCKOUT_DURATION_MS; // Lockout 15 menit
+        String stopReason = "Uji probe 60s gagal (Suhu turun " + String(tempDrop, 2) + "C < 0.3C). Kipas dikunci 15 mnt";
+        Serial.println("[FAN PROBE] ⚠️ " + stopReason);
+        stopFan(stopReason);
+      } else {
+        Serial.printf("[FAN PROBE] ✅ Kipas efektif mendinginkan (Suhu turun %.2f°C >= 0.3°C). Melanjutkan pendinginan.\n", tempDrop);
+      }
+    }
+  }
+
   // ── H. WATCHDOG: MODE PANEN JEDA TIMEOUT (NON-BLOCKING millis) ────
   // Failsafe otomatis: jika waktu habis, kembali ke AUTO & instant-read sensor.
   if (isPausedMode) {
@@ -544,8 +644,11 @@ void controlMisting(float temp, float hum, float minHum) {
       return;
     }
 
-    // 0. NIGHT LOCKOUT (17:00 - 06:00 WIB): Misting DILARANG nyala agar jamur tidak tidur basah kuyup
+    // 0. NIGHT MISTING GUARD (P2'): Jeda minimal 600s (10 menit) + dehidrasi parah
     if (isNight) {
+      if (mistingLastStopTime > 0 && (now - mistingLastStopTime < NIGHT_MISTING_INTERVAL_MS)) {
+        return;
+      }
       // Pengecualian darurat ekstrem: hanya boleh nyala jika terjadi dehidrasi parah (relatif terhadap humMin)
       if (hum >= (humMin - 15.0f) && minHum >= (humMin - 20.0f)) {
         return;
@@ -563,8 +666,8 @@ void controlMisting(float temp, float hum, float minHum) {
 
     // 2. TIER 2: Safety Override (Sensor Terkering / Rak Atas Kritis)
     if (minHum < criticalLowRh) {
-      if (hum >= humMax) {
-        Serial.printf("   ⚠️  [HOLD] Sensor kritis (%.1f%%) TAPI rata-rata kumbung basah (%.1f%%). Pompa DITAHAN!\n", minHum, hum);
+      if (hum >= (humMax - 1.0f)) {
+        Serial.printf("   ⚠️  [HOLD] Sensor kritis (%.1f%%) TAPI rata-rata kumbung jenuh (%.1f%%). Pompa DITAHAN!\n", minHum, hum);
         return;
       }
       String reason = "Safety Override: Sensor Terkering (" + String(minHum, 1) + "% < " + String(criticalLowRh, 1) + "%)";
@@ -574,8 +677,10 @@ void controlMisting(float temp, float hum, float minHum) {
 
     // 3. TIER 1: Kondisi Normal (Rata-rata tertimbang di bawah batas)
     if (hum < rhTriggerLow || temp > tempMax) {
-      if (temp > tempMax && hum >= humMax) {
-        Serial.printf("   ⚠️  [HOLD] Suhu panas (%.1f°C) TAPI RH tinggi (%.1f%%). Pompa DITAHAN!\n", temp, hum);
+      // P3 Pagar RH: Tahan misting jika suhu panas TAPI RH sudah mendekati batas atas (humMax - 3%)
+      if (temp > tempMax && hum >= (humMax - 3.0f)) {
+        Serial.printf("   ⚠️  [HOLD P3] Suhu panas (%.1f°C) TAPI RH mendekati batas atas (%.1f%% >= %.1f%%). Pompa DITAHAN!\n",
+                      temp, hum, humMax - 3.0f);
         return;
       }
 
@@ -591,11 +696,13 @@ void controlMisting(float temp, float hum, float minHum) {
       startMisting(reason, false);  // Normal misting
     }
   } else {
-    // 4. CEK TARGET TERCAPAI (Histeresis Stop)
+    // 4. CEK TARGET TERCAPAI (Histeresis Stop & P3 Pagar RH)
     if (!isPulseMisting) {
-      bool targetReached = (hum >= rhTriggerHigh && temp <= tempMax);
+      bool targetReached = (hum >= rhTriggerHigh && temp <= tempMax) || (hum >= (humMax - 1.0f));
       if (targetReached) {
-        String stopReason = "Target tercapai (RH:" + String(hum, 1) + "% T:" + String(temp, 1) + "C)";
+        String stopReason = (hum >= (humMax - 1.0f))
+          ? "Pagar RH tercapai (RH:" + String(hum, 1) + "% >= " + String(humMax - 1.0f, 1) + "%)"
+          : "Target tercapai (RH:" + String(hum, 1) + "% T:" + String(temp, 1) + "C)";
         stopMisting(stopReason);
       }
     }
@@ -768,7 +875,7 @@ void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum)
   }
 
   float tempStopThreshold = tempMax - TEMP_HYSTERESIS; // Histeresis stop: misal 32.0 - 1.5 = 30.5°C
-  if (avgTemp > tempMax) {
+  if (avgTemp > tempMax && isFanUseful(now)) {
     if (!isFanActive && !isMistingActive) {
       // Cooldown anti-chattering fan pendinginan siang (60s)
       if (fanCoolingLastStopTime > 0 && (now - fanCoolingLastStopTime < FAN_COOLING_COOLDOWN_MS)) {
@@ -781,9 +888,11 @@ void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum)
       String reason = "Suhu Tinggi (Avg " + String(avgTemp, 1) + "C > " + String(tempMax, 1) + "C)";
       startFan(reason, false, false);
     }
-  } else if (avgTemp <= tempStopThreshold) {
+  } else if (avgTemp <= tempStopThreshold || !isFanUseful(now)) {
     if (isFanActive && !isHomogenizing && !isNightFan) {
-      String stopReason = "Suhu normal (Avg " + String(avgTemp, 1) + "C <= " + String(tempStopThreshold, 1) + "C)";
+      String stopReason = (avgTemp <= tempStopThreshold)
+        ? "Suhu normal (Avg " + String(avgTemp, 1) + "C <= " + String(tempStopThreshold, 1) + "C)"
+        : "Kipas dikunci (Tidak efektif)";
       stopFan(stopReason);
     }
   }
@@ -794,6 +903,14 @@ void startFan(String reason, bool homogenize, bool nightMode, bool criticalOverr
   isHomogenizing     = homogenize;
   isNightFan         = nightMode;
   isCriticalOverride = criticalOverride;
+
+  // Catat titik awal probe evaluasi 60s jika pendinginan siang biasa (P1)
+  if (!homogenize && !nightMode && !criticalOverride) {
+    fanProbeStartTime = millis();
+    fanProbeStartTemp = lastTemp;
+  } else {
+    fanProbeStartTime = 0;
+  }
 
   digitalWrite(PIN_RELAY_FAN, RELAY_ON);
   isFanActive  = true;
@@ -817,6 +934,7 @@ void stopFan(String stopReason) {
   } else {
     lastNightFanStopTime = millis();   // Timestamp terakhir night fan berhenti (independen)
   }
+  fanProbeStartTime  = 0;              // Reset evaluasi probe
   isFanActive        = false;
   isHomogenizing     = false;
   isNightFan         = false;
@@ -866,10 +984,10 @@ void endPauseMode(String reason) {
 
   Serial.printf("\n============================================================\n");
   Serial.println("   ▶️  [RESUME -> MODE AUTO] " + reason);
-  Serial.println("   ⚡  [INSTANT-READ] Segera membaca sensor DHT22 untuk stabilisasi mikroklimat...");
+  Serial.println("   ⚡  [INSTANT-READ] Segera membaca sensor mikroklimat untuk stabilisasi...");
   Serial.printf("============================================================\n\n");
 
-  // PRD 3.A: ESP32 otomatis masuk mode AUTO dan langsung melakukan instant-read sensor DHT22
+  // PRD 3.A: ESP32 otomatis masuk mode AUTO dan langsung melakukan instant-read sensor
   lastSensorReadTime = 0;
 
   lcd.clear();

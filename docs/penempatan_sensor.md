@@ -1,8 +1,7 @@
-# Strategi Penempatan Sensor DHT22 (Multi-Sensor)
+# Strategi Penempatan Sensor SHT30 / SHT31 (Multi-Sensor)
 **Smart Shroom SCM — Tugas Akhir**
 
-Dokumen ini menjelaskan strategi penempatan 3 sensor DHT22 di kumbung jamur kuping
-berukuran **5m × 7m × 3.5m** (Volume: 122.5 m³) dan alasan teknis di balik keputusan desain.
+Dokumen ini menjelaskan strategi penempatan 3 sensor suhu & kelembapan presisi tinggi **SHT30 / SHT31 Probe IP68 Waterproof** di kumbung jamur kuping berukuran **5m × 7m × 3.5m** (Volume: 122.5 m³) dan alasan teknis di balik keputusan desain.
 
 ---
 
@@ -51,20 +50,22 @@ Denah Kumbung (Tampak Atas) — 5m x 7m
 
 ### Detail Penempatan Per Sensor
 
-| ID | Label | Posisi Horizontal | Ketinggian | GPIO ESP32 | Apa yang Dideteksi |
+| ID | Label | Posisi Horizontal (x, y) | Ketinggian (z) | Kanal Bus I2C (TCA9548A) | Apa yang Dideteksi |
 |:---|:---|:---|:---|:---|:---|
-| **A** | Zona Atas (Dekat Pintu) | ~1.5m dari pintu | 2.5m | GPIO 4 | Udara panas atas + gangguan dari pintu terbuka |
-| **B** | Zona Tengah (Pusat) | Tengah kumbung | 1.5m | GPIO 15 | Kondisi rata-rata, zona rak produksi utama |
-| **C** | Zona Bawah (Pojok Belakang) | Pojok terjauh dari pintu | 0.5m | GPIO 2 | Udara dingin bawah + deteksi dead zone |
+| **A** | Zona Atas (Dekat Pintu) | x=2.5m, y=1.5m | 2.5m | **Channel 0** (Addr `0x44` via TCA `0x70`) | Udara panas atas + gangguan dari pintu terbuka |
+| **B** | Zona Tengah (Pusat) | x=2.5m, y=3.5m | 1.5m | **Channel 1** (Addr `0x44` via TCA `0x70`) | Kondisi rata-rata, zona rak produksi utama |
+| **C** | Zona Bawah (Pojok Belakang) | x=4.4m, y=6.5m | 0.5m | **Channel 2** (Addr `0x44` via TCA `0x70`) | Udara dingin bawah + deteksi dead zone |
 
-### Jarak Kabel
+> *Catatan Bus I2C:* Seluruh sensor SHT30/31 memiliki alamat pabrik yang sama (`0x44`). Modul **TCA9548A I2C Multiplexer** terhubung ke ESP32 pada pin hardware I2C (**GPIO 21 = SDA, GPIO 22 = SCL**) untuk memilih kanal pembacaan sensor A, B, dan C secara bergantian.
 
-Jarak diagonal terjauh dalam kumbung 5×7×3.5m:
-```
-d = √(5² + 7² + 3.5²) = √(25 + 49 + 12.25) = √86.25 ≈ 9.3 meter
-```
-DHT22 menggunakan protokol digital 1-wire dan berfungsi **reliabel hingga jarak kabel ~20 meter**.
-Jarak 9.3m masih jauh di bawah batas, sehingga **tidak diperlukan modul signal booster/extender**.
+### Jarak & Topologi Kabel
+
+Kabel sensor ditarik mengikuti dinding dan plafon (*Manhattan wiring path*) dari Box Panel di luar dinding belakang menuju tiap titik sensor:
+- **Sensor A (Atas):** Jarak kabel ±8.3 meter (ekstensi Cat5e ±7.8 m + kabel probe 0.5 m).
+- **Sensor B (Tengah):** Jarak kabel ±7.1 meter (ekstensi Cat5e ±6.6 m + kabel probe 0.5 m).
+- **Sensor C (Bawah):** Jarak kabel ±7.0 meter (ekstensi Cat5e ±6.5 m + kabel probe 0.5 m).
+
+Karena kabel I2C mencapai 7–8 meter, firmware mengonfigurasi clock I2C ke **50 kHz** (rendah dan stabil), dipasangkan resistor *pull-up* **2.2 kΩ** per kanal pada modul TCA9548A, serta menggunakan kabel **Cat5e FTP/UTP twisted-pair** di mana pasangan SDA dan SCL masing-masing di-*twist* dengan ground (GND) untuk mengeliminasi *capacitive crosstalk*. Detail teknis lengkap ada di [`rancangan_hardware_kumbung.md`](rancangan_hardware_kumbung.md).
 
 ---
 
@@ -141,5 +142,5 @@ Dengan 1 sensor di bawah (28.8°C), sistem **tidak akan mendeteksi** bahwa rak a
 
 ---
 
-*Dokumen ini didasarkan pada analisis ukuran kumbung 5m × 7m × 3.5m dan spesifikasi sensor DHT22.*
-*Referensi GPIO: `esp32_firmware.ino` | Referensi Simulasi: `iot_simulator.py`*
+*Dokumen ini didasarkan pada analisis ukuran kumbung 5m × 7m × 3.5m dan spesifikasi sensor SHT30 / SHT31 Probe IP68 Waterproof.*
+*Referensi Hardware & Wiring: `rancangan_hardware_kumbung.md` | Referensi Firmware: `esp32_firmware.ino` | Referensi Simulasi: `iot_simulator.py`*

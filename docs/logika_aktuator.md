@@ -7,7 +7,7 @@ Dokumen ini menjelaskan alur logika kendali (*control logic*) bagaimana mikrokon
 
 ## 1. Sumber Data: Weighted Sensor Fusion (3 Sensor Vertikal)
 
-Kumbung menggunakan **3 sensor DHT22** yang ditempatkan secara **Segitiga Diagonal** untuk memantau stratifikasi mikroklimat (Atas, Tengah, Bawah):
+Kumbung menggunakan **3 sensor suhu & RH SHT30 / SHT31 Probe IP68 Waterproof** (via multiplexer TCA9548A) yang ditempatkan secara **Segitiga Diagonal** untuk memantau stratifikasi mikroklimat (Atas, Tengah, Bawah):
 - **Sensor A (Zona Atas, 2.5m, dekat pintu):** Bobot $35\%$ — Area paling panas dan rentan kering akibat udara hangat yang naik (*stack effect*).
 - **Sensor B (Zona Tengah, 1.5m, pusat kumbung):** Bobot $40\%$ — Representasi inti ketinggian baglog produktif.
 - **Sensor C (Zona Bawah, 0.5m, pojok belakang):** Bobot $25\%$ — Area paling dingin, lembab, dan tempat akumulasi gas $\text{CO}_2$.
@@ -119,7 +119,7 @@ ESP32 melakukan polling cepat ke endpoint `GET /api/device/command` setiap **8 d
 ### C. Fluid Dynamics Guard & Instant-Read
 - **Exhaust Fan WAJIB MATI SEKETIKA**: Menghindari fenomena *Short-Circuiting Aliran Udara* di mana udara luar ditarik langsung ke ventilasi tanpa menyapu lorong baglog.
 - **Pompa Misting WAJIB MATI**: Melindungi pekerja dari semprotan air kabut bertekanan tinggi saat memetik jamur.
-- **Instant-Read Resume**: Saat jeda berakhir, ESP32 seketika melakukan pembacaan instan ketiga sensor DHT22 untuk menstabilkan iklim tanpa menunggu siklus 5 detik.
+- **Instant-Read Resume**: Saat jeda berakhir, ESP32 seketika melakukan pembacaan instan ketiga sensor SHT30/SHT31 untuk menstabilkan iklim tanpa menunggu siklus 5 detik.
 
 ---
 

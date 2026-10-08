@@ -11,26 +11,27 @@ Sistem IoT ini berpusat pada mikrokontroler yang terhubung ke jaringan internet 
 *   **Fungsi:** Bertindak sebagai otak utama (edge device) yang membaca data dari seluruh sensor, memformatnya menjadi JSON, dan mengirimkannya ke server backend via HTTP POST. ESP32 dipilih karena memiliki prosesor Dual-Core 240MHz dan modul Wi-Fi terintegrasi.
 
 ### 1.2 Sensor Suhu & Kelembapan (3 Unit — Segitiga Diagonal)
-*   **Komponen:** 3x DHT22
+*   **Komponen:** 3x SHT30 / SHT31 Probe IP68 Waterproof + 1x Modul I2C Multiplexer TCA9548A
 *   **Penempatan:** Formasi Segitiga Diagonal di kumbung 5m × 7m × 3.5m:
-    *   **Sensor A** (GPIO 4): Zona Atas, dekat pintu, ketinggian 2.5m — mendeteksi udara panas dan gangguan pintu (Bobot 35%).
-    *   **Sensor B** (GPIO 15): Zona Tengah, pusat kumbung, ketinggian 1.5m — referensi inti rak produksi (Bobot 40%).
-    *   **Sensor C** (GPIO 2): Zona Bawah, pojok belakang, ketinggian 0.5m — mendeteksi dead zone & udara dingin (Bobot 25%).
-*   **Logika:** ESP32 membaca ketiga sensor dan menghitung **Weighted Sensor Fusion**:
+    *   **Sensor A** (TCA Channel 0, I2C `0x44`): Zona Atas, dekat pintu, ketinggian 2.5m — mendeteksi udara panas dan gangguan pintu (Bobot 35%).
+    *   **Sensor B** (TCA Channel 1, I2C `0x44`): Zona Tengah, pusat kumbung, ketinggian 1.5m — referensi inti rak produksi (Bobot 40%).
+    *   **Sensor C** (TCA Channel 2, I2C `0x44`): Zona Bawah, pojok belakang, ketinggian 0.5m — mendeteksi dead zone & udara dingin (Bobot 25%).
+*   **Logika:** ESP32 membaca ketiga sensor secara sekuensial melalui seleksi kanal TCA9548A dan menghitung **Weighted Sensor Fusion**:
     $$T_{\text{avg}} = 0.35 \cdot T_A + 0.40 \cdot T_B + 0.25 \cdot T_C$$
     $$RH_{\text{avg}} = 0.35 \cdot RH_A + 0.40 \cdot RH_B + 0.25 \cdot RH_C$$
     Jika salah satu sensor mengalami kegagalan baca (NaN), firmware secara otomatis menormalisasi ulang bobot dari sensor yang masih valid.
-*   **Fungsi:** Mengukur suhu ruangan (°C) dan kelembapan relatif (%). DHT22 dipilih karena jangkauan bacaan yang lebih luas dan presisi yang lebih tinggi dibanding DHT11, sangat krusial untuk pertumbuhan miselium jamur kuping (suhu optimal 24-32°C, kelembaban 85-95%).
-*   **Referensi:** Lihat `docs/penempatan_sensor.md` dan `docs/logika_aktuator.md` untuk detail komprehensif.
+*   **Fungsi & Keunggulan:** Mengukur suhu ruangan (°C) dan kelembapan relatif (%). SHT30/SHT31 dipilih karena memiliki presisi tinggi (±2% RH, ±0.2°C) dengan enkapsulasi probe logam berpori mikron (IP68) serta fitur *on-chip internal heater* yang kebal terhadap *condensation saturation* pada kelembaban tinggi (85–95% RH), jauh lebih andal dan tahan lama dibanding DHT22 yang rentan drift dan rusak di lingkungan basah kumbung jamur.
+*   **Referensi:** Lihat `docs/penempatan_sensor.md`, `docs/rancangan_hardware_kumbung.md`, dan `docs/logika_aktuator.md` untuk detail komprehensif.
 
 ### 1.3 Sensor Kadar CO2 & Intensitas Cahaya
 *   **Komponen CO2:** MQ-135 (General Air Quality) atau MH-Z19 (NDIR CO2 Sensor).
 *   **Komponen Cahaya:** BH1750 (Digital Light Sensor) atau modul LDR (Light Dependent Resistor).
 
 ### 1.4 Aktuator Pengendali Mikroklimat
-*   **Pompa Misting High-Pressure 12V DC:** Disambungkan ke nozzle pengabut 0.15mm untuk menaikkan kelembapan dan pendinginan evaporatif tanpa membasahi lantai secara berlebihan.
-*   **Exhaust Fan 12V / 220V AC:** Membuang akumulasi gas CO2 di lantai dan menarik udara segar dari luar.
-*   **Relay Modul 3-Channel:** Driver saklar berisolasi optocoupler untuk pompa misting, solenoid valve, dan exhaust fan.
+*   **Pompa Misting High-Pressure 12V DC:** Pompa diafragma 130–160 PSI disambungkan ke 14 nozzle brass 0.3mm untuk menaikkan kelembapan dan pendinginan evaporatif tanpa membasahi lantai secara berlebihan.
+*   **Solenoid Valve 12V DC Kuningan (Drat 1/2"):** Katup pemutus aliran air seketika (*anti-drip*) saat pompa mati.
+*   **Exhaust Fan 10 Inch AC 220V:** Membuang akumulasi gas CO2 di lantai dan menarik udara segar dari luar.
+*   **Relay Modul 4-Channel 5V Optocoupler:** Driver saklar berisolasi optocoupler (jumper JD-VCC dilepas untuk isolasi penuh) untuk pompa misting, solenoid valve, dan exhaust fan.
 
 ---
 
@@ -39,7 +40,7 @@ Sistem IoT ini berpusat pada mikrokontroler yang terhubung ke jaringan internet 
 Sistem memanfaatkan protokol HTTP/HTTPS berbasis **REST API** (*stateless*). Pendekatan ini menyederhanakan arsitektur karena tidak memerlukan *Message Broker* tambahan.
 
 ### 2.1 Skema Aliran Data
-1.  **Multi-Sensor Reading:** ESP32 secara periodik membaca nilai dari ketiga sensor DHT22 (setiap 5 detik).
+1.  **Multi-Sensor Reading:** ESP32 secara periodik membaca nilai dari ketiga sensor SHT30/SHT31 via multiplexer TCA9548A (setiap 5 detik).
 2.  **Weighted Sensor Fusion:** ESP32 menghitung nilai rata-rata tertimbang (A=35%, B=40%, C=25%). Sensor error otomatis diabaikan.
 3.  **Local Closed-Loop Decision Engine:** Firmware v3.5 mengevaluasi histeresis misting/fan, Universal Guard, interlock keselamatan, dan cooldown sebelum memutuskan aktivasi relay.
 4.  **Transmission:** ESP32 melakukan request `HTTP POST` ke endpoint publik server: `POST /api/sensor-data`.

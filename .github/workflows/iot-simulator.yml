@@ -39,6 +39,7 @@ jobs:
         # 18.000 detik = 5 jam. Berjalan kontinu sesuai interval cron tanpa overlap abort.
         env:
           TZ: 'Asia/Jakarta'
+          API_BASE_URL: ${{ secrets.API_BASE_URL || 'https://tugasakhir-lime.vercel.app/api' }}
         run: |
           python -u iot_simulator.py --duration 18000
 

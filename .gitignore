@@ -11,3 +11,4 @@ __pycache__/
 .codegraph/
 .agents/
 .gemini/
+docs/manual/.build-tools/

@@ -71,7 +71,7 @@ Use case sistem dikelompokkan ke dalam 8 modul utama (total 29 Use Cases):
 
 ### Modul H: Konfigurasi & Integrasi IoT (Edge Computing)
 - **UC-15: Mengonfigurasi Ambang Batas Iklim & Preset Fase** (Admin)
-- **UC-16: Mengirim Data Telemetri Sensor (Fusi 3x DHT22)** (Perangkat IoT ESP32)
+- **UC-16: Mengirim Data Telemetri Sensor (Fusi 3x SHT30 IP68)** (Perangkat IoT ESP32)
 - **UC-17: Mengambil Konfigurasi Threshold Aktif & Command Device** (Perangkat IoT ESP32)
 - **UC-18: Mengirim Log Aktivitas Aktuator (Misting & Fan)** (Perangkat IoT ESP32)
 
@@ -312,7 +312,7 @@ flowchart LR
   1. Pengguna menekan tombol "Akhiri Jeda & Balik ke AUTO" pada widget dashboard.
   2. Frontend mengirim `POST /api/device/resume`.
   3. Backend mereset command ke `AUTO`.
-  4. ESP32 membaca status `AUTO`, mengakhiri status jeda, dan langsung melakukan *instant-read* sensor DHT22 untuk menstabilkan kelembapan kumbung seketika.
+  4. ESP32 membaca status `AUTO`, mengakhiri status jeda, dan langsung melakukan *instant-read* sensor SHT30 untuk menstabilkan kelembapan kumbung seketika.
 
 ---
 
