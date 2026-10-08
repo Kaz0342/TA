@@ -64,12 +64,10 @@ Misting bertugas meningkatkan kelembaban udara kumbung dan memberikan efek pendi
 
 ## 4. Logika Kendali Exhaust Fan (Sirkulasi & Pendinginan)
 
-Exhaust Fan berfungsi membuang udara panas, meratakan stratifikasi udara (homogenisasi), dan membuang gas $\text{CO}_2$ yang mengendap di lantai.
-
-### A. Mode Siang Hari (06:00 - 17:00 WIB — Termasuk P1)
-1. **Tier 1 — Pendinginan Siang & Evaluasi Uji Probe 60s (P1):**
+Exhaust Fan berfungsi membuang udara panas, meratakan stratifikasi udara (homogenisasi), dan membuang gas $\text{### A. Mode Siang Hari (06:00 - 17:00 WIB — Termasuk P1)
+1. **Tier 1 — Pendinginan Siang & Evaluasi Uji Probe 90s (P1):**
    - **START:** $T_{\text{avg}} > \text{tempMax}$ (misal $> 32.0^\circ\text{C}$) dan kipas tidak dalam masa lockout (`isFanUseful()`).
-   - **Uji Probe 60s (P1 — Opsi B):** Begitu kipas pendinginan aktif, timer probe 60s berjalan. Jika setelah 60 detik penurunan suhu $\Delta T < 0.3^\circ\text{C}$ (artinya udara luar sama panas/lebih panas dari dalam), kipas **DIMATIKAN** dan dikenakan **Lockout 15 Menit (900s)** agar misting bebas melakukan *evaporative cooling*.
+   - **Uji Probe 90s (P1 — Opsi B):** Begitu kipas pendinginan aktif, timer probe 90s berjalan. Jika setelah 90 detik penurunan suhu $\Delta T < 0.2^\circ\text{C}$ (artinya udara luar sama panas/lebih panas dari dalam), kipas **DIMATIKAN** dan dikenakan **Lockout 15 Menit (900s)** agar misting bebas melakukan *evaporative cooling*.
    - **STOP Normal:** $T_{\text{avg}} \le \text{tempMax} - 1.5^\circ\text{C}$ (Histeresis pendinginan $30.5^\circ\text{C}$).
    - **Safety Timeout:** Maksimal 180 detik (3 menit) menyala terus-menerus, dengan *anti-chattering cooldown* 60 detik.
 2. **Tier 2 — Safety Override Suhu Kritis (F-10):**
@@ -101,9 +99,9 @@ Setelah misting mati, fan dilarang menyala selama 60 detik untuk memberi kesempa
 | **Misting** | Night Guard Interval (P2') | 600 detik (10 mnt) | Jeda wajib antar-misting darurat malam hari |
 | **Misting** | Pagar RH Hold (P3) | $RH \ge \text{humMax} - 3.0\%$ saat $T > \text{tempMax}$ | Tahan semprot jika udara mendekati titik jenuh |
 | **Misting** | Pagar RH Stop (P3) | $RH \ge \text{humMax} - 1.0\%$ | Stop seketika cegah genangan air di baglog |
-| **Fan** | Probe Siang Durasi (P1) | 60 detik | Durasi uji pendinginan udara luar siang hari |
-| **Fan** | Probe Min Drop (P1) | $\ge 0.3^\circ\text{C}$ dalam 60s | Ambang efektifitas pendinginan kipas siang |
-| **Fan** | Probe Lockout (P1) | 900 detik (15 mnt) | Kunci kipas jika probe gagal (luar lebih panas) |
+| **Fan** | Probe Siang Durasi (P1) | 90 detik | Durasi uji pendinginan udara luar siang hari |
+| **Fan** | Probe Min Drop (P1) | $\ge 0.2^\circ\text{C}$ dalam 90s | Ambang efektifitas pendinginan kipas siang |
+| **Fan** | Probe Lockout (P1) | 900 detik (15 mnt) | Kunci kipas jika probe gagal (luar lebih panas) || Kunci kipas jika probe gagal (luar lebih panas) |
 | **Fan** | Homogenisasi Durasi | 30 detik | Sirkulasi aduk udara saat disparitas vertikal $> 12\%$ |
 | **Fan** | Homogenisasi Cooldown | 900 detik (15 mnt) | Relaksasi sirkulasi udara kumbung |
 | **Fan** | Cooling Max Timeout | 180 detik (3 mnt) | Dikecualikan untuk Safety Override suhu kritis |

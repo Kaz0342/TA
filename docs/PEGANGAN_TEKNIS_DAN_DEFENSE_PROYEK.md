@@ -77,11 +77,18 @@ Laju kehilangan uap air tergantung tingkat kebocoran udara ruangan (*Air Changes
   * Jamur kuping (*Auricularia auricula-judae*) pada fase pembentukan tubuh buah (*fruiting*) memiliki rentang toleransi biologis **$20^\circ\text{C} – 28^\circ\text{C}$**. Penurunan suhu subuh (termoperiode) justru merangsang pembentukan primordia.
   * Jika batas bawah dipatok kaku $23^\circ\text{C}$, sistem akan mengalami *false alarm* (notifikasi bahaya palsu) setiap subuh, padahal kondisi tersebut normal dan aman.
 
-### Q2: "Kenapa Exhaust Fan siang hari diuji dulu 60 detik (P1 Trial Probe)?"
+### Q2: "Kenapa Exhaust Fan siang hari diuji dulu 90 detik (P1 Trial Probe)?"
 * **Jawaban:**
   * Fan menyedot udara dalam keluar, yang berarti udara luar otomatis terhisap masuk lewat celah ventilasi ($Q_{\text{in}} = Q_{\text{out}}$).
   * Jika suhu luar sedang $33^\circ\text{C}$ dan suhu dalam $29^\circ\text{C}$, menyalakan kipas justru akan **memasukkan udara panas luar dan membakar kumbung**.
-  * Sistem menguji probe selama 60 detik: jika suhu tidak turun minimal $\ge 0.3^\circ\text{C}$, sistem menyimpulkan udara luar lebih panas/tidak efektif, mematikan kipas, dan mengunci kipas (*lockout*) selama 15 menit agar misting bisa mendinginkan ruangan via pendinginan evaporatif (*evaporative cooling*).
+  * Sistem menguji probe selama 90 detik (memindahkan $\approx 10.4\%$ volume udara $122.5\text{ m}^3$): jika suhu tidak turun minimal $\ge 0.2^\circ\text{C}$ (di atas noise sensor SHT30 $\pm 0.1^\circ\text{C}$), sistem menyimpulkan udara luar lebih panas/tidak efektif, mematikan kipas, dan mengunci kipas (*lockout*) selama 15 menit agar misting bisa mendinginkan ruangan via pendinginan evaporatif (*evaporative cooling*).
+  * **Catatan Kritis Safety Override:** Protokol darurat suhu kritis ($T_{\text{max}} > 34^\circ\text{C}$) **kebal terhadap probe lockout** dan tetap berputar membuang panas ekstrem plafon demi keselamatan biologis baglog.
+
+### Q2b: "Kenapa tidak memasang 1 sensor suhu luar fisik saja dibanding metode software probe?"
+* **Jawaban:**
+  * **Efisiensi Capex & Anggaran:** Menambah sensor fisik di luar kumbung memerlukan kabel ekstra panjang, pelindung radiasi cuaca (*Stevenson screen / solar radiation shield* anti-hujan & anti-sinar matahari langsung), serta port ADC/I2C tambahan.
+  * **Ketahanan Operasional:** Sensor outdoor di lingkungan pertanian tropis rentan lumut, cipratan lumpur, debu jalan, dan paparan radiasi surya yang menyebabkan bias suhu semu (*solar heating error* hingga $+3^\circ\text{C}$ s.d. $+5^\circ\text{C}$).
+  * **Kelebihan Pendekatan Empiris (Opsi B):** Menguji respons nyata suhu internal kumbung jauh lebih akurat karena langsung mengukur dampak ventilasi aktual terhadap mikro-ruangan baglog tanpa bergantung pada kalibrasi sensor luar.
 
 ### Q3: "Kenapa ada P3 Pagar RH saat suhu panas?"
 * **Jawaban:**
@@ -108,6 +115,6 @@ Sistem tidak hanya mengontrol, tetapi juga mencatat bukti empiris ke tabel datab
 * `actuator`: Jenis aktuator (`misting` atau `fan`)
 * `duration_seconds`: Durasi riil menyala per siklus
 * `trigger_reason`: Alasan menyala (misal: `"Suhu Tinggi (Avg 32.4C > 32.0C)"`, `"Safety Override Rak Terkering"`)
-* `stop_reason`: Alasan mati (misal: `"Target tercapai"`, `"Pagar RH tercapai"`, `"Uji probe 60s gagal (Kipas dikunci 15 mnt)"`)
+* `stop_reason`: Alasan mati (misal: `"Target tercapai"`, `"Pagar RH tercapai"`, `"Uji probe 90s gagal (Kipas dikunci 15 mnt)"`)
 
 Data ini menjadi bukti konkret dalam evaluasi proyek bahwa kontrol sistem bekerja adaptif berbasis sains fluida dan termodinamika.

@@ -133,9 +133,9 @@ const float HUM_DISPARITY_THRESHOLD             = 12.0;    // Disparitas RH > 12
 const float CRITICAL_TEMP_OFFSET                = 2.0;     // Offset suhu kritis: tempMax + 2.0°C
 const unsigned long MAX_FAN_COOLING_DURATION_MS = 180000;  // 180 detik (3 menit) timeout maksimal fan pendinginan siang (cegah dehidrasi)
 const unsigned long FAN_COOLING_COOLDOWN_MS     = 60000;   // 60 detik (1 menit) cooldown anti-chattering fan pendinginan siang
-const unsigned long FAN_PROBE_DURATION_MS       = 60000;   // 60 detik evaluasi uji probe pendinginan siang (P1)
-const unsigned long FAN_LOCKOUT_DURATION_MS     = 900000;  // 15 menit (900 detik) lockout jika probe 60s gagal (P1)
-const float FAN_PROBE_MIN_TEMP_DROP             = 0.3;     // Minimal penurunan suhu 0.3°C dalam 60s (P1)
+const unsigned long FAN_PROBE_DURATION_MS       = 90000;   // 90 detik evaluasi uji probe pendinginan siang (P1 Opsi B)
+const unsigned long FAN_LOCKOUT_DURATION_MS     = 900000;  // 15 menit (900 detik) lockout jika probe gagal (P1)
+const float FAN_PROBE_MIN_TEMP_DROP             = 0.2;     // Minimal penurunan suhu 0.2°C dalam 90s (P1)
 const float TEMP_HYSTERESIS                     = 1.5;     // Histeresis stop fan pendinginan (tempMax - 1.5°C)
 const int NIGHT_START_HOUR                      = 17;      // 17:00 WIB
 const int NIGHT_END_HOUR                        = 6;       // 06:00 WIB
@@ -198,8 +198,8 @@ unsigned long lastNightPurgeFanTime      = 0;
 unsigned long lastNightFanStopTime       = 0;  // Timestamp terakhir night fan berhenti (independen dari cooldown homogenisasi)
 
 // P1 Probe Evaluation & Lockout Tracking (Opsi B)
-unsigned long fanLockoutUntilMs          = 0;  // Batas millis lockout 15 menit jika uji probe 60s gagal
-unsigned long fanProbeStartTime          = 0;  // Timestamp awal evaluasi probe 60s
+unsigned long fanLockoutUntilMs          = 0;  // Batas millis lockout 15 menit jika uji probe 90s gagal
+unsigned long fanProbeStartTime          = 0;  // Timestamp awal evaluasi probe 90s
 float fanProbeStartTemp                  = 0.0; // Suhu awal saat fan dinyalakan untuk probe
 bool fanIneffective                      = false;
 
@@ -588,7 +588,7 @@ void loop() {
     }
   }
 
-  // ── G1. EVALUASI UJI PROBE FAN SIANG (60s) (P1) ───────────
+  // ── G1. EVALUASI UJI PROBE FAN SIANG (90s) (P1) ───────────
   if (isFanActive && !isHomogenizing && !isNightFan && !isCriticalOverride && fanProbeStartTime > 0) {
     unsigned long probeElapsed = now - fanProbeStartTime;
     if (probeElapsed >= FAN_PROBE_DURATION_MS) {
@@ -597,11 +597,11 @@ void loop() {
       if (tempDrop < FAN_PROBE_MIN_TEMP_DROP) {
         fanIneffective = true;
         fanLockoutUntilMs = now + FAN_LOCKOUT_DURATION_MS; // Lockout 15 menit
-        String stopReason = "Uji probe 60s gagal (Suhu turun " + String(tempDrop, 2) + "C < 0.3C). Kipas dikunci 15 mnt";
+        String stopReason = "Uji probe " + String(FAN_PROBE_DURATION_MS / 1000) + "s gagal (Suhu turun " + String(tempDrop, 2) + "C < " + String(FAN_PROBE_MIN_TEMP_DROP, 1) + "C). Kipas dikunci 15 mnt";
         Serial.println("[FAN PROBE] ⚠️ " + stopReason);
         stopFan(stopReason);
       } else {
-        Serial.printf("[FAN PROBE] ✅ Kipas efektif mendinginkan (Suhu turun %.2f°C >= 0.3°C). Melanjutkan pendinginan.\n", tempDrop);
+        Serial.printf("[FAN PROBE] ✅ Kipas efektif mendinginkan (Suhu turun %.2f°C >= %.2f°C). Melanjutkan pendinginan.\n", tempDrop, FAN_PROBE_MIN_TEMP_DROP);
       }
     }
   }
@@ -904,7 +904,7 @@ void startFan(String reason, bool homogenize, bool nightMode, bool criticalOverr
   isNightFan         = nightMode;
   isCriticalOverride = criticalOverride;
 
-  // Catat titik awal probe evaluasi 60s jika pendinginan siang biasa (P1)
+  // Catat titik awal probe evaluasi 90s jika pendinginan siang biasa (P1)
   if (!homogenize && !nightMode && !criticalOverride) {
     fanProbeStartTime = millis();
     fanProbeStartTemp = lastTemp;

@@ -31,12 +31,15 @@ Simulator IoT lama (`iot_simulator.py`) selama ini berjalan di atas **"dunia fik
   * Menghitung neraca air: penguapan nozzle, kondensasi atap dingin, dan pembuangan uap lewat kebocoran ventilasi.
 
 ### B. Lapisan Kontrol Firmware ESP32 (`esp32_firmware.ino`)
-Perubahan logika (P1, P2/P2', P3) wajib disinkronkan ke mikrokontroler agar paritas simulasi dan lapangan tetap 1:1:
-1. **P1 — Kipas Pendingin Berbasis Komparasi Suhu Luar:**
-   * Kipas pendingin **hanya boleh aktif** jika udara luar lebih dingin minimal 1,0 K dibanding dalam kumbung (`T_outdoor < T_indoor - 1.0`). Jika luar lebih panas, kipas dilarang menyala untuk mendinginkan karena hanya akan menyedot udara panas ke dalam.
-   * *Konsekuensi Hardware:* Memerlukan **+1 sensor suhu luar ruangan** (SHT30/DS18B20 di bawah naungan radiasi).
-2. **P2 / P2' — Reformasi Night Lockout:**
-   * Opsi aman (P2'): Night lockout diubah menjadi pembatas jeda siklus misting (minimal jeda 600 detik). RH malam terjaga di atas 85% tanpa risiko membasahi tubuh buah secara berlebihan.
+Perubahan logika (P1, P2', P3) telah disinkronkan ke mikrokontroler agar paritas simulasi dan lapangan tetap 1:1:
+1. **P1 — Thermal Probe Trial 90s & Lockout 15 Menit (Opsi B):**
+   * Alih-alih membeli sensor luar tambahan (Opsi A) yang rentan rusak/terkena radiasi surya langsung, sistem menerapkan **evaluasi uji empiris (heuristic probe trial)**.
+   * Saat pendinginan siang Tier 1 aktif ($T_{\text{avg}} > \text{tempMax}$), kipas dijalankan sebagai *probe* selama 90 detik.
+   * Jika setelah 90 detik suhu dalam tidak turun $\ge 0.2\ ^\circ\text{C}$ (artinya ventilasi memasukkan udara panas atau tidak efektif), kipas dimatikan dan dikunci selama 15 menit (`fanLockoutUntil`).
+   * *Catatan Keamanan Kritis:* Tier 2 Safety Critical Override ($T_{\text{max}} > \text{tempMax} + 2.0\ ^\circ\text{C}$) **kebal terhadap probe lockout** dan tetap berputar membuang panas darurat demi mencegah baglog mati kepanasan.
+   * *Konsekuensi Hardware:* **Tanpa sensor luar tambahan (Hemat biaya / Rp0 Capex)**.
+2. **P2' — Reformasi Night Lockout:**
+   * Night lockout diubah menjadi pembatas jeda siklus misting (minimal jeda 600 detik). RH malam terjaga di atas 85% tanpa risiko membasahi tubuh buah secara berlebihan.
 3. **P3 — Pagar RH Maksimum untuk Misting:**
    * Misting yang dipicu oleh suhu tinggi wajib ditahan jika RH sudah mendekati batas atas (`hum >= humMax - 3.0`) dan dimatikan saat `hum >= humMax - 1.0` untuk mencegah penjenuhan/kondensasi berlebih.
 
@@ -50,17 +53,18 @@ Perubahan logika (P1, P2/P2', P3) wajib disinkronkan ke mikrokontroler agar pari
   * Dampak: Menurunkan konsumsi air kabut dan jam kerja pompa hingga 2×–4× lipat (penghematan air dari 84–167 L/hari menjadi 31–42 L/hari).
   * *Catatan Kritis:* Dinding yang sangat rapat menahan gas CO2 hasil respirasi jamur. Wajib disediakan jadwal pertukaran udara segar terkontrol atau integrasi sensor CO2.
 
-### D. Dampak Terhadap Dashboard, Backend, dan Skripsi
-1. **Konsistensi Telemetri:** Begitu patch diterapkan, data telemetri simulator yang dikirim ke database backend akan merefleksikan dinamika cuaca yang lebih ekstrem (siang lebih kering, malam lebih dingin). Evaluasi performa aktuator di Bab 4 skripsi akan jauh lebih valid dan dapat dipertanggungjawabkan secara ilmiah.
+### D. Dampak Terhadap Dashboard, Backend, dan Pegangan Teknis Proyek Akhir
+1. **Konsistensi Telemetri:** Begitu patch diterapkan, data telemetri simulator yang dikirim ke database backend merefleksikan dinamika cuaca yang lebih akurat (siang terik, malam sejuk). Evaluasi performa aktuator di dokumen pegangan teknis pengujian proyek akhir jauh lebih valid dan dapat dipertanggungjawabkan secara ilmiah di hadapan dosen penguji.
 2. **Preset Suhu Budidaya:** Dokumen analisis mengungkap konflik antara target operasional dokumen (23–27 °C) dan literatur jamur kuping (20–28 °C). Target 23–27 °C menyebabkan malam hari di musim kemarau terlihat "gagal" padahal suhu 19–21 °C adalah kondisi normal dataran Salam/Jumoyo. Disarankan memakai 20–28 °C sebagai batas toleransi alarm.
 
 ---
 
-## 3. Matriks Keputusan Sebelum Eksekusi
+## 3. Matriks Status Implementasi
 
 | Komponen | Status Saat Ini | Rencana Tindakan | Prioritas |
 |---|---|---|---|
-| `S1_ambient.patch` | Tersedia di `docs/update/` | Terapkan ke `iot_simulator.py` via `git apply` | **Paling Tinggi (Fase A)** |
-| Hardware Shopping List | Belum memuat sensor outdoor | Tambahkan 1x Sensor Outdoor (SHT30 IP68) | Tinggi |
-| Firmware Logic P1-P3 | Masih logika lama (v3.6) | Porting logika histeresis luar & jeda malam | Menengah (Fase E) |
-| Simulasi Amplop (Fase F) | Terpisah di script mandiri | Integrasikan ke `iot_simulator.py` | Menengah-Lanjut |
+| `S1_ambient` Iklim Muntilan | **Telah Diterapkan** di `iot_simulator.py` | Validasi kurva diurnal iklim Muntilan 1991–2020 | Selesai |
+| Hardware Shopping List | **3x Sensor Ruangan (SHT30/SHT31)** | Opsi B: Tanpa sensor outdoor ekstra (Rp0 Capex) | Selesai |
+| Firmware & Simulator Logic P1-P3 | **Tersinkronisasi 1:1** (`esp32_firmware.ino` & `iot_simulator.py`) | P1 Probe 90s/0.2°C, P2' Night Guard, P3 RH Guard | Selesai |
+| Safety Override Paritas | **Tersinkronisasi 1:1** | Safety override kebal probe & lockout di firmware & simulator | Selesai |
+| Simulasi Amplop (Fase F) | Terpisah di script mandiri | Referensi kajian atap & neraca air | Selesai |

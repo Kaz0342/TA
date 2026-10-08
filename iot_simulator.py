@@ -13,9 +13,9 @@ Prinsip simulasi:
 1. Tiap sensor punya offset suhu/kelembaban sesuai zona fisiknya
 2. ESP32 menghitung rata-rata dari 3 sensor sebelum mengambil keputusan
 3. Nilai rata-rata yang dikirim ke API (sama seperti firmware asli)
-4. Logika kontrol hysteresis IDENTIK dengan esp32_firmware.ino v3.6
+4. Logika kontrol hysteresis IDENTIK dengan esp32_firmware.ino v3.6 (P1 Thermal Probe 90s, P2' Night Guard, P3 RH Guard)
 
-@author Smart Shroom SCM — Tugas Akhir
+@author Smart Shroom SCM — Tugas Akhir (Pegangan Teknis Proyek Akhir)
 @see docs/penempatan_sensor.md
 """
 
@@ -59,6 +59,9 @@ HUM_DISPARITY_THRESHOLD = 12.0  # Batas selisih RH atas-bawah pemicu fan homogen
 CRITICAL_TEMP_OFFSET = 2.0      # Safety Override: jika SATU sensor > tempMax + offset ini, paksa Fan ON
 MAX_FAN_COOLING_DURATION = 180  # 180 detik (3 menit) timeout maksimal fan pendinginan siang (cegah dehidrasi)
 FAN_COOLING_COOLDOWN = 60       # 60 detik (1 menit) cooldown anti-chattering jeda fan pendinginan siang
+FAN_PROBE_DURATION = 90.0        # 90 detik evaluasi uji probe pendinginan siang (P1 Opsi B)
+FAN_LOCKOUT_DURATION = 900.0     # 15 menit (900 detik) lockout jika probe gagal (P1)
+FAN_PROBE_MIN_TEMP_DROP = 0.2    # Minimal penurunan suhu 0.2°C dalam 90s (P1)
 TEMP_HYSTERESIS = 1.5           # Histeresis stop fan pendinginan (temp_max - 1.5°C)
 CONTROL_INTERVAL_S = 5          # Cadence evaluasi kontrol (detik) — samakan dengan sensorInterval firmware 5000ms (F-13)
 
@@ -656,7 +659,7 @@ class KumbungState:
 # ============================================================
 
 def is_fan_useful(state: KumbungState, now_ts: float) -> bool:
-    """[P1 Probe Trial] Kipas dilarang nyala jika terbukti tidak efektif mendinginkan dalam 15 menit terakhir."""
+    """[P1 Probe Trial] Cek utilitas kipas siang. Return False jika kipas dalam masa lockout 15 menit akibat gagal menurunkan suhu saat uji probe."""
     if getattr(state, 'fan_ineffective', False):
         if now_ts < getattr(state, 'fan_lockout_until', 0.0):
             return False
@@ -697,9 +700,8 @@ def control_misting(state: KumbungState):
         if state.is_fan_active:
             return
 
-        # [F-10b] Jangan mulai misting saat kondisi kritis (override fan akan langsung memotongnya),
-        # KECUALI jika kipas terbukti tidak berguna / dikunci (izinkan evaporative misting mendinginkan)
-        if state.get_max_temp() > state.temp_max + CRITICAL_TEMP_OFFSET and is_fan_useful(state, time.time()):
+        # [F-10b] Jangan mulai misting saat kondisi kritis (override fan akan langsung memotongnya)
+        if state.get_max_temp() > state.temp_max + CRITICAL_TEMP_OFFSET:
             return
 
         # 0. NIGHT MISTING POLICY (P2' Reform - 17:00 - 06:00 WIB):
@@ -821,7 +823,8 @@ def control_fan(state: KumbungState):
     is_night = (hour >= NIGHT_START_HOUR or hour < NIGHT_END_HOUR)
 
     # 1. Tier 2: Safety Override Suhu Kritis Atas (BYPASS SEMUA DELAY & COOLDOWN!)
-    if max_temp > critical_threshold and is_fan_useful(state, now_ts):
+    # Mirror firmware: safety override kebal probe dan wajib aktif selama suhu kritis
+    if max_temp > critical_threshold:
         # Jika misting sedang aktif, potong/matikan misting agar tidak bentrok dengan kipas darurat
         # (BUG FIX #2: Cleanup lengkap + kirim API log, sama seperti firmware stopMisting())
         if state.is_misting_active:
@@ -841,8 +844,8 @@ def control_fan(state: KumbungState):
             state.is_night_fan = False
             state.is_critical_override = True
             state.fan_start_time = now_ts
-            state.fan_probe_start_temp = temp
-            state.fan_probe_start_time = now_ts
+            state.fan_probe_start_temp = None  # Safety override kebal probe (fanProbeStartTime = 0)
+            state.fan_probe_start_time = None
             state.fan_trigger_reason = f"Safety Override (Sensor Max {max_temp}°C > {critical_threshold}°C)"
             print(f"   🚨 [SAFETY OVERRIDE] Fan PAKSA ON! Sensor tertinggi {max_temp}°C > batas kritis {critical_threshold}°C")
         return
@@ -873,15 +876,17 @@ def control_fan(state: KumbungState):
         return  # Masih berjalan di malam hari (< 45s), tahan agar tidak dievaluasi logika siang
 
     # [F-10a] Histeresis stop Safety Override berlaku 24 jam (siang DAN malam)
+    # Mirror firmware: hanya stop jika max_temp <= critical - 1.0 DAN temp <= temp_max. Kebal probe lockout!
     if state.is_fan_active and getattr(state, 'is_critical_override', False):
-        if (max_temp <= (critical_threshold - 1.0) and temp <= state.temp_max) or not is_fan_useful(state, now_ts):
+        if max_temp <= (critical_threshold - 1.0) and temp <= state.temp_max:
             state.is_fan_active = False
             state.is_critical_override = False
             state.fan_cooling_last_stop_time = now_ts
             duration = int(now_ts - (state.fan_start_time or now_ts))
-            stop_reason = f"Suhu kritis teratasi (Max {max_temp}C <= {critical_threshold - 1.0}C)" if max_temp <= (critical_threshold - 1.0) else "Kipas dikunci (Uji probe tidak efektif)"
+            stop_reason = f"Suhu kritis teratasi (Max {max_temp}°C <= {critical_threshold - 1.0}°C)"
+            print(f"   🌀 [FAN OFF] {stop_reason} | Durasi: {duration}s")
             send_actuator_log(max(1, duration), state.fan_trigger_reason, stop_reason, "fan")
-        return
+        return  # Belum teratasi: tahan fan ON, jangan biarkan logika siang/malam mematikan fan ini
 
     if is_night:
         # Failsafe 2: Jika ada fan siang yang masih aktif saat transisi jam 17:00, matikan segera!
@@ -985,24 +990,26 @@ def control_fan(state: KumbungState):
             send_actuator_log(max(1, duration), state.fan_trigger_reason, stop_reason, "fan")
             return
 
-    # [P1 Probe Evaluation]: Evaluasi uji probe 60 detik untuk pendinginan siang
-    if state.is_fan_active and not is_homo and not getattr(state, 'is_night_fan', False) and getattr(state, 'fan_probe_start_time', None) is not None:
+    # [P1 Probe Evaluation]: Evaluasi uji probe pendinginan siang (Opsi B)
+    if state.is_fan_active and not is_homo and not getattr(state, 'is_night_fan', False) and not getattr(state, 'is_critical_override', False) and getattr(state, 'fan_probe_start_time', None) is not None:
         probe_elapsed = now_ts - state.fan_probe_start_time
-        if probe_elapsed >= 60.0:
+        if probe_elapsed >= FAN_PROBE_DURATION:
             temp_drop = (state.fan_probe_start_temp or temp) - temp
             state.fan_probe_start_time = None  # Selesai evaluasi probe
-            if temp_drop < 0.3:
+            if temp_drop < FAN_PROBE_MIN_TEMP_DROP:
                 # Gagal mendinginkan! Udara luar sama panas / lebih panas
                 state.is_fan_active = False
                 state.is_critical_override = False
                 state.fan_ineffective = True
-                state.fan_lockout_until = now_ts + 900.0  # Lockout 15 menit
+                state.fan_lockout_until = now_ts + FAN_LOCKOUT_DURATION  # Lockout 15 menit
                 state.fan_cooling_last_stop_time = now_ts
                 duration = int(now_ts - (state.fan_start_time or now_ts))
-                stop_reason = f"Uji probe 60s gagal (Suhu turun {temp_drop:.2f}°C < 0.3°C). Kipas dikunci 15 mnt"
+                stop_reason = f"Uji probe {int(FAN_PROBE_DURATION)}s gagal (Suhu turun {temp_drop:.2f}°C < {FAN_PROBE_MIN_TEMP_DROP}°C). Kipas dikunci 15 mnt"
                 print(f"   ⚠️  [FAN PROBE] {stop_reason} | Durasi: {duration}s")
                 send_actuator_log(max(1, duration), state.fan_trigger_reason or "Suhu Tinggi", stop_reason, "fan")
                 return
+            else:
+                print(f"   ✅ [FAN PROBE SUKSES] Suhu turun {temp_drop:.2f}°C >= {FAN_PROBE_MIN_TEMP_DROP}°C. Kipas efektif!")
 
     # Safety Watchdog Fan Siang (Timeout 180s cegah dehidrasi kumbung — tidak berlaku untuk Safety Override)
     if state.is_fan_active and not is_homo and not getattr(state, 'is_night_fan', False) and not getattr(state, 'is_critical_override', False):

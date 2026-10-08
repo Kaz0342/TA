@@ -34,7 +34,7 @@
 ├──────────────────────────────────────┼──────────────────────────────────────────┤
 │ • Weighted Sensor Fusion             │ • Alokasi Rak Dinamis (Row-Bay-Tier)     │
 │ • Histeresis Closed-Loop Misting     │ • Siklus Hidup Batch & Afkir Berbasis    │
-│ • Fan Utility 60s Probe (P1)         │   Ledger (Immutable Culls)               │
+│ • Fan Utility 90s Probe (P1)         │   Ledger (Immutable Culls)               │
 │ • Night Misting Interval Guard (P2') │ • Pelacakan Flush Multi-Siklus (1–7)     │
 │ • Pagar RH Maksimum Misting (P3)     │ • Presisi Finansial HPP/Kg (bcmath)      │
 │ • Drainase CO2 Pasif (Plastik 30cm)  │ • Heatmap 3D Spasial Produktivitas Rak   │
@@ -131,8 +131,9 @@
 
 * **L-15: Fan Utility & Thermal Differential Probe (P1 — Opsi B Trial)**
   * **Lokasi:** `esp32_firmware.ino`, `iot_simulator.py`
-  * **Aturan:** Kipas pendingin dicoba menyala 60 detik. Jika setelah 60 detik suhu dalam tidak turun $\ge 0.3\ ^\circ\text{C}$ (artinya udara luar sama panas/lebih terik), kipas dimatikan dan dikunci selama 15 menit.
-  * **Tujuan:** Mencegah exhaust fan menyedot hawa panas luar masuk ke dalam kumbung tanpa perlu membeli sensor luar tambahan.
+  * **Aturan:** Kipas pendingin normal (Tier 1) dicoba menyala **90 detik**. Jika setelah 90 detik suhu rata-rata dalam tidak turun $\ge 0.2\ ^\circ\text{C}$ (artinya udara luar sama panas/lebih terik), kipas dimatikan dan dikunci selama **15 menit** (`fanLockoutUntil`).
+  * **Tujuan:** Mencegah exhaust fan menyedot hawa panas luar masuk ke dalam kumbung tanpa perlu membeli sensor luar tambahan (Capex Rp0).
+  * **Pengecualian Mutlak:** **Tier 2 Safety Critical Temperature Override (L-18) KEBAL dari probe ini** dan dilarang dikunci demi menyelamatkan baglog dari kerusakan panas fatal.
 
 * **L-16: Daytime Cooling Max Watchdog Timeout (180 detik)**
   * **Lokasi:** `esp32_firmware.ino`, `iot_simulator.py`
@@ -146,7 +147,7 @@
 
 * **L-18: Tier 2 Safety Critical Temperature Override (F-10)**
   * **Lokasi:** `esp32_firmware.ino`, `iot_simulator.py`
-  * **Aturan:** Jika ada 1 sensor melonjak $> \text{tempMax} + 2.0\ ^\circ\text{C}$, fan **DIPAKSA ON** mem-bypass seluruh timer cooldown. Misting yang sedang berjalan dipotong seketika.
+  * **Aturan:** Jika ada 1 sensor melonjak $> \text{tempMax} + 2.0\ ^\circ\text{C}$, fan **DIPAKSA ON** mem-bypass seluruh timer cooldown dan kebal terhadap probe lockout L-15. Misting yang sedang berjalan dipotong seketika.
   * **Tujuan:** Evakuasi darurat udara panas ekstrem di bawah atap asbes.
 
 * **L-19: 24-Hour Override Stop Hysteresis (F-10a)**
@@ -358,7 +359,7 @@
 | 12 | L-12 | Evaporation Cooldown | Misting | Pompa Guard | Kunci pompa 150s pasca-mati |
 | 13 | L-13 | Emergency Safety Timeout | Misting | Pompa Guard | Cut-off paksa 90 detik |
 | 14 | L-14 | Tier 1 Daytime Cooling | Fan | Exhaust Fan | ON: $T > \text{tempMax}$, OFF: $T \le \text{tempMax}-1.5$ |
-| 15 | L-15 | Fan Utility Probe (P1) | Fan | Exhaust Fan | Uji 60s: harus turun $\ge 0.3^\circ\text{C}$, lockout 15m |
+| 15 | L-15 | Fan Utility Probe (P1) | Fan | Exhaust Fan | Uji 90s: harus turun $\ge 0.2^\circ\text{C}$, lockout 15m |
 | 16 | L-16 | Cooling Max Timeout | Fan | Exhaust Fan | Batas maksimal 180s kontinu |
 | 17 | L-17 | Cooling Cooldown | Fan | Exhaust Fan | Jeda anti-chatter 60s |
 | 18 | L-18 | Safety Critical Override | Fan | Exhaust Fan (F-10)| Paksa ON bypass jika $T > \text{tempMax} + 2^\circ\text{C}$ |
