@@ -49,7 +49,7 @@ Budidaya jamur kuping memerlukan pengendalian lingkungan yang ketat (suhu 24–3
 
 | No. | Tujuan | Modul Terkait |
 |-----|--------|---------------|
-| T1 | Memantau iklim mikro kumbung secara *real-time* via fusi sensor vertikal 3x DHT22 | Dashboard Monitoring, IoT |
+| T1 | Memantau iklim mikro kumbung secara *real-time* via fusi sensor vertikal 3x SHT30/SHT31 IP68 | Dashboard Monitoring, IoT |
 | T2 | Memetakan dan mengalokasikan batch baglog ke koordinat rak 3D (WMS) | Kumbung Grid Spasial |
 | T3 | Mencatat mutasi afkir baglog (*culls ledger*) untuk audit biosekuriti dan garansi bibit | Ledger Afkir & Baglog |
 | T4 | Mencatat panen harian multi-flush dan menganalisis Heatmap produktivitas per slot | Harvest Management |
@@ -65,14 +65,14 @@ Budidaya jamur kuping memerlukan pengendalian lingkungan yang ketat (suhu 24–3
 2. **Worker (Pekerja Lapangan / Buruh Tani)**:
    - Memantau dashboard iklim live, mencatat panen harian per slot/batch, mencatat baglog rusak (culls), dan mengaktifkan mode jeda panen saat pintu kumbung dibuka.
 3. **Perangkat IoT (ESP32 Edge Device)**:
-   - Membaca 3 sensor DHT22 vertikal, menghitung weighted sensor fusion, mengevaluasi interlock keselamatan lokal, mengirim telemetri via REST API, dan menyinkronkan threshold serta perintah jeda panen.
+   - Membaca 3 sensor SHT30/SHT31 vertikal via multiplexer TCA9548A, menghitung weighted sensor fusion, mengevaluasi interlock keselamatan lokal, mengirim telemetri via REST API, dan menyinkronkan threshold serta perintah jeda panen.
 
 ---
 
 ## 5. Arsitektur Sistem & Tech Stack
 
 ```
-[ ESP32 Edge Device (3x DHT22, Relays) ]
+[ ESP32 Edge Device (3x SHT30/SHT31 + TCA9548A, Relays) ]
        │  (HTTP POST / GET Polling ~10-30s)
        ▼
 [ Laravel 12 Backend API (Sanctum Auth, Repository, Downsampling) ]
@@ -191,7 +191,7 @@ Sistem terdiri dari 11 entitas inti:
 ## 10. Spesifikasi IoT & Perangkat Keras
 
 *   **Mikrokontroler:** ESP32 DevKit V1 (Dual Core 240MHz, Wi-Fi 802.11 b/g/n).
-*   **Sensor:** 3x DHT22 (Formasi Segitiga Diagonal: Atas 2.5m, Tengah 1.5m, Bawah 0.5m).
+*   **Sensor:** 3x SHT30 / SHT31 Probe IP68 Waterproof (Formasi Segitiga Diagonal: Atas 2.5m, Tengah 1.5m, Bawah 0.5m via TCA9548A Multiplexer).
 *   **Formula Fusion:** $T_{\text{avg}} = 0.35 T_A + 0.40 T_B + 0.25 T_C$; $RH_{\text{avg}} = 0.35 RH_A + 0.40 RH_B + 0.25 RH_C$.
 *   **Aktuator:** Pompa Misting 12V DC (Nozzle kabut 0.15mm), Solenoid Valve Air 12V, Exhaust Fan 220V AC, Modul Relay Optocoupler.
 *   **Display Lokal:** LCD I2C 16x2 menampilkan suhu, kelembapan, status MIST/FAN, dan sisa timer mode panen.

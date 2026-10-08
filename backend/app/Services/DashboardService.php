@@ -6,6 +6,7 @@ use App\Models\BaglogBatch;
 use App\Models\BaglogCull;
 use App\Models\Harvest;
 use App\Models\Sale;
+use App\Models\Slot;
 use App\Models\SprinklerLog;
 use App\Repositories\Contracts\SensorDataRepositoryInterface;
 use Carbon\Carbon;
@@ -76,6 +77,8 @@ class DashboardService
             'latest_batches' => $latestBatches,
             'sprinkler_logs' => $sprinklerLogs,
             'last_sensor_update' => $latestSensor ? $latestSensor->recorded_at->toIso8601String() : null,
+            'total_kumbung_capacity' => (int) (Slot::sum('max_capacity') ?: 3000),
+            'total_slots_count' => (int) (Slot::count() ?: 300),
         ];
     }
 }

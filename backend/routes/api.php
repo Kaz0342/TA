@@ -71,7 +71,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/sales/buyer-ranking', [SaleController::class, 'buyerRanking']);
     Route::get('/sales/price-trend', [SaleController::class, 'priceTrend']);
 
-    // Grid Spasial Kumbung 3D & Heatmap
+    // Grid Spasial Kumbung 3D, Rak, & Heatmap
+    Route::get('/racks', [SlotController::class, 'racks']);
     Route::get('/slots', [SlotController::class, 'index']);
     Route::get('/slots/heatmap', [SlotController::class, 'heatmap']);
     Route::get('/slots/{code}', [SlotController::class, 'show']);
@@ -113,6 +114,10 @@ Route::middleware('auth:sanctum')->group(function () {
         // Operasional Expenses (Admin create & delete)
         Route::post('/operational-expenses', [OperationalExpenseController::class, 'store']);
         Route::delete('/operational-expenses/{id}', [OperationalExpenseController::class, 'destroy']);
+
+        // Rack Management (Admin only)
+        Route::post('/racks', [SlotController::class, 'storeRack']);
+        Route::delete('/racks/{row}', [SlotController::class, 'destroyRack']);
 
         // Admin only sales actions (POST only — no duplikat dengan GET di atas)
         Route::post('/sales', [SaleController::class, 'store']);

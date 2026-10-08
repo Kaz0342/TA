@@ -25,7 +25,7 @@
 
 ### 1.2 Tujuan Sistem
 Sistem ini dibangun sebagai produk utama **Tugas Akhir (TA)** bidang Sistem Informasi, dengan tujuan:
-1. **Memantau iklim mikro kumbung** (suhu, kelembapan, CO2, cahaya) secara *real-time* via fusi sensor vertikal 3x DHT22.
+1. **Memantau iklim mikro kumbung** (suhu, kelembapan, CO2, cahaya) secara *real-time* via fusi sensor vertikal 3x SHT30/SHT31 IP68.
 2. **Memetakan penataan fisik kumbung (WMS)** — memisahkan koordinat kamar rak 3D statis (`slots`) dari entitas dinamis (`baglog_batches`).
 3. **Mencatat mutasi afkir berbasis ledger** — melacak kematian baglog (*culls*) akibat kontaminasi jamur hijau (*Trichoderma*) untuk audit biosekuriti dan klaim garansi bibit.
 4. **Mencatat dan menganalisis data panen multi-flush** — termasuk visualisasi heatmap produktivitas per slot kamar.
@@ -44,7 +44,7 @@ Sistem ini dibangun sebagai produk utama **Tugas Akhir (TA)** bidang Sistem Info
 | **State Management**| Zustand + TanStack Query v5 | Server state caching cerdas, polling latar belakang, no boilerplate |
 | **Backend** | Laravel 12 (PHP 8.2+) | MVC Enterprise, Repository Pattern, SQL Downsampling adaptif |
 | **Database** | SQLite (Dev) → PostgreSQL (Prod) | Integritas tipe data `DECIMAL` moneter, presisi `bcmul()` |
-| **Hardware IoT** | ESP32 DevKit V1 + 3x DHT22 | Weighted Sensor Fusion (35% Atas, 40% Tengah, 25% Bawah) |
+| **Hardware IoT** | ESP32 DevKit V1 + 3x SHT30/SHT31 IP68 | Weighted Sensor Fusion (35% Atas, 40% Tengah, 25% Bawah) via TCA9548A |
 | **Protokol IoT** | REST API HTTP/HTTPS (Stateless) | Ringkas tanpa ketergantungan message broker MQTT |
 
 ---
@@ -135,7 +135,7 @@ Terletak pada Dashboard utama, memungkinkan pekerja menjeda otomasi misting dan 
 * **Preset Durasi:** Tombol 1-klik untuk `[ 2 Jam ]`, `[ 4 Jam ]`, `[ 6 Jam ]`, dan `[ 8 Jam ]`.
 * **Live Countdown:** Menampilkan sisa jam, menit, dan detik masa jeda.
 * **Fluid Dynamics Guard:** Mematikan exhaust fan seketika guna mencegah *short-circuiting* udara saat pintu kumbung dibuka lebar.
-* **Tombol Interupsi:** `[ ⏹ Akhiri Jeda & Balik ke AUTO ]` mengembalikan kontrol iklim ke mode AUTO secara instan dan memicu pembacaan sensor DHT22 (*instant-read*).
+* **Tombol Interupsi:** `[ ⏹ Akhiri Jeda & Balik ke AUTO ]` mengembalikan kontrol iklim ke mode AUTO secara instan dan memicu pembacaan sensor SHT30/SHT31 (*instant-read*).
 
 ---
 
@@ -187,7 +187,7 @@ Arsitektur terintegrasi ini menyelesaikan rantai pasok secara utuh: dari pengada
 | FR-3.5 | Keuangan | Kartu Analisis HPP & Margin Kontribusi per batch | ✅ Selesai |
 | FR-3.6 | Audit Trail | Voiding ledger untuk pembatalan transaksi panen, penjualan, dan afkir | ✅ Selesai |
 | FR-4.1 | IoT | Ingesti telemetri IoT rate limited 20 req/menit | ✅ Selesai |
-| FR-4.2 | IoT | Weighted Sensor Fusion 3x DHT22 & histeresis landai | ✅ Selesai |
+| FR-4.2 | IoT | Weighted Sensor Fusion 3x SHT30/SHT31 & histeresis landai | ✅ Selesai |
 | FR-4.3 | IoT | Dual Cooldown Guard & Night Lockout | ✅ Selesai |
 | FR-4.4 | IoT | Konfigurasi threshold preset fase side-by-side | ✅ Selesai |
 | FR-4.5 | IoT | Sinkronisasi mode jeda panen dan instant-read resume | ✅ Selesai |

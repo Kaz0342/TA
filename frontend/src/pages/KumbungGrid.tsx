@@ -2,12 +2,13 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Grid as GridIcon, Map, Plus, Check, X, Box, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { slotService } from '../services/slotService';
-import type { SlotData } from '../services/slotService';
+import type { SlotData, RackData } from '../services/slotService';
 import api from '../services/api';
 import { useToastStore } from '../stores/toastStore';
 import { useAuthStore } from '../stores/authStore';
 import SlotDetailModal from '../components/SlotDetailModal';
 import RecordCullModal from '../components/RecordCullModal';
+import AddRackModal from '../components/AddRackModal';
 import { ModalPortal } from '../components/ui';
 
 export default function KumbungGrid() {
@@ -16,7 +17,8 @@ export default function KumbungGrid() {
   const queryClient = useQueryClient();
 
   // Grid Controls
-  const [activeRow, setActiveRow] = useState<'A' | 'B' | 'C'>('A');
+  const [activeRow, setActiveRow] = useState<string>('A');
+  const [isAddRackModalOpen, setIsAddRackModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'occupied' | 'empty'>('all');
   const [viewMode, setViewMode] = useState<'physical' | 'heatmap'>('physical');
   const [selectedBay, setSelectedBay] = useState<number>(1);
@@ -50,11 +52,35 @@ export default function KumbungGrid() {
   const [assignDate, setAssignDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedPreviewBatchId, setSelectedPreviewBatchId] = useState<number | null>(null);
 
+  // Fetch Racks
+  const { data: racks = [] } = useQuery<RackData[]>({
+    queryKey: ['racks'],
+    queryFn: () => slotService.getRacks(),
+  });
+
+  // Sinkronkan activeRow jika belum valid di daftar rak
+  useEffect(() => {
+    if (racks.length > 0 && !racks.some((r) => r.row === activeRow)) {
+      setActiveRow(racks[0].row);
+    }
+  }, [racks, activeRow]);
+
   // Fetch Slots
   const { data: slots = [], isLoading: isSlotsLoading } = useQuery<SlotData[]>({
     queryKey: ['slots', activeRow, statusFilter],
     queryFn: () => slotService.getSlots({ row: activeRow, status: statusFilter === 'all' ? undefined : statusFilter }),
   });
+
+  const currentRackInfo = useMemo(() => {
+    return racks.find((r) => r.row === activeRow);
+  }, [racks, activeRow]);
+
+  const filterCounts = useMemo(() => {
+    const total = currentRackInfo?.total_slots ?? slots.length;
+    const occupied = currentRackInfo?.occupied_slots ?? slots.filter((s) => s.is_occupied).length;
+    const empty = currentRackInfo?.empty_slots ?? Math.max(0, total - occupied);
+    return { total, occupied, empty };
+  }, [currentRackInfo, slots]);
 
   // Fetch Heatmap
   const { data: heatmapData } = useQuery({
@@ -276,20 +302,32 @@ export default function KumbungGrid() {
         {/* Top Row: Rak Selector + Allocate Button */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           {/* Row Selector */}
-          <div className="grid grid-cols-3 sm:flex p-1 bg-[#d7ebe0]/50 dark:bg-[#111c15] rounded-xl w-full sm:w-auto">
-            {['A', 'B', 'C'].map((row) => (
+          <div className="flex flex-wrap items-center gap-1.5 p-1 bg-[#d7ebe0]/50 dark:bg-[#111c15] rounded-xl w-full sm:w-auto">
+            {racks.map((r) => (
               <button
-                key={row}
-                onClick={() => setActiveRow(row as any)}
-                className={`py-2 sm:px-6 rounded-lg text-xs font-bold transition-all text-center cursor-pointer ${
-                  activeRow === row 
+                key={r.row}
+                onClick={() => setActiveRow(r.row)}
+                className={`py-2 px-4 sm:px-6 rounded-lg text-xs font-bold transition-all text-center cursor-pointer whitespace-nowrap ${
+                  activeRow === r.row 
                     ? 'bg-emerald-600 dark:bg-emerald-500 text-white shadow-sm' 
                     : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-white'
                 }`}
               >
-                Rak {row}
+                Rak {r.row}
               </button>
             ))}
+
+            {user?.role === 'admin' && (
+              <button
+                type="button"
+                onClick={() => setIsAddRackModalOpen(true)}
+                title="Tambah atau Kelola Rak Kumbung"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-emerald-100/80 hover:bg-emerald-200/90 dark:bg-emerald-950/70 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-300 border border-emerald-300/50 dark:border-emerald-700/50 transition-all cursor-pointer whitespace-nowrap active:scale-95 ml-auto sm:ml-0"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>Tambah Rak</span>
+              </button>
+            )}
           </div>
 
           {/* Allocate Button */}
@@ -309,9 +347,9 @@ export default function KumbungGrid() {
           {/* Status Segment */}
           <div className="flex p-1 bg-[#d7ebe0]/50 dark:bg-[#111c15] rounded-xl overflow-x-auto no-scrollbar shrink-0">
             {[
-              { id: 'all', label: 'Semua (100)' },
-              { id: 'occupied', label: 'Terisi' },
-              { id: 'empty', label: 'Kosong' }
+              { id: 'all', label: `Semua (${filterCounts.total})` },
+              { id: 'occupied', label: `Terisi (${filterCounts.occupied})` },
+              { id: 'empty', label: `Kosong (${filterCounts.empty})` }
             ].map((f) => (
               <button
                 key={f.id}
@@ -840,6 +878,22 @@ export default function KumbungGrid() {
         initialBatchId={cullSlot?.active_batch?.id}
         initialSlotCode={cullSlot?.slot_code}
         maxQuantity={cullSlot?.assignment?.active_capacity}
+      />
+
+      {/* Add / Manage Rack Modal */}
+      <AddRackModal
+        isOpen={isAddRackModalOpen}
+        onClose={() => setIsAddRackModalOpen(false)}
+        racks={racks}
+        onRackAdded={(newRow) => setActiveRow(newRow)}
+        onRackDeleted={(deletedRow) => {
+          if (activeRow === deletedRow) {
+            const remaining = racks.filter((r) => r.row !== deletedRow);
+            if (remaining.length > 0) {
+              setActiveRow(remaining[0].row);
+            }
+          }
+        }}
       />
 
     </div>

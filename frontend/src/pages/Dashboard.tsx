@@ -280,7 +280,7 @@ export default function Dashboard() {
 
   // Operational Baglog & Harvest Metrics
   const activeBaglogs = stats?.active_baglogs ?? 0;
-  const maxCapacity = 3000;
+  const maxCapacity = Number(stats?.total_kumbung_capacity) || 3000;
   const baglogPercentage = Math.min(100, Math.round((activeBaglogs / maxCapacity) * 100));
 
   const todayHarvestKg = Number(stats?.today_harvest_kg || 0);
@@ -409,7 +409,7 @@ export default function Dashboard() {
               <Thermometer className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2] text-[#244b37] dark:text-[#86efac] shrink-0" />
               <div className="min-w-0">
                 <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate block">Suhu</span>
-                <span className="hidden sm:block text-[10px] text-[#526a5e] dark:text-[#a3c9b4] font-semibold truncate">3x DHT22</span>
+                <span className="hidden sm:block text-[10px] text-[#526a5e] dark:text-[#a3c9b4] font-semibold truncate">3x SHT30</span>
               </div>
             </div>
             <Link to="/settings" title="Pengaturan Threshold Suhu di Modul Setting" className="shrink-0">
@@ -447,7 +447,7 @@ export default function Dashboard() {
               <Droplets className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2] text-[#244b37] dark:text-[#86efac] shrink-0" />
               <div className="min-w-0">
                 <span className="font-bold text-xs sm:text-sm text-[#192e22] dark:text-[#e4efe8] truncate block">Kelembapan</span>
-                <span className="hidden sm:block text-[10px] text-[#526a5e] dark:text-[#a3c9b4] font-semibold truncate">3x DHT22</span>
+                <span className="hidden sm:block text-[10px] text-[#526a5e] dark:text-[#a3c9b4] font-semibold truncate">3x SHT30</span>
               </div>
             </div>
             <Link to="/settings" title="Pengaturan Threshold Kelembapan di Modul Setting" className="shrink-0">
@@ -570,7 +570,7 @@ export default function Dashboard() {
                   Climate History ({timeRange === '6h' ? '6 Jam Terakhir' : timeRange === '12h' ? '12 Jam Terakhir' : timeRange === '24h' ? '24 Jam Terakhir' : '7 Hari Terakhir'})
                 </h2>
                 <p className="text-xs text-[#526a5e] dark:text-[#a3c9b4] mt-0.5">
-                  Rata-rata 3 sensor DHT22 kumbung
+                  Rata-rata 3 sensor SHT30 kumbung
                 </p>
               </div>
 

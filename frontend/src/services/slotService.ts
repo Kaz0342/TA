@@ -51,7 +51,31 @@ export interface AssignBatchPayload {
   }[];
 }
 
+export interface RackData {
+  row: string;
+  label: string;
+  total_slots: number;
+  occupied_slots: number;
+  empty_slots: number;
+  total_capacity: number;
+}
+
 export const slotService = {
+  async getRacks(): Promise<RackData[]> {
+    const res = await api.get('/racks');
+    return res.data.data;
+  },
+
+  async addRack(row?: string): Promise<any> {
+    const res = await api.post('/racks', row ? { row } : {});
+    return res.data;
+  },
+
+  async deleteRack(row: string): Promise<any> {
+    const res = await api.delete(`/racks/${row}`);
+    return res.data;
+  },
+
   async getSlots(params?: { row?: string; status?: 'occupied' | 'empty' }): Promise<SlotData[]> {
     const res = await api.get('/slots', { params });
     return res.data.data;

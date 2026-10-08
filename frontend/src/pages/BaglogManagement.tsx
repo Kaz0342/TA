@@ -104,6 +104,16 @@ export default function BaglogManagement() {
     },
   });
 
+  // Query: Fetch Dashboard Stats untuk Kapasitas Total Kumbung Dinamis
+  const { data: stats } = useQuery({
+    queryKey: ['dashboardStats'],
+    queryFn: async () => {
+      const res = await api.get('/dashboard/stats');
+      return res.data.data;
+    },
+    staleTime: 30000,
+  });
+
   // KPI Calculations
   const metrics = useMemo(() => {
     const totalBatches = baglogs.length;
@@ -116,7 +126,7 @@ export default function BaglogManagement() {
       .filter((b) => b.status === 'disposed')
       .reduce((acc, b) => acc + Number(b.quantity || 0), 0);
 
-    const maxCapacity = 3000;
+    const maxCapacity = Number(stats?.total_kumbung_capacity) || 3000;
     const capacityPercentage = Math.min(100, Math.round((activeQuantity / maxCapacity) * 100));
 
     const avgAge = activeBatches.length > 0
@@ -142,7 +152,7 @@ export default function BaglogManagement() {
       avgAge,
       dominantStage,
     };
-  }, [baglogs]);
+  }, [baglogs, stats?.total_kumbung_capacity]);
 
   // Filtered List based on search and tab
   const filteredBatches = useMemo(() => {
