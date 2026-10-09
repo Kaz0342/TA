@@ -213,9 +213,7 @@ flowchart TD
 
     Admin -->|"Instruksi Tutup Siklus Slot {assignment_id}"| P33(("3.3<br/>Tutup Siklus &<br/>Auto-Cull WMS"))
     P33 <-->|"Lock Assignment & Ambil Sisa active_capacity"| D7
-    alt Sisa active_capacity > 0
-        P33 -->|"Insert Cull (Reason: HABIS_PRODUKSI)"| D8
-    end
+    P33 -->|"Auto-Cull Sisa Baglog Aktif (Reason: HABIS_PRODUKSI)"| D8
     P33 -->|"Update Assignment (Status: COMPLETED, active_capacity: 0)"| D7
     P33 -->|"Update Slot (Status: AVAILABLE)"| D6
     P33 -->|"Notifikasi Siklus Selesai & Slot Kosong"| Admin
