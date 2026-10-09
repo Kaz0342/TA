@@ -166,7 +166,7 @@ Sistem terdiri dari 11 entitas inti:
 | `GET`  | `/api/slots/{code}` | Detail status & histori slot tertentu | Auth |
 | `POST` | `/api/batch-slot-assignments` | Alokasikan batch baglog ke slot | Admin |
 | `PATCH`| `/api/batch-slot-assignments/{id}/status` | Update status kamar alokasi | Admin |
-| `POST` | `/api/slot-assignments/{id}/complete` | Selesaikan siklus slot & auto-cull habis | Auth (Worker/Admin) |
+| `POST` | `/api/batch-slot-assignments/{id}/complete` | Selesaikan siklus slot & auto-cull habis | Admin |
 | `DELETE`| `/api/batch-slot-assignments/{id}` | Kosongkan/hapus alokasi slot | Admin |
 | `GET`  | `/api/baglog-culls` | Daftar histori mutasi afkir baglog | Auth |
 | `POST` | `/api/baglog-culls` | Catat mutasi afkir baglog baru | Auth (Admin/Worker) |

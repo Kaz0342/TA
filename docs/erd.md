@@ -279,7 +279,7 @@ Menghubungkan batch baglog ke koordinat slot kamar fisik kumbung.
 
 * **Sinkronisasi Kapasitas Aktif Slot (Atomic Persistence & Accessor):**
   - Kolom fisik `active_capacity` disimpan terindeks di database guna memastikan rendering visualisasi 300 slot sub-50ms tanpa N+1 query.
-  - Saat tutup siklus (`POST /api/slots/{code}/complete-cycle`), jika masih ada sisa `active_capacity > 0`, sistem otomatis menerbitkan record `baglog_culls` bertipe `HABIS_PRODUKSI` dan mereset `active_capacity = 0`.
+  - Saat tutup siklus (`POST /api/batch-slot-assignments/{id}/complete`), jika masih ada sisa `active_capacity > 0`, sistem otomatis menerbitkan record `baglog_culls` bertipe `HABIS_PRODUKSI` dan mereset `active_capacity = 0`.
 
 ---
 

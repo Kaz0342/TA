@@ -5,6 +5,7 @@
 **Konteks:** Tugas Akhir Program Studi Sistem Informasi  
 **Penyusun:** Benedictus Vio  
 **Terakhir Diperbarui:** Oktober 2026 (Sinkronisasi WMS Fase A–D, Voiding Ledger Audit Trail, HPP Dinamis, & IoT Rule Engine)  
+**Dokumen Terkait:** [docs/sequence_diagram.md](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/sequence_diagram.md) (Sequence Diagram UML) \| [docs/dfd.md](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/dfd.md) (Data Flow Diagram)  
 
 ---
 
@@ -217,7 +218,7 @@ flowchart LR
 | **UC-26** | Membatalkan Catatan Panen (Void) | ✅ | ❌ | ❌ | `POST /api/harvests/{id}/void` (Admin only, Audit trail) |
 | **UC-27** | Membatalkan Transaksi Penjualan (Void)| ✅ | ❌ | ❌ | `POST /api/sales/{id}/void` (Admin only, Audit trail) |
 | **UC-28** | Membatalkan Catatan Afkir (Void) | ✅ | ❌ | ❌ | `POST /api/baglog-culls/{id}/void` (Admin only, Restore capacity) |
-| **UC-29** | Menyelesaikan Siklus Kamar Rak WMS | ✅ | ❌ | ❌ | `POST /api/slots/{code}/complete-cycle` (Admin only, Auto-culls) |
+| **UC-29** | Menyelesaikan Siklus Kamar Rak WMS | ✅ | ❌ | ❌ | `POST /api/batch-slot-assignments/{id}/complete` (Admin only, Auto-culls) |
 
 ---
 
@@ -371,7 +372,7 @@ flowchart LR
   2. Modal *Detail Slot* menampilkan tombol "Tutup Siklus / Selesai Siklus".
   3. Sistem menampilkan dialog konfirmasi yang memberi tahu bahwa sisa baglog aktif (misal 4 baglog) akan otomatis dicatat sebagai afkir `HABIS_PRODUKSI`.
   4. Admin mengonfirmasi penyelesaian siklus.
-  5. Frontend mengirim `POST /api/slots/{slot_code}/complete-cycle` dengan reason opsional.
+  5. Frontend mengirim `POST /api/batch-slot-assignments/{id}/complete` dengan payload `{cull_reason}` opsional.
   6. Backend mengeksekusi transaksi database: meng-update alokasi ke `COMPLETED`, menerbitkan record cull `HABIS_PRODUKSI`, dan mereset `active_capacity = 0`.
   7. Kotak slot di denah visual berubah warna menjadi abu-abu (status Selesai) dan slot dapat dialokasikan batch baru.
 
