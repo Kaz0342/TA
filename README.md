@@ -93,7 +93,10 @@
  ┣ 📂 backend          # Laravel 13 API (Clean Architecture, Repositories, Tests)
  ┣ 📂 frontend         # React 19 + Vite SPA (Harmonious Modern Sage UI, Pages, Components)
  ┣ 📂 esp32_firmware   # Source code C++ Arduino ESP32 Firmware v3.5
- ┣ 📂 docs             # Dokumentasi arsitektur, PRD, ERD, Use Case, dan Logika Aktuator
+ ┣ 📂 docs             # Dokumentasi arsitektur, PRD, ERD, Use Case, Sequence, DFD, & Logika Aktuator
+ ┃ ┣ 📜 use_case.md    # 🎯 29 Spesifikasi Use Case SRS & Diagram UML
+ ┃ ┣ 📜 sequence_diagram.md # ⚡ 11 Diagram Sekuensial UML Lifelines & Traceability Matrix
+ ┃ ┣ 📜 dfd.md         # 🔄 Data Flow Diagram (Level 0, Level 1, Level 2, & Kamus Data)
  ┃ ┗ 📂 manual         # 📖 Buku Manual Pengguna (Markdown & HTML Siap Cetak A4)
  ┣ 📜 iot_simulator.py # Python IoT Simulator v3.5 (Termodinamika Kumbung 122.5 m³)
  ┣ 📜 DESIGN.md        # Master Design System Specification & Token Manifest
