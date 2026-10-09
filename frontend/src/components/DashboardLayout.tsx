@@ -86,28 +86,8 @@ export default function DashboardLayout() {
             </button>
           </div>
 
-          {/* User Profile Card (Informatif di mobile saat drawer dibuka) */}
-          <div className="p-4 mx-3.5 mt-3.5 rounded-2xl bg-white/70 dark:bg-[#142219]/90 border border-[#d2e8dc] dark:border-[#1e382b] shadow-2xs">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#244b37] text-white dark:bg-[#2e7d52] dark:text-[#e4efe8] flex items-center justify-center font-bold text-sm shadow-2xs">
-                {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-[#192e22] dark:text-[#e4efe8] truncate">
-                  {user?.name || 'Administrator'}
-                </p>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/80 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800/60 uppercase">
-                    <ShieldCheck className="w-3 h-3" />
-                    {user?.role || 'admin'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Navigation Links */}
-          <nav className="px-3.5 space-y-1.5 mt-4">
+          <nav className="px-3.5 space-y-1.5 mt-3.5">
             <p className="px-3 text-[10px] font-bold text-[#759183] dark:text-[#6b8a78] uppercase tracking-wider mb-2">
               Menu Navigasi
             </p>
@@ -135,8 +115,28 @@ export default function DashboardLayout() {
           </nav>
         </div>
 
-        {/* Bottom Quick Controls: Theme Toggle & Logout */}
-        <div className="p-4 border-t border-[#d2e8dc]/70 dark:border-[#1e382b] space-y-2 bg-[#e4f3eb] dark:bg-[#111c15]">
+        {/* Bottom Quick Controls: User Profile, Theme Toggle & Logout */}
+        <div className="p-3.5 border-t border-[#d2e8dc]/70 dark:border-[#1e382b] space-y-2 bg-[#e4f3eb] dark:bg-[#111c15]">
+          {/* User Profile Card (Ditaruh tepat di atas tombol mode gelap) */}
+          <div className="p-3 rounded-2xl bg-white/70 dark:bg-[#142219]/90 border border-[#d2e8dc] dark:border-[#1e382b] shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-[#244b37] text-white dark:bg-[#2e7d52] dark:text-[#e4efe8] flex items-center justify-center font-bold text-xs shadow-2xs shrink-0">
+                {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-[#192e22] dark:text-[#e4efe8] truncate leading-tight">
+                  {user?.name || 'Administrator'}
+                </p>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/80 px-1.5 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800/60 uppercase">
+                    <ShieldCheck className="w-2.5 h-2.5" />
+                    {user?.role || 'admin'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Theme Toggle Button */}
           <button
             onClick={toggleTheme}

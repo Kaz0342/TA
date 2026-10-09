@@ -168,32 +168,32 @@ export default function HarvestPauseWidget() {
             <span>Pilih durasi jeda panen:</span>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="grid grid-cols-4 sm:flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
             <button
               onClick={() => pauseMutation.mutate({ duration: 7200, reason: 'Panen Rutin 2 Jam' })}
               disabled={pauseMutation.isPending}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#edf5f0] dark:bg-[#182c20] hover:bg-[#d6e9df] dark:hover:bg-[#1f3a2b] text-[#244b37] dark:text-[#86efac] border border-[#d6e9df] dark:border-[#2b503d] transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+              className="py-2 sm:py-1.5 px-1 sm:px-3 rounded-xl text-center text-[11px] sm:text-xs font-bold bg-[#edf5f0] dark:bg-[#182c20] hover:bg-[#d6e9df] dark:hover:bg-[#1f3a2b] text-[#244b37] dark:text-[#86efac] border border-[#d6e9df] dark:border-[#2b503d] transition-all cursor-pointer active:scale-95 disabled:opacity-50"
             >
               2 Jam
             </button>
             <button
               onClick={() => pauseMutation.mutate({ duration: 14400, reason: 'Panen Rutin 4 Jam' })}
               disabled={pauseMutation.isPending}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#edf5f0] dark:bg-[#182c20] hover:bg-[#d6e9df] dark:hover:bg-[#1f3a2b] text-[#244b37] dark:text-[#86efac] border border-[#d6e9df] dark:border-[#2b503d] transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+              className="py-2 sm:py-1.5 px-1 sm:px-3 rounded-xl text-center text-[11px] sm:text-xs font-bold bg-[#edf5f0] dark:bg-[#182c20] hover:bg-[#d6e9df] dark:hover:bg-[#1f3a2b] text-[#244b37] dark:text-[#86efac] border border-[#d6e9df] dark:border-[#2b503d] transition-all cursor-pointer active:scale-95 disabled:opacity-50"
             >
               4 Jam
             </button>
             <button
               onClick={() => pauseMutation.mutate({ duration: 21600, reason: 'Inspeksi & Panen Besar 6 Jam' })}
               disabled={pauseMutation.isPending}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#edf5f0] dark:bg-[#182c20] hover:bg-[#d6e9df] dark:hover:bg-[#1f3a2b] text-[#244b37] dark:text-[#86efac] border border-[#d6e9df] dark:border-[#2b503d] transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+              className="py-2 sm:py-1.5 px-1 sm:px-3 rounded-xl text-center text-[11px] sm:text-xs font-bold bg-[#edf5f0] dark:bg-[#182c20] hover:bg-[#d6e9df] dark:hover:bg-[#1f3a2b] text-[#244b37] dark:text-[#86efac] border border-[#d6e9df] dark:border-[#2b503d] transition-all cursor-pointer active:scale-95 disabled:opacity-50"
             >
               6 Jam
             </button>
             <button
               onClick={() => pauseMutation.mutate({ duration: 28800, reason: 'Siklus Panen Total 8 Jam' })}
               disabled={pauseMutation.isPending}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#edf5f0] dark:bg-[#182c20] hover:bg-[#d6e9df] dark:hover:bg-[#1f3a2b] text-[#244b37] dark:text-[#86efac] border border-[#d6e9df] dark:border-[#2b503d] transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+              className="py-2 sm:py-1.5 px-1 sm:px-3 rounded-xl text-center text-[11px] sm:text-xs font-bold bg-[#edf5f0] dark:bg-[#182c20] hover:bg-[#d6e9df] dark:hover:bg-[#1f3a2b] text-[#244b37] dark:text-[#86efac] border border-[#d6e9df] dark:border-[#2b503d] transition-all cursor-pointer active:scale-95 disabled:opacity-50"
             >
               8 Jam
             </button>

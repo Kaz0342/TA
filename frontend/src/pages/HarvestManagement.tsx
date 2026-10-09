@@ -1002,10 +1002,14 @@ export default function HarvestManagement() {
       {/* Modal: Input Timbangan Panen Baru (Modern Glassmorphism) */}
       {isModalOpen && (
         <ModalPortal>
-          <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-[#142219] rounded-t-3xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 sm:p-6 max-w-lg w-full shadow-2xl space-y-4 sm:space-y-5 animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 flex flex-col max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
-              {/* Mobile Sheet Handle */}
-              <div className="w-12 h-1 bg-slate-300 dark:bg-[#2b503d] rounded-full mx-auto sm:hidden -mt-1 mb-1 shrink-0" />
+          <div 
+            className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-xs flex items-start sm:items-center justify-center pt-7 sm:pt-4 px-3.5 sm:p-4 pb-6 z-[100] animate-in fade-in duration-200 overflow-y-auto"
+            onClick={() => setIsModalOpen(false)}
+          >
+            <div 
+              className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 sm:p-6 max-w-lg w-full shadow-2xl space-y-4 sm:space-y-5 animate-in zoom-in-95 duration-200 flex flex-col max-h-[88vh] sm:max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
             
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-[#e4efe8] dark:border-[#1e382b] pb-3.5">
@@ -1211,10 +1215,14 @@ export default function HarvestManagement() {
       {/* Modal Konfirmasi Void Panen */}
       {voidTarget && (
         <ModalPortal>
-          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-xs animate-in fade-in duration-150">
-            <div className="bg-white dark:bg-[#14241a] border border-rose-200 dark:border-rose-900/60 rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 w-full max-w-md shadow-2xl space-y-4 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
-            {/* Mobile Sheet Handle */}
-            <div className="w-12 h-1 bg-slate-300 dark:bg-[#2b503d] rounded-full mx-auto sm:hidden -mt-1 mb-1" />
+          <div 
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-xs animate-in fade-in duration-150"
+            onClick={() => setVoidTarget(null)}
+          >
+            <div 
+              className="bg-white dark:bg-[#14241a] border border-rose-200 dark:border-rose-900/60 rounded-3xl p-5 sm:p-6 w-full max-w-md shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-150"
+              onClick={(e) => e.stopPropagation()}
+            >
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
                 <Ban className="w-5 h-5" />

@@ -1047,10 +1047,14 @@ export default function BaglogManagement() {
       {/* Modal: Tambah Batch Baglog Baru (Modern Glassmorphism) */}
       {isModalOpen && (
         <ModalPortal>
-          <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-[#142219] rounded-t-3xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 sm:p-6 max-w-lg w-full shadow-2xl space-y-4 sm:space-y-5 animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 flex flex-col max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
-              {/* Mobile Sheet Handle */}
-              <div className="w-12 h-1 bg-slate-300 dark:bg-[#2b503d] rounded-full mx-auto sm:hidden -mt-1 mb-1 shrink-0" />
+          <div 
+            className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-xs flex items-start sm:items-center justify-center pt-7 sm:pt-4 px-3.5 sm:p-4 pb-6 z-[100] animate-in fade-in duration-200 overflow-y-auto"
+            onClick={() => setIsModalOpen(false)}
+          >
+            <div 
+              className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 sm:p-6 max-w-lg w-full shadow-2xl space-y-4 sm:space-y-5 animate-in zoom-in-95 duration-200 flex flex-col max-h-[88vh] sm:max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
 
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-[#e4efe8] dark:border-[#1e382b] pb-3.5">
@@ -1236,10 +1240,14 @@ export default function BaglogManagement() {
       {/* Modal: Konfirmasi Ubah Status Batch */}
       {confirmModal.isOpen && (
         <ModalPortal>
-          <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-[#142219] rounded-t-3xl sm:rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 sm:p-6 max-w-md w-full shadow-2xl space-y-4 animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
-              {/* Mobile Sheet Handle */}
-              <div className="w-12 h-1 bg-slate-300 dark:bg-[#2b503d] rounded-full mx-auto sm:hidden -mt-1 mb-1" />
+          <div 
+            className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 z-[100] animate-in fade-in duration-200"
+            onClick={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+          >
+            <div 
+              className="bg-white dark:bg-[#142219] rounded-3xl border border-[#d6e9df] dark:border-[#1e382b] p-5 sm:p-6 max-w-md w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
 
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${confirmModal.status === 'contaminated'

@@ -243,21 +243,55 @@ export default function Dashboard() {
   const humMin = Number(thresholds?.humidity_min ?? 80);
   const humMax = Number(thresholds?.humidity_max ?? 95);
 
-  // Live or fallback sensor values
-  const tempVal = latestSensor?.temperature ? Number(latestSensor.temperature) : 27.5;
-  const humVal = latestSensor?.humidity ? Number(latestSensor.humidity) : 85.0;
+  // Timestamp terakhir sensor diterima
+  const lastSensorTime = latestSensor?.recorded_at 
+    ? new Date(latestSensor.recorded_at).getTime() 
+    : stats?.last_sensor_update 
+      ? new Date(stats.last_sensor_update).getTime() 
+      : 0;
 
-  // Real 1-Hour Change Calculation (Memoized)
+  // ESP32 dianggap Online HANYA jika mengirim data dalam 3 menit terakhir (180 detik)
+  const isEsp32Online = lastSensorTime > 0 && (Date.now() - lastSensorTime) < 180000;
+
+  // Helper format durasi relatif waktu terakhir online
+  const formatLastSeen = (timestamp: number): string => {
+    if (!timestamp) return 'Belum terhubung';
+    const diffSec = Math.floor((Date.now() - timestamp) / 1000);
+    if (diffSec < 60) return 'Baru saja';
+    if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m lalu`;
+    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}j lalu`;
+    return `${Math.floor(diffSec / 86400)}h lalu`;
+  };
+
+  // Live or fallback sensor values: Bernilai 0 jika ESP32 Offline (karena tidak ada pembacaan aktif)
+  const tempVal = isEsp32Online && latestSensor?.temperature !== undefined ? Number(latestSensor.temperature) : 0;
+  const humVal = isEsp32Online && latestSensor?.humidity !== undefined ? Number(latestSensor.humidity) : 0;
+
+  // Nilai historis terakhir saat offline
+  const lastRecordedTemp = latestSensor?.temperature != null
+    ? Number(latestSensor.temperature).toFixed(1)
+    : stats?.latest_sensor?.temperature != null
+      ? Number(stats.latest_sensor.temperature).toFixed(1)
+      : null;
+
+  const lastRecordedHum = latestSensor?.humidity != null
+    ? Number(latestSensor.humidity).toFixed(1)
+    : stats?.latest_sensor?.humidity != null
+      ? Number(stats.latest_sensor.humidity).toFixed(1)
+      : null;
+
+  // Real 1-Hour Change Calculation (Kembalikan null jika data tidak cukup, jangan mengarang angka)
   const { tempDiff, humDiff } = useMemo(() => {
-    if (!rawChartData || rawChartData.length < 6) {
-      return { tempDiff: 0.2, humDiff: -0.5 };
+    if (!isEsp32Online || !rawChartData || rawChartData.length < 2) {
+      return { tempDiff: null, humDiff: null };
     }
     const pastReadingIndex = Math.max(0, rawChartData.length - 12);
     const pastReading = rawChartData[pastReadingIndex];
-    const tempDiff = pastReading ? tempVal - Number(pastReading.temperature) : 0.2;
-    const humDiff = pastReading ? humVal - Number(pastReading.humidity) : -0.5;
+    if (!pastReading) return { tempDiff: null, humDiff: null };
+    const tempDiff = tempVal - Number(pastReading.temperature);
+    const humDiff = humVal - Number(pastReading.humidity);
     return { tempDiff, humDiff };
-  }, [rawChartData, tempVal, humVal]);
+  }, [isEsp32Online, rawChartData, tempVal, humVal]);
 
   // Processed Smooth Chart Data (Memoized - Anchor ke latestSensor agar real-time sinkron 100%)
   const smoothedChart = useMemo(() => {
@@ -273,10 +307,10 @@ export default function Dashboard() {
     }))
     : [];
 
-  // Dynamic Status Badges
-  const isTempOptimal = tempVal >= tempMin && tempVal <= tempMax;
-  const isHumOptimal = humVal >= humMin && humVal <= humMax;
-  const hasThresholdWarning = !isTempOptimal || !isHumOptimal || (stats?.system_alerts && stats.system_alerts.length > 0);
+  // Dynamic Status Badges (Hanya evaluasi ambang batas saat perangkat Online)
+  const isTempOptimal = isEsp32Online && tempVal >= tempMin && tempVal <= tempMax;
+  const isHumOptimal = isEsp32Online && humVal >= humMin && humVal <= humMax;
+  const hasThresholdWarning = isEsp32Online && (!isTempOptimal || !isHumOptimal || (stats?.system_alerts && stats.system_alerts.length > 0));
 
   // Operational Baglog & Harvest Metrics
   const activeBaglogs = stats?.active_baglogs ?? 0;
@@ -287,39 +321,27 @@ export default function Dashboard() {
   const dailyTargetKg = 15.0;
   const harvestPercentage = Math.min(100, Math.round((todayHarvestKg / dailyTargetKg) * 100));
 
-  // Automation Status Logic (Sinkron 100% dengan ESP32 & Simulator v3.5)
+  // Automation Status Logic (Sinkron 100% dengan ESP32 & Simulator v3.6)
   const currentHour = new Date().getHours();
   const isNight = currentHour >= 17 || currentHour < 6;
 
-  // Cek apakah ada aktuator yang baru saja aktif dari riwayat log backend
+  // Cek apakah ada aktuator yang saat ini SEDANG AKTIF dari riwayat log backend
   const latestLog = stats?.sprinkler_logs?.[0];
   const isLatestLogVeryRecent = latestLog && latestLog.started_at
     ? (Date.now() - new Date(latestLog.started_at).getTime()) < ((Number(latestLog.duration_seconds) || 30) * 1000 + 5000)
     : false;
 
-  // Misting:
-  // - Mode tes manual override jika di-klik
-  // - Mode Malam (17:00 - 06:00 WIB): Misting dikunci OFF (kecuali anomali ekstrem RH < 70%)
-  // - Mode Siang (06:00 - 17:00 WIB): Nyala jika RH < humMin
+  // Aktuator HANYA boleh aktif jika:
+  // 1. User sengaja mengklik card untuk uji preview animasi (testMisting / testFan), ATAU
+  // 2. ESP32 sedang ONLINE DAN ada log aktuator aktif yang belum habis durasinya.
+  // Jika ESP32 Offline atau tidak ada log aktif, aktuator WAJIB Standby/Offline!
   const isMistingActive = testMisting !== null
     ? testMisting
-    : isLatestLogVeryRecent && latestLog?.actuator === 'misting'
-      ? true
-      : isNight
-        ? (humVal < 70.0)
-        : (humVal < humMin);
+    : Boolean(isEsp32Online && isLatestLogVeryRecent && latestLog?.actuator === 'misting');
 
-  // Fan:
-  // - Mode tes manual override jika di-klik
-  // - Mode Malam: Nyala jika over-humidity purge RH >= 96% atau periodic flush
-  // - Mode Siang: Nyala jika suhu > tempMax
   const isFanActive = testFan !== null
     ? testFan
-    : isLatestLogVeryRecent && latestLog?.actuator === 'fan'
-      ? true
-      : isNight
-        ? (humVal >= 96.0 || tempVal > tempMax + 2.0)
-        : (tempVal > tempMax);
+    : Boolean(isEsp32Online && isLatestLogVeryRecent && latestLog?.actuator === 'fan');
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -427,15 +449,34 @@ export default function Dashboard() {
                 />
                 <span className="text-sm sm:text-lg font-bold text-[#192e22] dark:text-[#e4efe8]">°C</span>
               </div>
-              <p className={`text-[10px] sm:text-xs font-bold mt-0.5 truncate ${isTempOptimal ? 'text-[#15803d] dark:text-[#4ade80]' : 'text-[#e05345] dark:text-[#f87171]'}`}>
-                {isTempOptimal ? `Aman (${tempMin}–${tempMax}°C)` : tempVal < tempMin ? `Dingin (<${tempMin})` : `Panas (>${tempMax})`}
+              <p className={`text-[10px] sm:text-xs font-bold mt-0.5 truncate ${
+                !isEsp32Online 
+                  ? 'text-slate-400 dark:text-slate-500' 
+                  : isTempOptimal 
+                    ? 'text-[#15803d] dark:text-[#4ade80]' 
+                    : 'text-[#e05345] dark:text-[#f87171]'
+              }`}>
+                {!isEsp32Online
+                  ? 'Perangkat Terputus'
+                  : isTempOptimal
+                    ? `Aman (${tempMin}–${tempMax}°C)`
+                    : tempVal < tempMin
+                      ? `Dingin (<${tempMin})`
+                      : `Panas (>${tempMax})`}
               </p>
               <div className="flex items-center justify-between text-[9px] sm:text-[11px] text-[#759183] dark:text-[#6b8a78] mt-1.5 sm:mt-2 font-medium">
-                <span className="truncate">{tempDiff >= 0 ? `+${tempDiff.toFixed(1)}` : tempDiff.toFixed(1)}°C/jam</span>
+                <span className="truncate">
+                  {isEsp32Online
+                    ? (tempDiff !== null ? `${tempDiff >= 0 ? '+' : ''}${tempDiff.toFixed(1)}°C/jam` : '— (Stabil)')
+                    : (lastRecordedTemp ? `Terakhir: ${lastRecordedTemp}°C` : (lastSensorTime > 0 ? 'Data Tersimpan' : '—'))}
+                </span>
+                {!isEsp32Online && (
+                  <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold shrink-0">Offline</span>
+                )}
               </div>
             </div>
             <div className="hidden sm:block">
-              <SemiCircleGauge value={tempVal} min={15} max={35} color={isTempOptimal ? '#499b70' : '#e05345'} />
+              <SemiCircleGauge value={tempVal} min={15} max={35} color={!isEsp32Online ? '#94a3b8' : isTempOptimal ? '#499b70' : '#e05345'} />
             </div>
           </div>
         </div>
@@ -465,20 +506,35 @@ export default function Dashboard() {
                 />
                 <span className="text-sm sm:text-lg font-bold text-[#192e22] dark:text-[#e4efe8]">%</span>
               </div>
-              <p className={`text-[10px] sm:text-xs font-bold mt-0.5 truncate ${isHumOptimal ? 'text-[#0284c7] dark:text-[#38bdf8]' : 'text-[#e05345] dark:text-[#f87171]'}`}>
-                {isHumOptimal
-                  ? `Aman (${humMin}–${humMax}%)`
-                  : humVal < humMin
-                    ? 'Kering (Misting)'
-                    : `Lembab (>${humMax}%)`
+              <p className={`text-[10px] sm:text-xs font-bold mt-0.5 truncate ${
+                !isEsp32Online 
+                  ? 'text-slate-400 dark:text-slate-500' 
+                  : isHumOptimal 
+                    ? 'text-[#0284c7] dark:text-[#38bdf8]' 
+                    : 'text-[#e05345] dark:text-[#f87171]'
+              }`}>
+                {!isEsp32Online
+                  ? 'Perangkat Terputus'
+                  : isHumOptimal
+                    ? `Aman (${humMin}–${humMax}%)`
+                    : humVal < humMin
+                      ? 'Kering (Misting)'
+                      : `Lembab (>${humMax}%)`
                 }
               </p>
               <div className="flex items-center justify-between text-[9px] sm:text-[11px] text-[#759183] dark:text-[#6b8a78] mt-1.5 sm:mt-2 font-medium">
-                <span className="truncate">{humDiff >= 0 ? `+${humDiff.toFixed(1)}` : humDiff.toFixed(1)}%/jam</span>
+                <span className="truncate">
+                  {isEsp32Online
+                    ? (humDiff !== null ? `${humDiff >= 0 ? '+' : ''}${humDiff.toFixed(1)}%/jam` : '— (Stabil)')
+                    : (lastRecordedHum ? `Terakhir: ${lastRecordedHum}%` : (lastSensorTime > 0 ? 'Data Tersimpan' : '—'))}
+                </span>
+                {!isEsp32Online && (
+                  <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold shrink-0">Offline</span>
+                )}
               </div>
             </div>
             <div className="hidden sm:block">
-              <SemiCircleGauge value={humVal} min={40} max={100} color={isHumOptimal ? '#499b70' : '#e05345'} />
+              <SemiCircleGauge value={humVal} min={40} max={100} color={!isEsp32Online ? '#94a3b8' : isHumOptimal ? '#499b70' : '#e05345'} />
             </div>
           </div>
         </div>
@@ -629,9 +685,11 @@ export default function Dashboard() {
                   <Activity className="w-6 h-6 stroke-[2]" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-[#192e22] dark:text-[#e4efe8]">Belum Ada Rekaman Data Sensor</h3>
+                  <h3 className="text-sm font-bold text-[#192e22] dark:text-[#e4efe8]">Belum Ada Rekaman Data Sensor ({timeRange})</h3>
                   <p className="text-xs text-[#526a5e] dark:text-[#a3c9b4] mt-1 max-w-md">
-                    Database saat ini dalam kondisi bersih (0 data). Grafik akan otomatis membaca suhu &amp; kelembapan live sesuai jam lokal saat ESP32 atau IoT Simulator dinyalakan.
+                    {lastSensorTime > 0
+                      ? `Tidak ada data dalam rentang ${timeRange}. Data terakhir tercatat ${formatLastSeen(lastSensorTime)}. Coba pilih rentang lebih panjang (24h/7d) atau nyalakan IoT Simulator.`
+                      : 'Database saat ini dalam kondisi bersih (0 data). Grafik akan otomatis membaca suhu & kelembapan live sesuai jam lokal saat ESP32 atau IoT Simulator dinyalakan.'}
                   </p>
                 </div>
               </div>
@@ -1039,10 +1097,20 @@ export default function Dashboard() {
                 </h2>
                 <p className="text-[11px] text-[#526a5e] dark:text-[#a3c9b4]">Kontrol otomatis oleh mikrokontroler ESP32</p>
               </div>
-              <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5 shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                ESP32 Online
-              </span>
+              {isEsp32Online ? (
+                <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5 shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  ESP32 Online
+                </span>
+              ) : (
+                <span 
+                  className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 shrink-0"
+                  title={lastSensorTime > 0 ? `Terakhir aktif: ${formatLastSeen(lastSensorTime)}` : 'Belum ada data sensor'}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                  ESP32 Offline {lastSensorTime > 0 ? `(${formatLastSeen(lastSensorTime)})` : ''}
+                </span>
+              )}
             </div>
 
             {/* Live Actuators Monitoring Status */}
@@ -1069,15 +1137,19 @@ export default function Dashboard() {
                       <p className="text-xs sm:text-sm font-bold text-[#192e22] dark:text-[#e4efe8]">Misting Sprinkler</p>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-all shrink-0 ${isMistingActive
                           ? 'bg-emerald-500 text-white animate-pulse shadow-xs'
-                          : isNight
-                            ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60'
-                            : 'bg-slate-100 dark:bg-[#1f382b] text-slate-600 dark:text-[#a3c9b4]'
+                          : !isEsp32Online
+                            ? 'bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
+                            : isNight
+                              ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60'
+                              : 'bg-slate-100 dark:bg-[#1f382b] text-slate-600 dark:text-[#a3c9b4]'
                         }`}>
                         {isMistingActive
                           ? 'Menyemprot'
-                          : isNight
-                            ? 'Night Lockout'
-                            : 'Standby'}
+                          : !isEsp32Online
+                            ? 'Offline'
+                            : isNight
+                              ? 'Night Lockout'
+                              : 'Standby'}
                       </span>
                     </div>
 
@@ -1097,7 +1169,7 @@ export default function Dashboard() {
                         Cooldown: 150s
                       </span>
                       <span className="bg-white/80 dark:bg-[#182c20] border border-[#d6e9df] dark:border-[#1e382b] px-2 py-0.5 rounded-md">
-                        Timeout: 60s
+                        Timeout: 90s
                       </span>
                     </div>
                   </div>
@@ -1128,15 +1200,19 @@ export default function Dashboard() {
                       <p className="text-xs sm:text-sm font-bold text-[#192e22] dark:text-[#e4efe8]">Exhaust Fan / Blower</p>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-all shrink-0 ${isFanActive
                           ? 'bg-emerald-500 text-white animate-pulse shadow-xs'
-                          : isNight
-                            ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60'
-                            : 'bg-slate-100 dark:bg-[#1f382b] text-slate-600 dark:text-[#a3c9b4]'
+                          : !isEsp32Online
+                            ? 'bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
+                            : isNight
+                              ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60'
+                              : 'bg-slate-100 dark:bg-[#1f382b] text-slate-600 dark:text-[#a3c9b4]'
                         }`}>
                         {isFanActive
                           ? 'Sirkulasi ON'
-                          : isNight
-                            ? 'Night Purge'
-                            : 'Standby'}
+                          : !isEsp32Online
+                            ? 'Offline'
+                            : isNight
+                              ? 'Night Purge'
+                              : 'Standby'}
                       </span>
                     </div>
 
@@ -1149,6 +1225,12 @@ export default function Dashboard() {
 
                     {/* Micro-Chips Timing */}
                     <div className="mt-2 flex items-center gap-1.5 flex-wrap text-[9px] sm:text-[10px] font-bold text-[#486356] dark:text-[#86efac]">
+                      <span className="bg-white/80 dark:bg-[#182c20] border border-[#d6e9df] dark:border-[#1e382b] px-2 py-0.5 rounded-md">
+                        Probe: 90s
+                      </span>
+                      <span className="bg-white/80 dark:bg-[#182c20] border border-[#d6e9df] dark:border-[#1e382b] px-2 py-0.5 rounded-md">
+                        Lockout: 15m
+                      </span>
                       <span className="bg-white/80 dark:bg-[#182c20] border border-[#d6e9df] dark:border-[#1e382b] px-2 py-0.5 rounded-md">
                         Histeresis: 1.5°C
                       </span>
@@ -1505,11 +1587,14 @@ export default function Dashboard() {
               <h2 className="text-base sm:text-lg font-bold text-[#192e22] dark:text-[#e4efe8]">
                 Current Alerts
               </h2>
-              <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${hasThresholdWarning
+              <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
+                hasThresholdWarning
                   ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 animate-pulse'
-                  : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                }`}>
-                {hasThresholdWarning ? 'Peringatan Aktif' : 'Normal'}
+                  : !isEsp32Online
+                    ? 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
+                    : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+              }`}>
+                {hasThresholdWarning ? 'Peringatan Aktif' : !isEsp32Online ? 'Offline' : 'Normal'}
               </span>
             </div>
 
@@ -1535,6 +1620,11 @@ export default function Dashboard() {
                     Atur
                   </Link>
                 </div>
+              ) : !isEsp32Online ? (
+                <div className="bg-slate-50 dark:bg-[#111c15] border border-slate-200 dark:border-[#1e382b] text-slate-700 dark:text-slate-300 rounded-2xl p-3 text-xs font-medium flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span>Node ESP32 sedang offline ({lastSensorTime > 0 ? formatLastSeen(lastSensorTime) : 'belum terhubung'}). Evaluasi ambang batas ditangguhkan.</span>
+                </div>
               ) : (
                 <div className="bg-[#eef3eb] dark:bg-[#182c20] text-[#33463a] dark:text-[#a3c9b4] rounded-2xl p-3 text-xs font-medium flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
@@ -1552,16 +1642,22 @@ export default function Dashboard() {
                     Protokol: HTTP REST API • Interval: 5 Menit
                   </p>
                 </div>
-                <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-100 dark:border-emerald-800">
-                  Tersinkron
-                </span>
+                {isEsp32Online ? (
+                  <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-100 dark:border-emerald-800">
+                    Tersinkron
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
+                    Terputus
+                  </span>
+                )}
               </div>
             </div>
           </div>
 
           <div className="pt-4 mt-4 border-t border-slate-100 dark:border-[#1e382b] flex items-center justify-between text-xs text-[#759183] dark:text-[#6b8a78]">
-            <span>System: ESP32 IoT Connected</span>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>System: ESP32 IoT {isEsp32Online ? 'Connected' : 'Disconnected (Offline)'}</span>
+            <span className={`w-2 h-2 rounded-full ${isEsp32Online ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
           </div>
         </div>
 

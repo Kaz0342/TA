@@ -708,10 +708,14 @@ export default function KumbungGrid() {
       {/* Assign Modal */}
       {isAssignModalOpen && (
         <ModalPortal>
-          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 dark:bg-black/80 backdrop-blur-xs animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-[#111c15] rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md border border-[#d6e9df] dark:border-[#1e382b] overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[90vh]">
-              {/* Mobile Sheet Handle */}
-              <div className="w-12 h-1 bg-slate-300 dark:bg-[#2b503d] rounded-full mx-auto sm:hidden my-2 shrink-0" />
+          <div 
+            className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center pt-7 sm:pt-4 px-3.5 sm:p-4 pb-6 bg-black/60 dark:bg-black/80 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto"
+            onClick={() => setIsAssignModalOpen(false)}
+          >
+            <div 
+              className="bg-white dark:bg-[#111c15] rounded-3xl shadow-2xl w-full max-w-md border border-[#d6e9df] dark:border-[#1e382b] overflow-hidden flex flex-col max-h-[88vh] sm:max-h-[90vh] animate-in zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
             <div className="p-5 sm:p-6 border-b border-[#edf5f0] dark:border-[#1e382b] flex justify-between items-center bg-[#f7faf8] dark:bg-[#142219] shrink-0">
               <div>
                 <h3 className="text-base sm:text-lg font-bold text-[#192e22] dark:text-[#e4efe8]">Alokasi Batch ke Rak</h3>
