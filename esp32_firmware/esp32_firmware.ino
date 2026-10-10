@@ -125,12 +125,12 @@ const unsigned long NIGHT_MISTING_INTERVAL_MS   = 600000;  // 600 detik (10 meni
 const unsigned long POST_MISTING_FAN_DELAY_MS   = 60000;   // 60 detik jeda kabut mengendap sebelum fan boleh ON
 const unsigned long FAN_HOMOGENIZE_DURATION_MS  = 30000;   // 30 detik durasi fan homogenisasi siang
 const unsigned long FAN_HOMOGENIZE_COOLDOWN_MS  = 900000;  // 15 menit (900 detik) jeda relaksasi sirkulasi siang
-const unsigned long NIGHT_FAN_DURATION_MS       = 45000;   // 45 detik durasi pasti fan malam
+const unsigned long NIGHT_FAN_DURATION_MS       = 300000;  // 300 detik (5 menit) durasi pasti fan malam (purge CO2 riil 35-45% pertukaran massa udara)
 const unsigned long NIGHT_FAN_PERIODIC_MS       = 3600000; // 60 menit (1 jam) siklus berkala flush CO2 malam
 const unsigned long NIGHT_FAN_COOLDOWN_MS       = 1800000; // 30 menit cooldown over-humidity purge malam
 const float NIGHT_OVER_HUMIDITY_THRESHOLD       = 96.0;    // Batas RH malam pemicu purge (96.0%)
 const float HUM_DISPARITY_THRESHOLD             = 12.0;    // Disparitas RH > 12.0% pemicu homogenisasi (baseline alami ~9%)
-const float CRITICAL_TEMP_OFFSET                = 2.0;     // Offset suhu kritis: tempMax + 2.0°C
+const float CRITICAL_TEMP_OFFSET                = 4.0;     // Offset suhu kritis: tempMax + 4.0°C (Margin aman 2.45°C cegah premature override)
 const unsigned long MAX_FAN_COOLING_DURATION_MS = 180000;  // 180 detik (3 menit) timeout maksimal fan pendinginan siang (cegah dehidrasi)
 const unsigned long FAN_COOLING_COOLDOWN_MS     = 60000;   // 60 detik (1 menit) cooldown anti-chattering fan pendinginan siang
 const unsigned long FAN_PROBE_DURATION_MS       = 90000;   // 90 detik evaluasi uji probe pendinginan siang (P1 Opsi B)
@@ -563,7 +563,7 @@ void loop() {
     }
   }
 
-  // ── F. WATCHDOG: NIGHT FAN & MORNING TRANSITION (45s / 06:00 WIB) ──
+  // ── F. WATCHDOG: NIGHT FAN & MORNING TRANSITION (300s / 06:00 WIB) ──
   // Timer night fan independen + failsafe transisi pagi agar flag isNightFan tidak nyangkut.
   if (isFanActive && isNightFan && !isHomogenizing) {
     unsigned long elapsed = now - fanStartTime;
@@ -571,7 +571,7 @@ void loop() {
     if (elapsed >= NIGHT_FAN_DURATION_MS || !isStillNight) {
       String reason = (!isStillNight && elapsed < NIGHT_FAN_DURATION_MS)
         ? "Transisi ke Pagi Hari (06:00 WIB)"
-        : "Night ventilation selesai 45s (RH: " + String(lastHum, 1) + "%)";
+        : "Night ventilation selesai " + String(NIGHT_FAN_DURATION_MS / 1000) + "s (RH: " + String(lastHum, 1) + "%)";
       Serial.println("[NIGHT] 🌙 " + reason);
       stopFan(reason);
     }
@@ -639,9 +639,12 @@ void controlMisting(float temp, float hum, float minHum) {
       return;
     }
 
-    // [F-10b] Jangan mulai misting saat kondisi kritis (override fan akan langsung memotongnya)
+    // [F-10b] Jangan mulai misting saat kondisi kritis (override fan akan langsung memotongnya),
+    // KECUALI jika kipas sedang tidak berguna / lockout (handover pendinginan evaporatif) atau RH sangat rendah (dehidrasi)
     if (maxSensorTemp > tempMax + CRITICAL_TEMP_OFFSET) {
-      return;
+      if (isFanUseful(now) && !(minHum < criticalLowRh)) {
+        return;
+      }
     }
 
     // 0. NIGHT MISTING GUARD (P2'): Jeda minimal 600s (10 menit) + dehidrasi parah
@@ -766,8 +769,16 @@ void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum)
   }
   wasNight = isNight;
 
-  // 1. TIER 2: Safety Override Suhu Kritis (BYPASS SEMUA DELAY & COOLDOWN!)
+  // 1. TIER 2: Safety Override Suhu Kritis (BYPASS SEMUA DELAY & COOLDOWN jika kipas berguna!)
   if (maxTemp > criticalThreshold) {
+    if (!isFanUseful(now)) {
+      // Handover: Kipas sedang lockout 15 menit (terbukti tidak efektif saat probe).
+      // Tahan fan OFF agar misting evaporatif bisa mendinginkan kumbung tanpa dipotong!
+      if (isFanActive && !isHomogenizing && !isNightFan) {
+        stopFan("Kipas dikunci (Tidak efektif di suhu kritis, serahkan ke misting)");
+      }
+      return;
+    }
     if (isMistingActive) {
       stopMisting("Dipotong Safety Override Kipas (Suhu Kritis)");
     }
@@ -794,8 +805,8 @@ void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum)
   }
 
   // 3. NIGHT MODE FAN INTERLOCK
-  // Jika night fan sedang aktif (berjalan 45s atau menyeberang pagi), tahan agar tidak dievaluasi logika siang.
-  // Watchdog Section F di loop() yang bertanggung jawab penuh mematikan fan saat 45s selesai atau transisi jam 06:00 WIB.
+  // Jika night fan sedang aktif (berjalan 300s atau menyeberang pagi), tahan agar tidak dievaluasi logika siang.
+  // Watchdog Section F di loop() yang bertanggung jawab penuh mematikan fan saat 300s selesai atau transisi jam 06:00 WIB.
   if (isFanActive && isNightFan) {
     return;
   }
@@ -918,7 +929,7 @@ void startFan(String reason, bool homogenize, bool nightMode, bool criticalOverr
 
   Serial.print("   🌀 [FAN ON] ");
   if (criticalOverride) Serial.print("[SAFETY OVERRIDE] ");
-  else if (nightMode) Serial.print("[NIGHT PURGE 45s] ");
+  else if (nightMode) Serial.print("[NIGHT PURGE " + String(NIGHT_FAN_DURATION_MS / 1000) + "s] ");
   else if (homogenize) Serial.print("[HOMOGENISASI 30s] ");
   Serial.println("Pemicu: " + reason);
 }

@@ -515,10 +515,10 @@ Jika satu sensor gagal baca (NaN), bobot dihitung ulang secara dinamis dari sens
 | Situasi | Perilaku |
 |---------|----------|
 | Siang, suhu > batas atas | Diuji 90 detik (P1 Probe). Jika suhu tidak turun $\ge 0,2^\circ\text{C}$, dikunci 15 menit. Jika efektif, nyala sampai suhu turun 1,5 °C (maks. 180s, jeda 60s) |
-| Suhu > batas atas + 2 °C | Dipaksa nyala (override, mem-bypass cooldown dan lockout probe) |
+| Suhu > batas atas + 4 °C | Dipaksa nyala (override, mem-bypass cooldown; tunduk lockout handover) |
 | Selisih RH atas-bawah > 12 % | Homogenisasi 30 detik (jeda 15 menit) |
-| Malam, RH ≥ 96 % | Purge 45 detik (jeda 30 menit) |
-| Malam | Pembuangan CO2 45 detik tiap 60 menit |
+| Malam, RH ≥ 96 % | Purge 300 detik / 5 menit (jeda 30 menit) |
+| Malam | Pembuangan CO2 300 detik / 5 menit tiap 60 menit |
 | Setelah misting | Tunda 60 detik (agar kabut mengendap) |
 
 Misting dan kipas saling mengunci (interlock) agar tidak bersamaan.

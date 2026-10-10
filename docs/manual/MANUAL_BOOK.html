@@ -756,8 +756,8 @@ Mortalitas              = jumlah afkir / jumlah baglog
 <td>Diuji 90 detik (P1 Probe). Jika suhu tidak turun $\ge 0,2^\circ\text{C}$, dikunci 15 menit. Jika efektif, nyala sampai suhu turun 1,5 °C (maks. 180s, jeda 60s)</td>
 </tr>
 <tr>
-<td>Suhu &gt; batas atas + 2 °C</td>
-<td>Dipaksa nyala (override, mem-bypass cooldown dan lockout probe)</td>
+<td>Suhu &gt; batas atas + 4 °C</td>
+<td>Dipaksa nyala (override, mem-bypass cooldown; tunduk lockout handover)</td>
 </tr>
 <tr>
 <td>Selisih RH atas-bawah &gt; 12 %</td>
@@ -765,11 +765,11 @@ Mortalitas              = jumlah afkir / jumlah baglog
 </tr>
 <tr>
 <td>Malam, RH ≥ 96 %</td>
-<td>Purge 45 detik (jeda 30 menit)</td>
+<td>Purge 300 detik / 5 menit (jeda 30 menit)</td>
 </tr>
 <tr>
 <td>Malam</td>
-<td>Pembuangan CO2 45 detik tiap 60 menit</td>
+<td>Pembuangan CO2 300 detik / 5 menit tiap 60 menit</td>
 </tr>
 <tr>
 <td>Setelah misting</td>

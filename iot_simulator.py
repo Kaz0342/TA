@@ -56,7 +56,7 @@ MISTING_COOLDOWN = 150          # Jeda wajib setelah misting OFF (detik) — wak
 POST_MISTING_FAN_DELAY = 60     # Jeda wajib setelah misting OFF sebelum fan boleh nyala (detik) — waktu kabut mengendap
 FAN_HOMOGENIZE_COOLDOWN = 900   # Jeda wajib setelah fan homogenisasi OFF (detik) — 15 menit relaksasi udara & sirkulasi
 HUM_DISPARITY_THRESHOLD = 12.0  # Batas selisih RH atas-bawah pemicu fan homogenisasi (%) — baseline fisik kumbung ~9%
-CRITICAL_TEMP_OFFSET = 2.0      # Safety Override: jika SATU sensor > tempMax + offset ini, paksa Fan ON
+CRITICAL_TEMP_OFFSET = 4.0      # Safety Override: jika SATU sensor > tempMax + offset ini, paksa Fan ON (Margin aman 2.45°C cegah premature override)
 MAX_FAN_COOLING_DURATION = 180  # 180 detik (3 menit) timeout maksimal fan pendinginan siang (cegah dehidrasi)
 FAN_COOLING_COOLDOWN = 60       # 60 detik (1 menit) cooldown anti-chattering jeda fan pendinginan siang
 FAN_PROBE_DURATION = 90.0        # 90 detik evaluasi uji probe pendinginan siang (P1 Opsi B)
@@ -68,8 +68,8 @@ CONTROL_INTERVAL_S = 5          # Cadence evaluasi kontrol (detik) — samakan d
 # Konstanta Night Mode (Malam Hari: 17:00 - 06:00 WIB)
 NIGHT_START_HOUR = 17           # 17:00 WIB: Mulai mode malam (Misting lockout)
 NIGHT_END_HOUR = 6              # 06:00 WIB: Selesai mode malam
-NIGHT_FAN_DURATION = 45         # Durasi pasti nyala fan malam (detik)
-NIGHT_FAN_PERIODIC_INTERVAL = 3600  # Tiap 60 menit (3600 detik) fan nyala 45s buat buang CO2
+NIGHT_FAN_DURATION = 300        # Durasi pasti nyala fan malam (300s / 5 menit, purge CO2 riil 35-45% pertukaran massa udara)
+NIGHT_FAN_PERIODIC_INTERVAL = 3600  # Tiap 60 menit (3600 detik) fan nyala 300s buat buang CO2
 NIGHT_FAN_COOLDOWN = 1800       # Cooldown 30 menit (1800 detik) setelah over-humidity purge
 NIGHT_OVER_HUMIDITY_THRESHOLD = 96.0  # Batas atas RH malam pemicu purge (96.0%)
 
@@ -576,12 +576,13 @@ class KumbungState:
                 s['true_humidity'] += 0.16 * evap_potential * dt_seconds
 
             # B. Exhaust Fan (Konveksi paksa / pertukaran udara dengan luar)
+            # Kalibrasi Fisika Bangunan: k = 0.0035 s^-1 (~12.6 ACH ekivalen kipas 300 CFM 4.2 ACH + kebocoran infiltrasi 8.4 ACH)
             if self.is_fan_active:
                 temp_excess = max(0.0, s['true_temperature'] - zone_ambient_temp)
-                s['true_temperature'] -= temp_excess * 0.08 * dt_seconds
+                s['true_temperature'] -= temp_excess * 0.0035 * dt_seconds
 
                 hum_diff = s['true_humidity'] - zone_ambient_hum
-                s['true_humidity'] -= hum_diff * 0.04 * dt_seconds
+                s['true_humidity'] -= hum_diff * 0.0020 * dt_seconds
 
             # 2. Passive Moisture Buffering (Penguapan dari permukaan basah: lantai, dinding, baglog)
             # Air yang menempel tidak hilang, tapi menguap perlahan menjaga kelembaban udara mikro
@@ -700,9 +701,12 @@ def control_misting(state: KumbungState):
         if state.is_fan_active:
             return
 
-        # [F-10b] Jangan mulai misting saat kondisi kritis (override fan akan langsung memotongnya)
+        # [F-10b] Jangan mulai misting saat kondisi kritis (override fan akan langsung memotongnya),
+        # KECUALI jika kipas sedang tidak berguna / lockout (handover pendinginan evaporatif) atau RH sangat rendah (dehidrasi)
         if state.get_max_temp() > state.temp_max + CRITICAL_TEMP_OFFSET:
-            return
+            now_ts = time.time()
+            if is_fan_useful(state, now_ts) and not (min_hum < critical_low_rh):
+                return
 
         # 0. NIGHT MISTING POLICY (P2' Reform - 17:00 - 06:00 WIB):
         # Misting diizinkan di malam hari asalkan jeda minimal 600 detik (10 menit) antar-siklus (cegah becek)
@@ -822,9 +826,22 @@ def control_fan(state: KumbungState):
     hour = now_dt.hour
     is_night = (hour >= NIGHT_START_HOUR or hour < NIGHT_END_HOUR)
 
-    # 1. Tier 2: Safety Override Suhu Kritis Atas (BYPASS SEMUA DELAY & COOLDOWN!)
-    # Mirror firmware: safety override kebal probe dan wajib aktif selama suhu kritis
+    # 1. Tier 2: Safety Override Suhu Kritis Atas (BYPASS SEMUA DELAY & COOLDOWN jika kipas berguna!)
+    # Mirror firmware: safety override kebal probe dan wajib aktif selama suhu kritis KECUALI jika fan sedang di-lockout
     if max_temp > critical_threshold:
+        if not is_fan_useful(state, now_ts):
+            # Handover: Kipas sedang lockout 15 menit (terbukti gagal menurunkan suhu saat probe).
+            # Tahan fan OFF agar misting evaporatif bisa mendinginkan kumbung tanpa dipotong!
+            if state.is_fan_active and not state.is_homogenizing and not state.is_night_fan:
+                duration = int(now_ts - (state.fan_start_time or now_ts))
+                stop_reason = "Kipas dikunci (Tidak efektif di suhu kritis, serahkan ke misting)"
+                state.is_fan_active = False
+                state.is_critical_override = False
+                state.fan_cooling_last_stop_time = now_ts
+                print(f"   🌀 [FAN OFF] {stop_reason} | Durasi: {duration}s")
+                send_actuator_log(max(1, duration), state.fan_trigger_reason or "Suhu Kritis", stop_reason, "fan")
+            return
+
         # Jika misting sedang aktif, potong/matikan misting agar tidak bentrok dengan kipas darurat
         # (BUG FIX #2: Cleanup lengkap + kirim API log, sama seperti firmware stopMisting())
         if state.is_misting_active:
@@ -858,7 +875,7 @@ def control_fan(state: KumbungState):
             return
 
     # 3. MORNING TRANSITION & NIGHT MODE FAN (17:00 - 06:00 WIB)
-    # Failsafe 1: Jika is_night_fan aktif menyeberang ke pagi hari (jam 06:00 WIB) atau selesai 45s
+    # Failsafe 1: Jika is_night_fan aktif menyeberang ke pagi hari (jam 06:00 WIB) atau selesai 300s
     if state.is_fan_active and getattr(state, 'is_night_fan', False):
         elapsed = now_ts - (state.fan_start_time or now_ts)
         if elapsed >= NIGHT_FAN_DURATION or not is_night:
@@ -873,7 +890,7 @@ def control_fan(state: KumbungState):
             print(f"   🌙 [NIGHT FAN OFF] {stop_reason}")
             send_actuator_log(max(1, int(elapsed)), state.fan_trigger_reason, stop_reason, "fan")
             return
-        return  # Masih berjalan di malam hari (< 45s), tahan agar tidak dievaluasi logika siang
+        return  # Masih berjalan di malam hari (< 300s), tahan agar tidak dievaluasi logika siang
 
     # [F-10a] Histeresis stop Safety Override berlaku 24 jam (siang DAN malam)
     # Mirror firmware: hanya stop jika max_temp <= critical - 1.0 DAN temp <= temp_max. Kebal probe lockout!
@@ -925,7 +942,7 @@ def control_fan(state: KumbungState):
                     # Tunda jadwal CO2 flush 60 menit ke depan agar fan tidak nyala bertubi-tubi dalam 1 jam!
                     state.last_night_periodic_fan_time = now_ts
                     state.fan_trigger_reason = f"Night Over-Humidity Purge (RH {hum}% >= {NIGHT_OVER_HUMIDITY_THRESHOLD}%)"
-                    print(f"   🌙 [NIGHT FAN ON] Over-Humidity Purge (45s) | Pemicu: RH {hum}% >= {NIGHT_OVER_HUMIDITY_THRESHOLD}%")
+                    print(f"   🌙 [NIGHT FAN ON] Over-Humidity Purge ({NIGHT_FAN_DURATION}s) | Pemicu: RH {hum}% >= {NIGHT_OVER_HUMIDITY_THRESHOLD}%")
                     return
 
             # Pemicu Malam 2: Periodic CO2 Flush (Tiap 60 Menit sekali sebagai fallback)
@@ -938,7 +955,7 @@ def control_fan(state: KumbungState):
                 # Sinkronisasi Timer: CO2 flush sudah menyegarkan udara kumbung, beri jeda purge minimal 30 menit
                 state.last_night_purge_fan_time = now_ts
                 state.fan_trigger_reason = "Night Periodic CO2 Flush (Siklus 60 Menit)"
-                print(f"   🌙 [NIGHT FAN ON] Periodic CO2 Flush (45s) | Siklus 60 Menit")
+                print(f"   🌙 [NIGHT FAN ON] Periodic CO2 Flush ({NIGHT_FAN_DURATION}s) | Siklus 60 Menit")
                 return
 
         # Di malam hari, tidak menjalankan daytime temperature/homogenize triggers

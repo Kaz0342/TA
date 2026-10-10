@@ -100,10 +100,10 @@
   * **Aturan:** Pada pukul 17:00 – 06:00 WIB, misting diizinkan aktif sesuai histeresis normal, tetapi **wajib memiliki jeda minimal 600 detik (10 menit)** antar-siklus penyemprotan.
   * **Tujuan:** Menjaga kelembapan malam tetap $RH \ge 85\%$ tanpa membasahi tubuh buah secara berlebihan (*anti-rot*).
 
-* **L-10: Critical Temperature Misting Guard (F-10b)**
+* **L-10: Critical Temperature Misting Guard & Handover (F-10b)**
   * **Lokasi:** `esp32_firmware.ino`, `iot_simulator.py`
-  * **Aturan:** Misting DILARANG mulai jika ada sensor $\max(T) > \text{tempMax} + 2.0\ ^\circ\text{C}$.
-  * **Tujuan:** Mencegah tabrakan kendali karena Safety Override Kipas akan seketika memotong misting tersebut.
+  * **Aturan:** Misting DILARANG mulai jika ada sensor $\max(T) > \text{tempMax} + 4.0\ ^\circ\text{C}$, KECUALI jika kipas sedang dalam masa lockout 15 menit (`!isFanUseful()`) atau terjadi dehidrasi kritis ($\min(RH) < \text{criticalLowRh}$).
+  * **Tujuan:** Mencegah tabrakan kendali jika kipas berguna, namun mengizinkan pendinginan evaporatif darurat (Handover Sinergis) jika kipas terbukti tidak berguna di siang terik.
 
 * **L-11: RH Saturation Safety Hold & Pagar RH (P3)**
   * **Lokasi:** `esp32_firmware.ino`, `iot_simulator.py`
@@ -133,7 +133,7 @@
   * **Lokasi:** `esp32_firmware.ino`, `iot_simulator.py`
   * **Aturan:** Kipas pendingin normal (Tier 1) dicoba menyala **90 detik**. Jika setelah 90 detik suhu rata-rata dalam tidak turun $\ge 0.2\ ^\circ\text{C}$ (artinya udara luar sama panas/lebih terik), kipas dimatikan dan dikunci selama **15 menit** (`fanLockoutUntil`).
   * **Tujuan:** Mencegah exhaust fan menyedot hawa panas luar masuk ke dalam kumbung tanpa perlu membeli sensor luar tambahan (Capex Rp0).
-  * **Pengecualian Mutlak:** **Tier 2 Safety Critical Temperature Override (L-18) KEBAL dari probe ini** dan dilarang dikunci demi menyelamatkan baglog dari kerusakan panas fatal.
+  * **Handover Sinergis:** Saat kipas dikunci 15 menit, kontrol pendinginan dialihkan ke misting evaporatif (L-10).
 
 * **L-16: Daytime Cooling Max Watchdog Timeout (180 detik)**
   * **Lokasi:** `esp32_firmware.ino`, `iot_simulator.py`
@@ -147,8 +147,8 @@
 
 * **L-18: Tier 2 Safety Critical Temperature Override (F-10)**
   * **Lokasi:** `esp32_firmware.ino`, `iot_simulator.py`
-  * **Aturan:** Jika ada 1 sensor melonjak $> \text{tempMax} + 2.0\ ^\circ\text{C}$, fan **DIPAKSA ON** mem-bypass seluruh timer cooldown dan kebal terhadap probe lockout L-15. Misting yang sedang berjalan dipotong seketika.
-  * **Tujuan:** Evakuasi darurat udara panas ekstrem di bawah atap asbes.
+  * **Aturan:** Jika ada 1 sensor melonjak $> \text{tempMax} + 4.0\ ^\circ\text{C}$, fan **DIPAKSA ON** mem-bypass seluruh timer cooldown KECUALI jika kipas sedang dalam masa lockout 15 menit (L-15). Jika sedang lockout, kipas ditahan TETAP OFF agar tidak menyedot udara panas luar dan memotong misting. Misting yang sedang berjalan dipotong seketika hanya jika kipas efektif menyala.
+  * **Tujuan:** Evakuasi darurat udara panas ekstrem di bawah atap asbes tanpa menimbulkan jebakan thermal loop.
 
 * **L-19: 24-Hour Override Stop Hysteresis (F-10a)**
   * **Lokasi:** `esp32_firmware.ino`, `iot_simulator.py`
@@ -177,13 +177,13 @@
 
 * **L-24: Night Over-Humidity Purge**
   * **Lokasi:** `esp32_firmware.ino`, `iot_simulator.py`
-  * **Aturan:** Di malam hari jika $RH \ge 96.0\%$, kipas aktif 45 detik dengan cooldown 30 menit.
+  * **Aturan:** Di malam hari jika $RH \ge 96.0\%$, kipas aktif **300 detik (5 menit)** dengan cooldown 30 menit.
   * **Tujuan:** Membuang uap jenuh agar tidak terjadi kondensasi tetesan air dingin ke jamur.
 
 * **L-25: Night Periodic CO2 Flush**
   * **Lokasi:** `esp32_firmware.ino`, `iot_simulator.py`
-  * **Aturan:** Di malam hari setiap 60 menit sekali, kipas aktif 45 detik.
-  * **Tujuan:** Menyapu gas $\text{CO}_2$ yang mengendap di lantai kumbung.
+  * **Aturan:** Di malam hari setiap 60 menit sekali, kipas aktif **300 detik (5 menit)**.
+  * **Tujuan:** Menyapu dan mendilusi gas $\text{CO}_2$ berat yang mengendap di lantai kumbung hingga $35\text{--}45\%$ pergantian volume udara riil.
 
 * **L-26: Night Timer Cross-Synchronizer**
   * **Lokasi:** `esp32_firmware.ino`, `iot_simulator.py`
@@ -354,7 +354,7 @@
 | 7 | L-07 | Tier 2 Pulse Misting | Misting | Pompa Diafragma | Pulsa 30s jika $\min(RH) < \text{humMin} - 10\%$ |
 | 8 | L-08 | Fan-Misting Interlock | Misting | Firmware Guard | Misting dilarang saat Fan ON |
 | 9 | L-09 | Night Misting Guard | Misting | Firmware (P2') | Jeda wajib minimal 600s di jam 17–06 WIB |
-| 10 | L-10 | Critical Temp Misting Guard | Misting | Firmware (F-10b) | Tahan jika $\max(T) > \text{tempMax} + 2^\circ\text{C}$ |
+| 10 | L-10 | Critical Temp Misting Guard | Misting | Firmware (F-10b) | Tahan jika $\max(T) > \text{tempMax} + 4^\circ\text{C}$ (kecuali lockout) |
 | 11 | L-11 | RH Saturation Guard (P3) | Misting | Firmware (P3) | Tahan di $\text{humMax}-3\%$, stop di $\text{humMax}-1\%$ |
 | 12 | L-12 | Evaporation Cooldown | Misting | Pompa Guard | Kunci pompa 150s pasca-mati |
 | 13 | L-13 | Emergency Safety Timeout | Misting | Pompa Guard | Cut-off paksa 90 detik |
@@ -362,14 +362,14 @@
 | 15 | L-15 | Fan Utility Probe (P1) | Fan | Exhaust Fan | Uji 90s: harus turun $\ge 0.2^\circ\text{C}$, lockout 15m |
 | 16 | L-16 | Cooling Max Timeout | Fan | Exhaust Fan | Batas maksimal 180s kontinu |
 | 17 | L-17 | Cooling Cooldown | Fan | Exhaust Fan | Jeda anti-chatter 60s |
-| 18 | L-18 | Safety Critical Override | Fan | Exhaust Fan (F-10)| Paksa ON bypass jika $T > \text{tempMax} + 2^\circ\text{C}$ |
+| 18 | L-18 | Safety Critical Override | Fan | Exhaust Fan (F-10)| Paksa ON jika $T > \text{tempMax} + 4^\circ\text{C}$ (tunduk lockout) |
 | 19 | L-19 | Override Stop Hysteresis | Fan | Exhaust Fan | Stop: $\max(T) \le \text{crit}-1.0$ & $T_{\text{avg}} \le \text{tempMax}$ |
 | 20 | L-20 | Vertical Homogenization | Fan | Exhaust Fan | Durasi 30s jika $|RH_A - RH_C| > 12\%$ |
 | 21 | L-21 | Homogenization Cooldown | Fan | Exhaust Fan | Jeda relaksasi 900s (15 menit) |
 | 22 | L-22 | Post-Misting Settling Delay| Fan | Exhaust Fan | Tahan fan 60s pasca-misting |
 | 23 | L-23 | Night Transition Failsafe | Fan | Firmware (F-15b) | Reset timer transisi 17:00 WIB |
-| 24 | L-24 | Night Over-Humidity Purge | Fan | Exhaust Fan | Aktif 45s jika malam $RH \ge 96\%$ |
-| 25 | L-25 | Night Periodic CO2 Flush | Fan | Exhaust Fan | Aktif 45s tiap 60 menit |
+| 24 | L-24 | Night Over-Humidity Purge | Fan | Exhaust Fan | Aktif 300s jika malam $RH \ge 96\%$ |
+| 25 | L-25 | Night Periodic CO2 Flush | Fan | Exhaust Fan | Aktif 300s tiap 60 menit (dilusi CO2 riil) |
 | 26 | L-26 | Night Cross-Synchronizer | Fan | Firmware Guard | Reset jadwal flush jika baru purge |
 | 27 | L-27 | Harvest Pause Mode | Failsafe | API & Firmware | Mode jeda panen manual maks 8 jam |
 | 28 | L-28 | Fluid Dynamics on Pause | Failsafe | Actuators | Kipas & Pompa mati seketika $<8$ detik |
