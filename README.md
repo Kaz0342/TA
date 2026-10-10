@@ -97,6 +97,7 @@
  ┃ ┣ 📜 use_case.md    # 🎯 29 Spesifikasi Use Case SRS & Diagram UML
  ┃ ┣ 📜 sequence_diagram.md # ⚡ 11 Diagram Sekuensial UML Lifelines & Traceability Matrix
  ┃ ┣ 📜 dfd.md         # 🔄 Data Flow Diagram (Level 0, Level 1, Level 2, & Kamus Data)
+ ┃ ┣ 📜 EVALUASI_TERMODINAMIKA_DAN_DEADLOCK_IOT.md # 🔬 Kajian Matematis Deadlock Kipas & Dinamika Fluida ACH
  ┃ ┗ 📂 manual         # 📖 Buku Manual Pengguna (Markdown & HTML Siap Cetak A4)
  ┣ 📜 iot_simulator.py # Python IoT Simulator v3.5 (Termodinamika Kumbung 122.5 m³)
  ┣ 📜 DESIGN.md        # Master Design System Specification & Token Manifest
