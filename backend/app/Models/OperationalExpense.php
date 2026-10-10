@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Traits\HasVoid;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Model OperationalExpense — pencatatan biaya operasional nyata
- * (listrik, misting, plastik packing, dll).
+ * (listrik, air, nutrisi, upah kerja, plastik packing, dll).
  *
  * Digunakan dalam perhitungan HPP & Margin Kontribusi.
  *
@@ -19,14 +21,22 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $category
  * @property string $amount
  * @property string|null $notes
+ * @property Carbon|null $voided_at
+ * @property int|null $voided_by
+ * @property string|null $void_reason
  */
 class OperationalExpense extends Model
 {
-    use HasFactory;
+    use HasFactory, HasVoid;
 
     public const CATEGORY_LISTRIK = 'LISTRIK';
+    public const CATEGORY_AIR = 'AIR';
     public const CATEGORY_MISTING = 'MISTING';
+    public const CATEGORY_NUTRISI = 'NUTRISI';
+    public const CATEGORY_LABOR = 'LABOR';
+    public const CATEGORY_PACKAGING = 'PACKAGING';
     public const CATEGORY_PLASTIK = 'PLASTIK';
+    public const CATEGORY_ALKOHOL = 'ALKOHOL';
     public const CATEGORY_LAINNYA = 'LAINNYA';
 
     /**
@@ -38,6 +48,9 @@ class OperationalExpense extends Model
         'category',
         'amount',
         'notes',
+        'voided_at',
+        'voided_by',
+        'void_reason',
     ];
 
     /**
@@ -46,7 +59,7 @@ class OperationalExpense extends Model
     protected function casts(): array
     {
         return [
-            'expense_date' => 'date',
+            'expense_date' => 'date:Y-m-d',
             'amount' => 'decimal:2',
         ];
     }

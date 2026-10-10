@@ -54,22 +54,14 @@ Route::middleware('auth:sanctum')->group(function () {
     // Actuator Logs History
     Route::get('/sprinkler-logs', [SprinklerLogController::class, 'index']);
 
-    // Baglog Management (FR-2.x)
+    // Baglog Management (FR-2.x) - Worker & Admin read-only
     Route::get('/baglogs', [BaglogBatchController::class, 'index']);
-    Route::patch('/baglogs/{id}/status', [BaglogBatchController::class, 'updateStatus']);
 
-    // Harvests (FR-3.x)
+    // Harvests (FR-3.x) - Worker & Admin bisa input & lihat data
     Route::get('/harvests', [HarvestController::class, 'index']);
     Route::post('/harvests', [HarvestController::class, 'store']); // worker bisa input
-    Route::post('/harvests/{id}/void', [HarvestController::class, 'void']);
     Route::get('/harvests/today-total', [HarvestController::class, 'todayTotal']);
     Route::get('/harvests/chart', [HarvestController::class, 'chart']);
-
-    // Sales (FR-3.x)
-    Route::get('/sales', [SaleController::class, 'index']);
-    Route::get('/sales/weekly-report', [SaleController::class, 'weeklyReport']);
-    Route::get('/sales/buyer-ranking', [SaleController::class, 'buyerRanking']);
-    Route::get('/sales/price-trend', [SaleController::class, 'priceTrend']);
 
     // Grid Spasial Kumbung 3D, Rak, & Heatmap
     Route::get('/racks', [SlotController::class, 'racks']);
@@ -77,23 +69,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/slots/heatmap', [SlotController::class, 'heatmap']);
     Route::get('/slots/{code}', [SlotController::class, 'show']);
 
-    // Ledger Mutasi Afkir Baglog (Culls)
+    // Ledger Mutasi Afkir Baglog (Culls) - Worker & Admin input & list
     Route::get('/baglog-culls', [BaglogCullController::class, 'index']);
     Route::post('/baglog-culls', [BaglogCullController::class, 'store']); // worker & admin bisa input
-    Route::post('/baglog-culls/{id}/void', [BaglogCullController::class, 'void']);
-
-    // HPP & Margin Kontribusi
-    Route::get('/baglogs/hpp-summary', [BaglogBatchController::class, 'hppSummary']);
-    Route::get('/baglogs/{id}/hpp', [BaglogBatchController::class, 'hpp']);
-
-    // Biaya Operasional (Read)
-    Route::get('/operational-expenses', [OperationalExpenseController::class, 'index']);
 
     // Device Interruption Control (Failsafe Timer Mode Panen)
     Route::post('/device/pause', [DeviceControlController::class, 'pause']);
     Route::post('/device/resume', [DeviceControlController::class, 'resume']);
 
-    // HANYA ADMIN
+    // HANYA ADMIN (AUD-01: Server-side RBAC Shield)
     Route::middleware('role:admin')->group(function () {
         // Registrasi Akun Pekerja / User Baru (Admin Only)
         Route::post('/register', [AuthController::class, 'register']);
@@ -102,8 +86,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/thresholds', [ThresholdSettingController::class, 'index']);
         Route::put('/thresholds', [ThresholdSettingController::class, 'update']);
 
-        // Admin only baglog actions
+        // Admin only baglog actions & batch status modification
         Route::post('/baglogs', [BaglogBatchController::class, 'store']);
+        Route::patch('/baglogs/{id}/status', [BaglogBatchController::class, 'updateStatus']);
 
         // Alokasi Batch ke Slot Rak (WMS)
         Route::post('/batch-slot-assignments', [BatchSlotAssignmentController::class, 'store']);
@@ -111,31 +96,46 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/batch-slot-assignments/{id}/complete', [BatchSlotAssignmentController::class, 'completeCycle']);
         Route::delete('/batch-slot-assignments/{id}', [BatchSlotAssignmentController::class, 'destroy']);
 
-        // Operasional Expenses (Admin create & delete)
+        // Void Operasional (Admin Only — AUD-01)
+        Route::post('/harvests/{id}/void', [HarvestController::class, 'void']);
+        Route::post('/baglog-culls/{id}/void', [BaglogCullController::class, 'void']);
+
+        // Sales & Laporan Keuangan (Admin Only — AUD-01)
+        Route::get('/sales', [SaleController::class, 'index']);
+        Route::get('/sales/weekly-report', [SaleController::class, 'weeklyReport']);
+        Route::get('/sales/buyer-ranking', [SaleController::class, 'buyerRanking']);
+        Route::get('/sales/price-trend', [SaleController::class, 'priceTrend']);
+        Route::post('/sales', [SaleController::class, 'store']);
+        Route::post('/sales/{id}/void', [SaleController::class, 'void']);
+
+        // HPP & Margin Kontribusi (Admin Only — AUD-01)
+        Route::get('/baglogs/hpp-summary', [BaglogBatchController::class, 'hppSummary']);
+        Route::get('/baglogs/{id}/hpp', [BaglogBatchController::class, 'hpp']);
+
+        // Operasional Expenses (Admin Only read, create, void & delete — AUD-01 / AUD-07)
+        Route::get('/operational-expenses', [OperationalExpenseController::class, 'index']);
         Route::post('/operational-expenses', [OperationalExpenseController::class, 'store']);
+        Route::post('/operational-expenses/{id}/void', [OperationalExpenseController::class, 'void']);
         Route::delete('/operational-expenses/{id}', [OperationalExpenseController::class, 'destroy']);
 
         // Rack Management (Admin only)
         Route::post('/racks', [SlotController::class, 'storeRack']);
         Route::delete('/racks/{row}', [SlotController::class, 'destroyRack']);
-
-        // Admin only sales actions (POST only — no duplikat dengan GET di atas)
-        Route::post('/sales', [SaleController::class, 'store']);
-        Route::post('/sales/{id}/void', [SaleController::class, 'void']);
     });
 });
 
 // ============================================================
 // UTILITY ENDPOINTS — HANYA AKTIF DI LOCAL DEVELOPMENT
 // Di production (Vercel), endpoint ini otomatis tidak terdaftar.
-// @see Audit Keamanan C2: Hardcoded secret di source code
+// @see Audit Keamanan C2: Hardcoded secret di source code (AUD-17d)
 // ============================================================
-if (app()->environment('local')) {
+if (app()->environment(['local', 'testing'])) {
 
     // Endpoint Utility untuk Upgrade User jadi Role Admin
     Route::get('/make-admin', function () {
         $secret = request()->query('secret');
-        if ($secret !== env('UTILITY_SECRET', 'ta-shroom-migrate-2026')) {
+        $validSecret = env('UTILITY_SECRET');
+        if (! $validSecret || $secret !== $validSecret) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
         $email = request()->query('email', 'admin@smartshroom.com');
@@ -161,7 +161,8 @@ if (app()->environment('local')) {
     // Endpoint Utility untuk Seeder Data Awal di Supabase
     Route::get('/seed-db', function () {
         $secret = request()->query('secret');
-        if ($secret !== env('UTILITY_SECRET', 'ta-shroom-migrate-2026')) {
+        $validSecret = env('UTILITY_SECRET');
+        if (! $validSecret || $secret !== $validSecret) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 

@@ -54,7 +54,7 @@ class OperationalExpenseController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'baglog_batch_id' => 'nullable|exists:baglog_batches,id',
-            'expense_date' => 'required|date',
+            'expense_date' => 'required|date|before_or_equal:today',
             'category' => 'required|in:LISTRIK,AIR,NUTRISI,LABOR,PACKAGING,LAINNYA',
             'amount' => 'required|numeric|min:100',
             'notes' => 'nullable|string|max:255',
@@ -70,19 +70,53 @@ class OperationalExpenseController extends Controller
     }
 
     /**
-     * DELETE /api/operational-expenses/{id}
-     * Hapus pencatatan pengeluaran operasional.
+     * POST /api/operational-expenses/{id}/void
+     * Batalkan pencatatan pengeluaran operasional dengan alasan (W-09 / AUD-07).
      */
-    public function destroy(int $id): JsonResponse
+    public function void(Request $request, int $id): JsonResponse
     {
-        $expense = OperationalExpense::find($id);
+        $validator = Validator::make($request->all(), [
+            'reason' => 'required|string|min:5|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->error($validator->errors()->first(), 422);
+        }
+
+        $expense = OperationalExpense::withVoided()->find($id);
 
         if (! $expense) {
             return $this->notFound('Data pengeluaran operasional tidak ditemukan');
         }
 
-        $expense->delete();
+        if ($expense->isVoided()) {
+            return $this->error('Data pengeluaran operasional sudah dibatalkan (voided) sebelumnya', 422);
+        }
 
-        return $this->success(null, 'Pengeluaran operasional berhasil dihapus');
+        $expense->void($request->user()->id, $request->input('reason'));
+
+        return $this->success($expense, 'Pengeluaran operasional berhasil di-void (dibatalkan)');
+    }
+
+    /**
+     * DELETE /api/operational-expenses/{id}
+     * Batalkan pencatatan pengeluaran operasional (soft-void untuk menjaga audit trail W-09 / AUD-07).
+     */
+    public function destroy(Request $request, int $id): JsonResponse
+    {
+        $expense = OperationalExpense::withVoided()->find($id);
+
+        if (! $expense) {
+            return $this->notFound('Data pengeluaran operasional tidak ditemukan');
+        }
+
+        if ($expense->isVoided()) {
+            return $this->error('Data pengeluaran operasional sudah dibatalkan (voided) sebelumnya', 422);
+        }
+
+        $reason = $request->input('reason') ?: 'Dihapus oleh admin';
+        $expense->void($request->user()->id, $reason);
+
+        return $this->success($expense, 'Pengeluaran operasional berhasil dibatalkan (void)');
     }
 }
