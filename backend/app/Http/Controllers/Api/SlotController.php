@@ -45,6 +45,8 @@ class SlotController extends Controller
 
         $cullAggregates = collect();
         $harvestAggregates = collect();
+        $batchHarvestAggregates = collect();
+        $slotsPerBatchCount = collect();
 
         if ($activeBatchIds->isNotEmpty() && $slotCodes->isNotEmpty()) {
             $cullAggregates = DB::table('baglog_culls')
@@ -69,9 +71,27 @@ class SlotController extends Controller
                 ->groupBy('baglog_batch_id', 'slot_code')
                 ->get()
                 ->keyBy(fn ($item) => "{$item->baglog_batch_id}_{$item->slot_code}");
+
+            // Agregasi panen tingkat batch (tanpa slot_code spesifik) untuk dialokasikan ke slot (Probe P28)
+            $batchHarvestAggregates = DB::table('harvests')
+                ->select(
+                    'baglog_batch_id',
+                    DB::raw('MAX(flush_number) as max_flush'),
+                    DB::raw('SUM(weight_kg) as total_kg')
+                )
+                ->whereNull('voided_at')
+                ->whereNull('slot_code')
+                ->whereIn('baglog_batch_id', $activeBatchIds)
+                ->groupBy('baglog_batch_id')
+                ->get()
+                ->keyBy('baglog_batch_id');
+
+            $slotsPerBatchCount = $slots->filter(fn ($s) => $s->activeAssignment !== null)
+                ->groupBy(fn ($s) => $s->activeAssignment->baglog_batch_id)
+                ->map(fn ($group) => $group->count());
         }
 
-        $data = $slots->map(function (Slot $slot) use ($cullAggregates, $harvestAggregates) {
+        $data = $slots->map(function (Slot $slot) use ($cullAggregates, $harvestAggregates, $batchHarvestAggregates, $slotsPerBatchCount) {
             $assignment = $slot->activeAssignment;
             $batch = $assignment?->baglogBatch;
 
@@ -89,6 +109,21 @@ class SlotController extends Controller
                     $maxFlush = (int) $harvestAggregates[$aggKey]->max_flush;
                     $totalHarvestKg = (float) $harvestAggregates[$aggKey]->total_kg;
                     $lastFlush = $maxFlush;
+                }
+
+                // Fallback / prorata dari panen tingkat batch jika ada (Probe P28)
+                if (isset($batchHarvestAggregates[$assignment->baglog_batch_id])) {
+                    $batchMax = (int) $batchHarvestAggregates[$assignment->baglog_batch_id]->max_flush;
+                    if ($maxFlush === null || $batchMax > $maxFlush) {
+                        $maxFlush = $batchMax;
+                        $lastFlush = $maxFlush;
+                    }
+
+                    $batchKg = (float) $batchHarvestAggregates[$assignment->baglog_batch_id]->total_kg;
+                    $cohortCount = (int) ($slotsPerBatchCount[$assignment->baglog_batch_id] ?? 1);
+                    if ($cohortCount > 0) {
+                        $totalHarvestKg += round($batchKg / $cohortCount, 2);
+                    }
                 }
             }
 
@@ -215,6 +250,36 @@ class SlotController extends Controller
 
         $harvestStats = $harvestQuery->pluck('total_kg', 'slot_code')->toArray();
 
+        // Alokasikan panen tingkat batch (slot_code NULL) ke slot aktif yang menampung batch tersebut (Probe P28)
+        $batchHarvestQuery = DB::table('harvests')
+            ->select('baglog_batch_id', DB::raw('SUM(weight_kg) as total_kg'))
+            ->whereNull('voided_at')
+            ->whereNull('slot_code')
+            ->groupBy('baglog_batch_id');
+
+        if ($batchId) {
+            $batchHarvestQuery->where('baglog_batch_id', $batchId);
+        }
+
+        $batchHarvestStats = $batchHarvestQuery->pluck('total_kg', 'baglog_batch_id')->toArray();
+
+        if (! empty($batchHarvestStats)) {
+            $activeAssignments = DB::table('batch_slot_assignments')
+                ->whereIn('baglog_batch_id', array_keys($batchHarvestStats))
+                ->whereIn('current_status', ['INCUBATION', 'FRUITING'])
+                ->get(['baglog_batch_id', 'slot_code'])
+                ->groupBy('baglog_batch_id');
+
+            foreach ($batchHarvestStats as $bId => $batchWeight) {
+                if (isset($activeAssignments[$bId]) && $activeAssignments[$bId]->isNotEmpty()) {
+                    $perSlot = round((float) $batchWeight / $activeAssignments[$bId]->count(), 2);
+                    foreach ($activeAssignments[$bId] as $asgn) {
+                        $harvestStats[$asgn->slot_code] = ($harvestStats[$asgn->slot_code] ?? 0.0) + $perSlot;
+                    }
+                }
+            }
+        }
+
         $slots = Slot::orderBy('row')->orderBy('bay')->orderBy('tier')->get();
 
         $maxYield = ! empty($harvestStats) ? max(array_values($harvestStats)) : 1.0;
@@ -250,8 +315,9 @@ class SlotController extends Controller
             ->orderBy('row')
             ->pluck('row');
 
+        // Probe P17: Jika database kosong, kembalikan daftar kosong (tanpa data hantu)
         if ($racks->isEmpty()) {
-            $racks = collect(['A', 'B', 'C']);
+            return $this->success([], 'Daftar rak berhasil dimuat (Kumbung kosong)');
         }
 
         $stats = Slot::select('row')
@@ -302,18 +368,29 @@ class SlotController extends Controller
                 'regex:/^[a-zA-Z]$/',
             ],
         ], [
-            'row.size' => 'Kode rak harus berupa 1 karakter abjad (misal: D, E, F).',
+            'row.size' => 'Kode rak harus berupa 1 karakter abjad (misal: A, B, C).',
             'row.regex' => 'Kode rak hanya boleh berupa huruf alfabet A-Z.',
         ]);
 
+        $maxSlots = (int) config('baglog.max_slots', 300);
+        $maxRacks = (int) config('baglog.max_racks', 3);
+        $allowedRows = config('baglog.allowed_rows', ['A', 'B', 'C']);
+
+        // Probe P14: Batasi total rak dan slot fisik kumbung maksimal 3 rak / 300 slot (3.000 baglog)
+        if (Slot::count() >= $maxSlots || Slot::distinct('row')->count() >= $maxRacks) {
+            return $this->error("Kapasitas kumbung telah mencapai batas maksimal {$maxRacks} rak ({$maxSlots} slot / " . ($maxSlots * 10) . " baglog).", 422);
+        }
+
         if ($request->filled('row')) {
             $row = strtoupper($request->input('row'));
+            if (! in_array($row, $allowedRows, true)) {
+                return $this->error("Kode rak {$row} tidak diizinkan. Hanya rak " . implode(', ', $allowedRows) . " yang diperbolehkan.", 422);
+            }
         } else {
-            // Otomatis tentukan huruf alfabet berikutnya
+            // Otomatis tentukan abjad berikutnya dari daftar allowed_rows
             $existingRows = Slot::distinct()->pluck('row')->map(fn ($r) => strtoupper($r))->toArray();
-            $alphabet = range('A', 'Z');
             $row = null;
-            foreach ($alphabet as $letter) {
+            foreach ($allowedRows as $letter) {
                 if (! in_array($letter, $existingRows, true)) {
                     $row = $letter;
                     break;
@@ -321,7 +398,7 @@ class SlotController extends Controller
             }
 
             if (! $row) {
-                return $this->error('Semua abjad rak A-Z sudah terpakai.', 422);
+                return $this->error('Semua rak standar (' . implode(', ', $allowedRows) . ') sudah terpasang.', 422);
             }
         }
 
@@ -330,7 +407,7 @@ class SlotController extends Controller
             return $this->error("Rak {$row} sudah ada di dalam sistem.", 422);
         }
 
-        // Generate 100 slot koordinat standar
+        // Generate 100 slot koordinat standar secara atomik (Probe P15)
         $now = now();
         $slots = [];
         for ($bay = 1; $bay <= 10; $bay++) {
@@ -347,9 +424,11 @@ class SlotController extends Controller
             }
         }
 
-        foreach (array_chunk($slots, 50) as $chunk) {
-            DB::table('slots')->insert($chunk);
-        }
+        DB::transaction(function () use ($slots) {
+            foreach (array_chunk($slots, 50) as $chunk) {
+                DB::table('slots')->insert($chunk);
+            }
+        });
 
         return $this->success([
             'row' => $row,
@@ -361,7 +440,7 @@ class SlotController extends Controller
 
     /**
      * DELETE /api/racks/{row}
-     * Hapus rak jika seluruh slot di dalamnya masih kosong dan tidak memiliki riwayat.
+     * Hapus rak jika seluruh slot di dalamnya masih kosong dan tidak memiliki riwayat audit trail.
      */
     public function destroyRack(string $row): JsonResponse
     {
@@ -383,24 +462,22 @@ class SlotController extends Controller
             return $this->error("Rak {$row} tidak dapat dihapus karena memiliki riwayat alokasi batch baglog.", 422);
         }
 
-        // Validasi tidak ada riwayat panen aktif
+        // Validasi tidak ada riwayat panen (termasuk yang di-void agar audit trail terjaga) (Probe P16)
         $hasHarvests = DB::table('harvests')
             ->whereIn('slot_code', $slotCodes)
-            ->whereNull('voided_at')
             ->exists();
 
         if ($hasHarvests) {
-            return $this->error("Rak {$row} tidak dapat dihapus karena memiliki riwayat panen.", 422);
+            return $this->error("Rak {$row} tidak dapat dihapus karena memiliki riwayat panen atau audit trail.", 422);
         }
 
-        // Validasi tidak ada riwayat afkir aktif
+        // Validasi tidak ada riwayat afkir (termasuk yang di-void) (Probe P16)
         $hasCulls = DB::table('baglog_culls')
             ->whereIn('slot_code', $slotCodes)
-            ->whereNull('voided_at')
             ->exists();
 
         if ($hasCulls) {
-            return $this->error("Rak {$row} tidak dapat dihapus karena memiliki riwayat afkir.", 422);
+            return $this->error("Rak {$row} tidak dapat dihapus karena memiliki riwayat afkir atau audit trail.", 422);
         }
 
         Slot::where('row', $row)->delete();

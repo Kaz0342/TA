@@ -7,6 +7,7 @@ use App\Models\BaglogBatch;
 use App\Models\BatchSlotAssignment;
 use App\Models\Slot;
 use App\Traits\ApiResponse;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -102,6 +103,20 @@ class BatchSlotAssignmentController extends Controller
                     'Beberapa slot yang dipilih masih terisi batch aktif: ' . implode(', ', $occupiedSlots),
                     422,
                     ['occupied_slots' => $occupiedSlots]
+                );
+                return;
+            }
+
+            // Validasi pencegahan kapasitas nol pada penempatan ulang (AUD-10 & Probe P38)
+            $sameBatchAlreadyAssigned = BatchSlotAssignment::where('baglog_batch_id', $batchId)
+                ->whereIn('slot_code', $upperSlotCodes)
+                ->pluck('slot_code')
+                ->toArray();
+
+            if (! empty($sameBatchAlreadyAssigned)) {
+                $errorResponse = $this->error(
+                    'Batch ini sudah pernah dialokasikan ke slot: ' . implode(', ', $sameBatchAlreadyAssigned) . '. Penempatan ulang batch yang sama ke slot yang sama dilarang untuk mencegah konflik mutasi afkir.',
+                    422
                 );
                 return;
             }
@@ -204,6 +219,12 @@ class BatchSlotAssignmentController extends Controller
 
         $reason = $request->input('reason', 'EXHAUSTED');
         $date = $request->input('date', now()->toDateString());
+
+        // Invarian: tanggal penyelesaian tidak boleh mendahului tanggal penempatan (Probe P20)
+        $assignedAtDate = $assignment->assigned_at ? Carbon::parse($assignment->assigned_at)->toDateString() : null;
+        if ($assignedAtDate && Carbon::parse($date)->lt(Carbon::parse($assignedAtDate))) {
+            return $this->error('Tanggal penyelesaian tidak boleh mendahului tanggal penempatan baglog (' . $assignedAtDate . ').', 422);
+        }
 
         $assignment->complete($reason, $date);
 

@@ -78,13 +78,20 @@ class BaglogBatchController extends Controller
 
     /**
      * GET /api/baglogs/hpp-summary
-     * Rekapitulasi HPP & Margin Kontribusi seluruh batch aktif.
+     * Rekapitulasi HPP & Margin Kontribusi seluruh batch aktif (Eager loaded O(1) query budget).
      */
     public function hppSummary(): JsonResponse
     {
-        $batches = BaglogBatch::with(['operationalExpenses', 'sales'])->get();
+        $batches = BaglogBatch::with([
+            'operationalExpenses',
+            'sales',
+            'culls',
+            'harvests',
+            'assignments',
+        ])->get();
 
-        $summaries = $batches->map(fn (BaglogBatch $b) => $b->marginKontribusi());
+        $sharedExpenses = \App\Models\OperationalExpense::whereNull('baglog_batch_id')->get(['id', 'expense_date', 'amount']);
+        $summaries = $batches->map(fn (BaglogBatch $b) => $b->marginKontribusi($sharedExpenses, $batches));
 
         $totalModal = (float) $summaries->sum('modal_baglog_awal');
         $totalOps = (float) $summaries->sum('biaya_operasional');
@@ -94,12 +101,18 @@ class BaglogBatchController extends Controller
         $totalBiayaAll = $totalModal + $totalOps;
         $avgHppAll = $totalHarvestAll > 0 ? round($totalBiayaAll / $totalHarvestAll, 2) : 0.0;
 
+        // Rekonsiliasi omzet dasbor vs ringkasan HPP untuk penjualan tanpa batch (Probe P24)
+        $unattributedRevenue = (float) \App\Models\Sale::whereNull('baglog_batch_id')->sum('total_revenue');
+        $farmTotalRevenue = round($totalOmzet + $unattributedRevenue, 2);
+
         return $this->success([
             'total_batches' => $batches->count(),
             'total_modal_investasi' => $totalModal,
             'total_operational_expense' => $totalOps,
             'total_biaya' => $totalBiayaAll,
             'total_sales_revenue' => $totalOmzet,
+            'unattributed_sales_revenue' => $unattributedRevenue,
+            'farm_total_sales_revenue' => $farmTotalRevenue,
             'total_margin_kontribusi' => $totalMargin,
             'total_harvest_kg' => $totalHarvestAll,
             'avg_hpp_per_kg' => $avgHppAll,
@@ -108,6 +121,8 @@ class BaglogBatchController extends Controller
                 'total_biaya_operasional' => $totalOps,
                 'total_biaya' => $totalBiayaAll,
                 'total_omzet' => $totalOmzet,
+                'unattributed_omzet' => $unattributedRevenue,
+                'farm_total_omzet' => $farmTotalRevenue,
                 'total_margin_kontribusi' => $totalMargin,
             ],
             'batches' => $summaries,

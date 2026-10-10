@@ -17,8 +17,8 @@ class StoreBaglogRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'entry_date' => 'required|date',
-            'quantity' => 'required|integer|min:1',
+            'entry_date' => 'required|date|before_or_equal:today',
+            'quantity' => 'required|integer|min:1|max:3000',
             'supplier' => 'required|string|max:100',
             'price_per_baglog' => 'nullable|numeric|min:0',
             'status' => 'nullable|in:'.implode(',', [

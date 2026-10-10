@@ -73,7 +73,7 @@ class BaglogBatch extends Model
     protected function casts(): array
     {
         return [
-            'entry_date' => 'date',
+            'entry_date' => 'date:Y-m-d',
             'quantity' => 'integer',
             'price_per_baglog' => 'decimal:2',
         ];
@@ -255,22 +255,39 @@ class BaglogBatch extends Model
     }
 
     /**
-     * Sinkronkan status lifecycle batch.
-     * Jika seluruh assignment slot sudah selesai (COMPLETED) dan tidak ada slot aktif,
-     * batch otomatis ditandai 'completed' (W-02).
+     * Sinkronkan status lifecycle batch secara dua arah (AUD-04 & Probe P04, P19).
+     *
+     * Aturan transisi lifecycle:
+     * 1. Batch tidak diubah jika berstatus 'contaminated' atau 'disposed' (keputusan afkir massal permanen).
+     * 2. Batch otomatis 'completed' HANYA JIKA seluruh baglog telah ditempatkan ($unassigned == 0),
+     *    minimal ada 1 alokasi slot ($placed > 0), dan tidak ada slot yang masih aktif (! $hasActive).
+     * 3. Jika batch sempat 'completed' tapi alokasi slot dibuka kembali (misal void cull) atau masih ada
+     *    sisa baglog yang belum ditempatkan ($hasActive || $unassigned > 0), status disinkronkan kembali ke 'active'.
      */
-    public function refreshLifecycle(): void
+    public function syncLifecycleState(): void
     {
-        if ($this->status !== self::STATUS_ACTIVE) {
+        if (in_array($this->status, [self::STATUS_CONTAMINATED, self::STATUS_DISPOSED])) {
             return;
         }
 
         $placed = (int) $this->assignments()->sum('initial_quantity');
         $hasActive = $this->assignments()->active()->exists();
+        $unassigned = max(0, $this->quantity - $placed);
 
-        if ($placed > 0 && ! $hasActive) {
-            $this->update(['status' => self::STATUS_COMPLETED]);
+        if ($hasActive || $unassigned > 0) {
+            if ($this->status !== self::STATUS_ACTIVE) {
+                $this->update(['status' => self::STATUS_ACTIVE]);
+            }
+        } elseif ($placed > 0 && ! $hasActive && $unassigned === 0) {
+            if ($this->status !== self::STATUS_COMPLETED) {
+                $this->update(['status' => self::STATUS_COMPLETED]);
+            }
         }
+    }
+
+    public function refreshLifecycle(): void
+    {
+        $this->syncLifecycleState();
     }
 
     /**
@@ -322,20 +339,72 @@ class BaglogBatch extends Model
      * Sesuai Audit #7: menyertakan indikator persentase siklus agar
      * batch yang baru sebulan tidak salah dinilai merugi.
      */
-    public function marginKontribusi(): array
+    public function marginKontribusi(?\Illuminate\Support\Collection $sharedExpenses = null, ?\Illuminate\Support\Collection $allBatches = null): array
     {
         $modalAwal = $this->totalModalAwal();
-        
-        $directOps = (float) $this->operationalExpenses()->sum('amount');
-        $totalOverhead = (float) OperationalExpense::whereNull('baglog_batch_id')->sum('amount');
-        $totalBatchesCount = BaglogBatch::count();
-        $prorataOverhead = $totalBatchesCount > 0 ? ($totalOverhead / $totalBatchesCount) : 0;
-        
-        $biayaOps = (string) ($directOps + $prorataOverhead);
-        
-        $omzetKotor = (string) ($this->sales()->sum('total_revenue') ?? '0.00');
 
-        // Margin Kontribusi = Omzet - Modal Awal - Biaya Operasional Variabel
+        $directOps = $this->relationLoaded('operationalExpenses')
+            ? (string) ($this->operationalExpenses->sum('amount') ?? '0.00')
+            : (string) ($this->operationalExpenses()->sum('amount') ?? '0.00');
+
+        // Probe P22: Alokasi overhead hanya membagi biaya dalam rentang masa aktif batch (bukan membagi rata ke batch masa depan)
+        $entryDate = $this->entry_date ? Carbon::parse($this->entry_date)->toDateString() : null;
+        $batchEndDate = $this->isCompleted()
+            ? ($this->relationLoaded('assignments') ? $this->assignments->max('completed_at') : $this->assignments()->max('completed_at'))
+            : null;
+        if (! $batchEndDate) {
+            $batchEndDate = now()->toDateString();
+        }
+
+        $prorataOverhead = '0.00';
+        if ($entryDate) {
+            $sharedList = $sharedExpenses !== null
+                ? $sharedExpenses->filter(function ($exp) use ($entryDate, $batchEndDate) {
+                    $d = Carbon::parse($exp->expense_date)->toDateString();
+                    return $d >= $entryDate && $d <= $batchEndDate;
+                })
+                : OperationalExpense::whereNull('baglog_batch_id')
+                    ->where('expense_date', '>=', $entryDate)
+                    ->where('expense_date', '<=', $batchEndDate)
+                    ->get(['id', 'expense_date', 'amount']);
+
+            if ($sharedList->isNotEmpty()) {
+                $coexistingBatches = $allBatches !== null
+                    ? $allBatches->filter(fn ($b) => Carbon::parse($b->entry_date)->toDateString() <= $batchEndDate)
+                    : BaglogBatch::select('id', 'entry_date')
+                        ->where('entry_date', '<=', $batchEndDate)
+                        ->get();
+
+                foreach ($sharedList as $exp) {
+                    $expDate = Carbon::parse($exp->expense_date)->toDateString();
+                    $coCount = $coexistingBatches->filter(fn ($b) => Carbon::parse($b->entry_date)->toDateString() <= $expDate)->count();
+                    $coCount = max(1, $coCount);
+                    $share = bcdiv((string) $exp->amount, (string) $coCount, 4);
+                    $prorataOverhead = bcadd($prorataOverhead, $share, 4);
+                }
+            }
+        }
+
+        $biayaOps = bcadd($directOps, $prorataOverhead, 2);
+
+        // Agregasi panen & afkir (manfaatkan data yang sudah di-eager load untuk mencegah query N+1)
+        $totalPanenKg = $this->relationLoaded('harvests')
+            ? (float) $this->harvests->sum('weight_kg')
+            : $this->totalHarvestKg();
+
+        $cullsCollection = $this->relationLoaded('culls') ? $this->culls : $this->culls()->get();
+        $totalCulls = (int) $cullsCollection->sum('quantity');
+        // AUD-06: Pisahkan afkir kerugian biosekuriti dari penutupan siklus normal (HABIS_PRODUKSI)
+        $habisProduksiCulls = (int) $cullsCollection->where('reason', 'HABIS_PRODUKSI')->sum('quantity');
+        $lossCulls = (int) $cullsCollection->where('reason', '!=', 'HABIS_PRODUKSI')->sum('quantity');
+        $activeCapacity = max(0, $this->quantity - $totalCulls);
+        $mortalityRate = $this->quantity > 0 ? round(($lossCulls / $this->quantity) * 100, 1) : 0.0;
+
+        $salesCollection = $this->relationLoaded('sales') ? $this->sales : $this->sales()->get();
+        $omzetKotor = (string) ($salesCollection->sum('total_revenue') ?? '0.00');
+        $totalSalesKg = (float) ($salesCollection->sum('quantity_kg') ?? 0);
+
+        // Margin Kontribusi = Omzet - Modal Awal - Biaya Operasional Variabel (Standar bcmath)
         $totalBiaya = bcadd($modalAwal, $biayaOps, 2);
         $margin = bcsub($omzetKotor, $totalBiaya, 2);
 
@@ -343,12 +412,6 @@ class BaglogBatch extends Model
         $cycleDays = (int) config('baglog.cycle_days', 120);
         $persenSiklus = min(100.0, round(($this->age_days / $cycleDays) * 100, 1));
 
-        $totalPanenKg = $this->totalHarvestKg();
-        $totalCulls = (int) $this->culls()->sum('quantity');
-        $activeCapacity = max(0, $this->quantity - $totalCulls);
-        $mortalityRate = $this->quantity > 0 ? round(($totalCulls / $this->quantity) * 100, 1) : 0.0;
-
-        $totalSalesKg = (float) ($this->sales()->sum('quantity_kg') ?? 0);
         $avgSellingPrice = $totalSalesKg > 0 ? round((float) $omzetKotor / $totalSalesKg, 2) : 25000.0;
 
         $bepHarvestKg = $avgSellingPrice > 0 ? round((float) $totalBiaya / $avgSellingPrice, 2) : 0.0;
@@ -370,7 +433,9 @@ class BaglogBatch extends Model
             'total_quantity' => $this->quantity,
             'initial_quantity' => $this->quantity,
             'active_capacity' => $activeCapacity,
-            'culled_quantity' => $totalCulls,
+            'culled_quantity' => $lossCulls,
+            'loss_culls_qty' => $lossCulls,
+            'habis_produksi_qty' => $habisProduksiCulls,
             'total_culls_qty' => $totalCulls,
             'mortality_rate_percent' => $mortalityRate,
 

@@ -67,8 +67,8 @@ class BatchSlotAssignment extends Model
     {
         return [
             'initial_quantity' => 'integer',
-            'assigned_at' => 'date',
-            'completed_at' => 'date',
+            'assigned_at' => 'date:Y-m-d',
+            'completed_at' => 'date:Y-m-d',
         ];
     }
 
@@ -224,7 +224,11 @@ class BatchSlotAssignment extends Model
     {
         if ($maxFlush === false) {
             $maxFlush = Harvest::where('baglog_batch_id', $this->baglog_batch_id)
-                ->where('slot_code', $this->slot_code)
+                ->where(function ($q) {
+                    $q->where('slot_code', $this->slot_code)
+                        ->orWhereNull('slot_code');
+                })
+                ->whereNull('voided_at')
                 ->max('flush_number');
         }
 

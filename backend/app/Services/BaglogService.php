@@ -7,6 +7,7 @@ use App\Repositories\Contracts\BaglogRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class BaglogService
 {
@@ -38,6 +39,20 @@ class BaglogService
 
     public function changeStatus(BaglogBatch $batch, string $status, ?string $notes = null): BaglogBatch
     {
+        // Probe P18: Larang pembalikan status dari disposed kembali ke active
+        if ($batch->status === BaglogBatch::STATUS_DISPOSED && $status === BaglogBatch::STATUS_ACTIVE) {
+            throw ValidationException::withMessages([
+                'status' => 'Batch yang sudah dibuang (disposed) tidak dapat diaktifkan kembali.',
+            ]);
+        }
+
+        // Probe P18: Larang mengubah batch menjadi completed jika masih ada slot aktif di rak
+        if ($status === BaglogBatch::STATUS_COMPLETED && $batch->assignments()->active()->exists()) {
+            throw ValidationException::withMessages([
+                'status' => 'Status batch tidak dapat diubah menjadi completed karena masih memiliki slot aktif di rak.',
+            ]);
+        }
+
         $data = ['status' => $status];
         if ($notes) {
             $data['notes'] = $notes;
