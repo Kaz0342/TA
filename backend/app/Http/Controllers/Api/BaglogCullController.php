@@ -183,7 +183,7 @@ class BaglogCullController extends Controller
                     ->latest('id')
                     ->first();
 
-                if ($assignment && $assignment->current_status === BatchSlotAssignment::STATUS_COMPLETED && $assignment->completed_reason === 'EXHAUSTED') {
+                if ($assignment && $assignment->current_status === BatchSlotAssignment::STATUS_COMPLETED && in_array($assignment->completed_reason, ['EXHAUSTED', 'MANUAL'])) {
                     // Cek apakah slot masih belum diisi batch lain
                     $isOccupied = BatchSlotAssignment::where('slot_code', $cull->slot_code)
                         ->where('id', '!=', $assignment->id)
@@ -196,7 +196,7 @@ class BaglogCullController extends Controller
                             'completed_at' => null,
                             'completed_reason' => null,
                         ]);
-                        $assignment->baglogBatch?->refreshLifecycle();
+                        $assignment->baglogBatch?->syncLifecycleState();
                     }
                 }
             }

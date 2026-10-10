@@ -55,7 +55,7 @@ class BaglogCull extends Model
     protected function casts(): array
     {
         return [
-            'cull_date' => 'date',
+            'cull_date' => 'date:Y-m-d',
             'quantity' => 'integer',
             'voided_at' => 'datetime',
         ];
