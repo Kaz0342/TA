@@ -4,6 +4,7 @@ import { Trash2, Search, Ban, RefreshCw } from 'lucide-react';
 import { cullService, type BaglogCullItem } from '../services/cullService';
 import { useToastStore } from '../stores/toastStore';
 import { ModalPortal } from './ui';
+import { formatWIBDate } from '../utils/date';
 
 interface CullHistoryTableProps {
   onOpenRecordModal: () => void;
@@ -180,7 +181,7 @@ export default function CullHistoryTable({ onOpenRecordModal, isAdmin }: CullHis
                 return (
                   <tr key={cull.id} className="hover:bg-slate-50/60 dark:hover:bg-[#182c20]/50 transition-colors">
                     <td className="py-3 px-4 font-medium text-[#192e22] dark:text-[#e4efe8]">
-                      {cull.cull_date}
+                      {formatWIBDate(cull.cull_date)}
                     </td>
                     <td className="py-3 px-4 font-bold text-emerald-700 dark:text-[#86efac]">
                       {cull.batch_code}
@@ -246,7 +247,7 @@ export default function CullHistoryTable({ onOpenRecordModal, isAdmin }: CullHis
                 <div className="flex justify-between">
                   <span className="text-slate-500">Tanggal:</span>
                   <span className="font-semibold text-slate-800 dark:text-slate-200">
-                    {voidTarget.cull_date}
+                    {formatWIBDate(voidTarget.cull_date)}
                   </span>
                 </div>
                 <div className="flex justify-between">

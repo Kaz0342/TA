@@ -4,6 +4,7 @@ import { X, Trash2, AlertCircle } from 'lucide-react';
 import { cullService, type CreateCullPayload } from '../services/cullService';
 import { useToastStore } from '../stores/toastStore';
 import { ModalPortal } from './ui';
+import { getTodayWIBString } from '../utils/date';
 
 interface RecordCullModalProps {
   isOpen: boolean;
@@ -34,7 +35,7 @@ export default function RecordCullModal({
 
   const [batchId, setBatchId] = useState<number | ''>('');
   const [slotCode, setSlotCode] = useState<string>('');
-  const [cullDate, setCullDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [cullDate, setCullDate] = useState<string>(getTodayWIBString());
   const [quantity, setQuantity] = useState<string>('');
   const [reason, setReason] = useState<CreateCullPayload['reason']>('TRICHODERMA');
   const [notes, setNotes] = useState<string>('');
@@ -50,7 +51,7 @@ export default function RecordCullModal({
         setBatchId('');
       }
       setSlotCode(initialSlotCode || '');
-      setCullDate(new Date().toISOString().split('T')[0]);
+      setCullDate(getTodayWIBString());
       setQuantity('');
       setReason('TRICHODERMA');
       setNotes('');

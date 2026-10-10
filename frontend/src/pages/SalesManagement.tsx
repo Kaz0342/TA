@@ -30,6 +30,7 @@ import { useToastStore } from '../stores/toastStore';
 import { useThemeStore } from '../stores/themeStore';
 import AnimatedNumber from '../components/AnimatedNumber';
 import { ModalPortal } from '../components/ui';
+import { getTodayWIBString, formatWIBDate, toLocalDateString } from '../utils/date';
 
 interface SaleRecord {
   id: number;
@@ -56,6 +57,7 @@ interface WeeklyReportData {
   start_date: string;
   end_date: string;
   total_harvest_kg: number;
+  total_reject_kg?: number;
   total_sales_kg: number;
   unsold_kg: number;
   total_revenue_idr: number;
@@ -87,12 +89,14 @@ export default function SalesManagement() {
 
   // Modal Create Transaction State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
+  const [saleDate, setSaleDate] = useState(getTodayWIBString());
   const [buyerName, setBuyerName] = useState('');
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
   const [quantityKg, setQuantityKg] = useState('');
   const [pricePerKg, setPricePerKg] = useState('');
   const [notes, setNotes] = useState('');
+  const [isForceSale, setIsForceSale] = useState(false);
+  const [forceReason, setForceReason] = useState('');
   const [formError, setFormError] = useState('');
 
   // Void Modal State
@@ -138,6 +142,8 @@ export default function SalesManagement() {
       buyer_name: string;
       baglog_batch_id?: number | null;
       notes?: string;
+      force?: boolean;
+      force_reason?: string;
     }) => {
       const res = await api.post('/sales', payload);
       return res.data;
@@ -187,12 +193,14 @@ export default function SalesManagement() {
   });
 
   const resetForm = () => {
-    setSaleDate(new Date().toISOString().split('T')[0]);
+    setSaleDate(getTodayWIBString());
     setBuyerName('');
     setSelectedBatchId(null);
     setQuantityKg('');
     setPricePerKg('');
     setNotes('');
+    setIsForceSale(false);
+    setForceReason('');
     setFormError('');
   };
 
@@ -225,13 +233,7 @@ export default function SalesManagement() {
 
   const formatDateIndo = (dateStr: string) => {
     if (!dateStr) return '-';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('id-ID', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
+    return formatWIBDate(dateStr, 'long');
   };
 
   // Extract unique buyers for dropdown filter
@@ -338,9 +340,10 @@ export default function SalesManagement() {
     const sorted = [...sales].sort((a, b) => new Date(a.sale_date).getTime() - new Date(b.sale_date).getTime());
     
     sorted.forEach((s) => {
-      const d = new Date(s.sale_date);
-      const key = d.toISOString().split('T')[0];
-      const label = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+      const key = typeof s.sale_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s.sale_date)
+        ? s.sale_date
+        : toLocalDateString(new Date(s.sale_date));
+      const label = formatWIBDate(s.sale_date, { day: 'numeric', month: 'short' });
       
       if (!dailyMap[key]) {
         dailyMap[key] = { date: key, label, revenue: 0, volume_kg: 0 };
@@ -425,13 +428,20 @@ export default function SalesManagement() {
       return;
     }
 
+    if (isForceSale && forceReason.trim().length < 10) {
+      setFormError('Alasan penjualan paksa (force) wajib diisi minimal 10 karakter');
+      return;
+    }
+
     createMutation.mutate({
       sale_date: saleDate,
       quantity_kg: modalParsedKg,
       price_per_kg: modalParsedPrice,
       buyer_name: buyerName.trim(),
       baglog_batch_id: selectedBatchId || null,
-      notes: notes.trim() || undefined
+      notes: notes.trim() || undefined,
+      force: isForceSale,
+      force_reason: isForceSale ? forceReason.trim() : undefined,
     });
   };
 
@@ -766,10 +776,15 @@ export default function SalesManagement() {
               {/* Panen Masuk */}
               <div className="p-3.5 rounded-2xl bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-[#486356] dark:text-[#a3c9b4]">Panen Masuk (Supply)</p>
+                  <p className="text-xs font-bold text-[#486356] dark:text-[#a3c9b4]">Panen Layak Jual (Supply)</p>
                   <p className="text-lg font-extrabold text-[#192e22] dark:text-[#e4efe8] mt-0.5">
                     {isLoadingWeeklyReport ? '...' : `${(weeklyReport?.total_harvest_kg ?? 0).toFixed(2)} Kg`}
                   </p>
+                  {Boolean(weeklyReport?.total_reject_kg) && (
+                    <span className="text-[10px] text-amber-700 dark:text-amber-400 font-medium block mt-0.5">
+                      + {(weeklyReport?.total_reject_kg ?? 0).toFixed(2)} Kg Afkir/Reject (Diisolasi)
+                    </span>
+                  )}
                 </div>
                 <div className="w-8 h-8 rounded-xl bg-[#e8f4ed] dark:bg-[#1b3324] text-[#244b37] dark:text-[#86efac] flex items-center justify-center text-xs font-bold">
                   IN
@@ -1252,6 +1267,9 @@ export default function SalesManagement() {
                   onChange={(e) => setSaleDate(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-2xl bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] text-sm font-semibold text-[#192e22] dark:text-[#e4efe8] focus:outline-none focus:ring-1 focus:ring-[#244b37]"
                 />
+                <span className="text-[11px] text-[#759183] dark:text-[#6b8a78] mt-1 block">
+                  Format: {formatWIBDate(saleDate, 'full')}
+                </span>
               </div>
 
               {/* Nama Pembeli / Pengepul */}
@@ -1409,6 +1427,41 @@ export default function SalesManagement() {
                   onChange={(e) => setNotes(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-2xl bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] text-xs font-medium text-[#192e22] dark:text-[#e4efe8] focus:outline-none focus:ring-1 focus:ring-[#244b37]"
                 />
+              </div>
+
+              {/* Opsi Force Sale bila stok fisik belum sempat tercatat */}
+              <div className="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isForceSale}
+                    onChange={(e) => setIsForceSale(e.target.checked)}
+                    className="mt-0.5 rounded text-amber-600 focus:ring-amber-500"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-amber-900 dark:text-amber-200 block">
+                      Opsi Penjualan Paksa (Force Sale / Panen Susulan)
+                    </span>
+                    <span className="text-[11px] text-amber-700/80 dark:text-amber-300/70 block mt-0.5 leading-snug">
+                      Centang jika stok jamur di sistem belum tercatat (misal: panen darurat / susulan) untuk mengizinkan transaksi melebihi saldo stok panen.
+                    </span>
+                  </div>
+                </label>
+
+                {isForceSale && (
+                  <div className="mt-2.5 pt-2.5 border-t border-amber-200/60 dark:border-amber-900/40">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200 mb-1">
+                      Alasan Penjualan Paksa <span className="text-rose-500">*</span> (Min. 10 karakter)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Panen pagi 30 kg belum sempat diinput staf gudang"
+                      value={forceReason}
+                      onChange={(e) => setForceReason(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#111c15] border border-amber-300 dark:border-amber-800 text-xs text-[#192e22] dark:text-[#e4efe8] focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Submit Buttons */}

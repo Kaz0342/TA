@@ -12,6 +12,8 @@ export interface BatchHppData {
   total_quantity?: number;
   active_capacity?: number;
   culled_quantity?: number;
+  loss_culls_qty?: number;
+  habis_produksi_qty?: number;
   total_culls_qty?: number;
   mortality_rate_percent?: number;
   price_per_baglog?: number;

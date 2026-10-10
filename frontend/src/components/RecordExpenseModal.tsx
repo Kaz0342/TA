@@ -4,6 +4,7 @@ import { X, Banknote, AlertCircle } from 'lucide-react';
 import { hppService, type CreateExpensePayload } from '../services/hppService';
 import { useToastStore } from '../stores/toastStore';
 import { ModalPortal } from './ui';
+import { getTodayWIBString } from '../utils/date';
 
 interface RecordExpenseModalProps {
   isOpen: boolean;
@@ -19,7 +20,7 @@ export default function RecordExpenseModal({
   const queryClient = useQueryClient();
   const addToast = useToastStore((state) => state.addToast);
 
-  const [expenseDate, setExpenseDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [expenseDate, setExpenseDate] = useState<string>(getTodayWIBString());
   const [category, setCategory] = useState<CreateExpensePayload['category']>('LAINNYA');
   const [amount, setAmount] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
@@ -27,7 +28,7 @@ export default function RecordExpenseModal({
 
   useEffect(() => {
     if (isOpen) {
-      setExpenseDate(new Date().toISOString().split('T')[0]);
+      setExpenseDate(getTodayWIBString());
       setCategory('LAINNYA');
       setAmount('');
       setNotes('');
@@ -142,6 +143,8 @@ export default function RecordExpenseModal({
               className="w-full bg-[#fbfdfc] dark:bg-[#0c140e] border border-[#d6e9df] dark:border-[#1e382b] rounded-xl px-3.5 py-2.5 text-xs text-[#192e22] dark:text-[#e4efe8] font-bold focus:ring-2 focus:ring-emerald-500 outline-hidden transition-all"
               required
             >
+              <option value="LISTRIK">Listrik Kumbung & Pompa</option>
+              <option value="AIR">Air & Sanitasi Misting</option>
               <option value="NUTRISI">Nutrisi / Suplemen Jamur</option>
               <option value="LABOR">Tenaga Kerja / Upah Harian</option>
               <option value="PACKAGING">Kemasan & Plastik Packing</option>

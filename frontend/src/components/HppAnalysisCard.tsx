@@ -15,6 +15,7 @@ import { hppService, type HppSummaryData, type BatchHppData, type OperationalExp
 import AnimatedProgressBar from './AnimatedProgressBar';
 import RecordExpenseModal from './RecordExpenseModal';
 import { useToastStore } from '../stores/toastStore';
+import { formatWIBDate } from '../utils/date';
 
 interface HppAnalysisCardProps {
   batches: Array<{
@@ -305,8 +306,13 @@ export default function HppAnalysisCard({ batches, isAdmin }: HppAnalysisCardPro
                     <p className="text-sm font-extrabold text-[#192e22] dark:text-[#e4efe8] mt-0.5">
                       {batchHpp.active_capacity ?? 0} baglog
                     </p>
-                    <span className="text-[10px] text-[#759183] dark:text-[#6b8a78]">
-                      Dibuang: {batchHpp.culled_quantity ?? batchHpp.total_culls_qty ?? 0} ({batchHpp.mortality_rate_percent ?? 0}%)
+                    <span className="text-[10px] text-[#759183] dark:text-[#6b8a78] leading-tight block">
+                      Afkir Penyakit: {batchHpp.culled_quantity ?? 0} ({batchHpp.mortality_rate_percent ?? 0}%)
+                      {Boolean(batchHpp.habis_produksi_qty) && (
+                        <span className="block text-[9px] text-slate-500 dark:text-[#8ba898] mt-0.5">
+                          Habis Siklus: {batchHpp.habis_produksi_qty} baglog
+                        </span>
+                      )}
                     </span>
                   </div>
 
@@ -389,7 +395,7 @@ export default function HppAnalysisCard({ batches, isAdmin }: HppAnalysisCardPro
                             {badge.label}
                           </span>
                           <span className="text-[11px] text-[#759183] dark:text-[#6b8a78] font-medium">
-                            {item.expense_date}
+                            {formatWIBDate(item.expense_date)}
                           </span>
                         </div>
                         {item.notes && (

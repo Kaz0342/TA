@@ -10,6 +10,7 @@ import SlotDetailModal from '../components/SlotDetailModal';
 import RecordCullModal from '../components/RecordCullModal';
 import AddRackModal from '../components/AddRackModal';
 import { ModalPortal } from '../components/ui';
+import { getTodayWIBString } from '../utils/date';
 
 export default function KumbungGrid() {
   const user = useAuthStore((state) => state.user);
@@ -49,7 +50,7 @@ export default function KumbungGrid() {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [assignBatchId, setAssignBatchId] = useState<number | ''>('');
   const [assignMyceliumStage, setAssignMyceliumStage] = useState<'LEVEL_1' | 'LEVEL_2' | 'LEVEL_3'>('LEVEL_2');
-  const [assignDate, setAssignDate] = useState(new Date().toISOString().split('T')[0]);
+  const [assignDate, setAssignDate] = useState(getTodayWIBString());
   const [selectedPreviewBatchId, setSelectedPreviewBatchId] = useState<number | null>(null);
 
   // Fetch Racks

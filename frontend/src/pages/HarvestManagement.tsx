@@ -22,9 +22,11 @@ import {
 import api from '../services/api';
 import { useToastStore } from '../stores/toastStore';
 import { useThemeStore } from '../stores/themeStore';
+import { useAuthStore } from '../stores/authStore';
 import AnimatedNumber from '../components/AnimatedNumber';
 import AnimatedProgressBar from '../components/AnimatedProgressBar';
 import { ModalPortal } from '../components/ui';
+import { getTodayWIBString, formatWIBDate } from '../utils/date';
 
 interface HarvestRecord {
   id: number;
@@ -77,8 +79,9 @@ export default function HarvestManagement() {
   const pageSize = 10;
 
   // Create Modal State
+  const { user } = useAuthStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [harvestDate, setHarvestDate] = useState(new Date().toISOString().split('T')[0]);
+  const [harvestDate, setHarvestDate] = useState(getTodayWIBString());
   const [weightKg, setWeightKg] = useState('');
   const [selectedBatchId, setSelectedBatchId] = useState('');
   const [slotCode, setSlotCode] = useState('');
@@ -138,7 +141,7 @@ export default function HarvestManagement() {
 
   // KPI Calculations
   const metrics = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getTodayWIBString();
     const todayHarvests = harvests.filter((h) => h.harvest_date && h.harvest_date.startsWith(todayStr));
     const todayTotalKg = todayHarvests.reduce((sum, h) => sum + Number(h.weight_kg || 0), 0);
     const dailyTargetKg = 15.0;
@@ -180,7 +183,7 @@ export default function HarvestManagement() {
     return harvests.filter((h) => {
       // Filter Waktu
       if (timeFilter === 'today') {
-        const todayStr = new Date().toISOString().split('T')[0];
+        const todayStr = getTodayWIBString();
         if (!h.harvest_date || !h.harvest_date.startsWith(todayStr)) return false;
       } else if (timeFilter === 'week') {
         const harvestTime = new Date(h.harvest_date).getTime();
@@ -280,7 +283,7 @@ export default function HarvestManagement() {
   });
 
   const resetForm = () => {
-    setHarvestDate(new Date().toISOString().split('T')[0]);
+    setHarvestDate(getTodayWIBString());
     setWeightKg('');
     setSelectedBatchId('');
     setSlotCode('');
@@ -831,11 +834,7 @@ export default function HarvestManagement() {
                             <Calendar className="w-3.5 h-3.5" />
                           </div>
                           <span>
-                            {new Date(h.harvest_date).toLocaleDateString('id-ID', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric',
-                            })}
+                            {formatWIBDate(h.harvest_date)}
                           </span>
                         </div>
                       </td>
@@ -902,20 +901,24 @@ export default function HarvestManagement() {
                         {h.notes || <span className="text-slate-300 dark:text-slate-600">-</span>}
                       </td>
 
-                      {/* Aksi */}
+                      {/* Aksi (Admin Only — AUD-01) */}
                       <td className="py-3 px-4 text-center whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setVoidTarget(h);
-                            setVoidReason('');
-                            setVoidError('');
-                          }}
-                          className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                          title="Batalkan (Void) Data Panen"
-                        >
-                          <Ban className="w-3.5 h-3.5" />
-                        </button>
+                        {user?.role === 'admin' ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setVoidTarget(h);
+                              setVoidReason('');
+                              setVoidError('');
+                            }}
+                            className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                            title="Batalkan (Void) Data Panen"
+                          >
+                            <Ban className="w-3.5 h-3.5" />
+                          </button>
+                        ) : (
+                          <span className="text-[11px] font-medium text-slate-400 dark:text-slate-600">-</span>
+                        )}
                       </td>
 
                     </tr>

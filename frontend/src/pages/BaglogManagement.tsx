@@ -25,6 +25,9 @@ import RecordCullModal from '../components/RecordCullModal';
 import CullHistoryTable from '../components/CullHistoryTable';
 import HppAnalysisCard from '../components/HppAnalysisCard';
 import { ModalPortal } from '../components/ui';
+import { getTodayWIBString } from '../utils/date';
+import { cullService } from '../services/cullService';
+import { hppService } from '../services/hppService';
 
 // Data Contract Interface
 interface BaglogBatch {
@@ -67,7 +70,7 @@ export default function BaglogManagement() {
 
   // Create Batch Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]);
+  const [entryDate, setEntryDate] = useState(getTodayWIBString());
   const [quantity, setQuantity] = useState('');
   const [pricePerBaglog, setPricePerBaglog] = useState('0');
   const [supplier, setSupplier] = useState('');
@@ -112,6 +115,18 @@ export default function BaglogManagement() {
       return res.data.data;
     },
     staleTime: 30000,
+  });
+
+  // Query: Fetch Culls Data untuk Badge Penanda Tab Riwayat Afkir
+  const { data: cullsData = [] } = useQuery({
+    queryKey: ['baglogCulls'],
+    queryFn: () => cullService.getCulls(),
+  });
+
+  // Query: Fetch Expenses Data untuk Count Tab Analisis HPP
+  const { data: expensesData = [] } = useQuery({
+    queryKey: ['operationalExpenses'],
+    queryFn: () => hppService.getExpenses(),
   });
 
   // KPI Calculations
@@ -253,7 +268,7 @@ export default function BaglogManagement() {
   });
 
   const resetForm = () => {
-    setEntryDate(new Date().toISOString().split('T')[0]);
+    setEntryDate(getTodayWIBString());
     setQuantity('');
     setPricePerBaglog('0');
     setSupplier('');
@@ -530,39 +545,39 @@ export default function BaglogManagement() {
 
       </div>
 
-      {/* Module Navigation Tabs */}
-      <div className="flex items-center gap-2 bg-[#d7ebe0]/50 dark:bg-[#182c20]/60 p-1.5 rounded-2xl border border-[#d6e9df] dark:border-[#1e382b] overflow-x-auto no-scrollbar">
+      {/* Module Navigation Tabs (Segmented Pills Style matching Filter Tabs) */}
+      <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-0.5">
         <button
           onClick={() => setActiveTab('batches')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${activeTab === 'batches'
-              ? 'bg-white dark:bg-[#142219] text-[#192e22] dark:text-[#86efac] shadow-xs'
-              : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
+          className={`px-3.5 sm:px-4 py-2 rounded-xl sm:rounded-full text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0 ${activeTab === 'batches'
+              ? 'bg-emerald-700 text-white dark:bg-emerald-600 dark:text-white shadow-xs font-bold'
+              : 'bg-[#d7ebe0] dark:bg-[#182c20] text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
             }`}
         >
-          <Layers className="w-4 h-4" />
+          <Layers className="w-3.5 h-3.5 shrink-0" />
           <span>Daftar Batch Baglog ({baglogs.length})</span>
         </button>
 
         <button
           onClick={() => setActiveTab('culls')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${activeTab === 'culls'
-              ? 'bg-white dark:bg-[#142219] text-rose-700 dark:text-rose-400 shadow-xs'
-              : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-rose-700 dark:hover:text-rose-400'
+          className={`px-3.5 sm:px-4 py-2 rounded-xl sm:rounded-full text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0 ${activeTab === 'culls'
+              ? 'bg-rose-700 text-white dark:bg-rose-600 dark:text-white shadow-xs font-bold'
+              : 'bg-[#d7ebe0] dark:bg-[#182c20] text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
             }`}
         >
-          <Trash2 className="w-4 h-4" />
-          <span>Riwayat Baglog Rusak &amp; Kontaminasi</span>
+          <Trash2 className="w-3.5 h-3.5 shrink-0" />
+          <span>Riwayat Baglog Rusak &amp; Kontaminasi ({cullsData.length})</span>
         </button>
 
         <button
           onClick={() => setActiveTab('hpp')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${activeTab === 'hpp'
-              ? 'bg-white dark:bg-[#142219] text-emerald-800 dark:text-[#86efac] shadow-xs'
-              : 'text-[#526a5e] dark:text-[#a3c9b4] hover:text-emerald-800 dark:hover:text-[#86efac]'
+          className={`px-3.5 sm:px-4 py-2 rounded-xl sm:rounded-full text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0 ${activeTab === 'hpp'
+              ? 'bg-emerald-700 text-white dark:bg-emerald-600 dark:text-white shadow-xs font-bold'
+              : 'bg-[#d7ebe0] dark:bg-[#182c20] text-[#526a5e] dark:text-[#a3c9b4] hover:text-[#192e22] dark:hover:text-[#e4efe8]'
             }`}
         >
-          <Banknote className="w-4 h-4" />
-          <span>Analisis HPP &amp; Keuntungan Kotor</span>
+          <Banknote className="w-3.5 h-3.5 shrink-0" />
+          <span>Analisis HPP &amp; Keuntungan Kotor ({expensesData.length})</span>
         </button>
       </div>
 

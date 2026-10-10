@@ -4,6 +4,7 @@ import { slotService, type SlotData } from '../services/slotService';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToastStore } from '../stores/toastStore';
 import { ModalPortal } from './ui';
+import { formatWIBDate } from '../utils/date';
 
 interface SlotDetailModalProps {
   isOpen: boolean;
@@ -152,7 +153,7 @@ export default function SlotDetailModal({ isOpen, onClose, slot, onRecordCull }:
                     <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Masuk Kumbung
                   </span>
                   <span className="font-bold text-[#192e22] dark:text-[#e4efe8]">
-                    {slot.assignment.assigned_at || '-'}
+                    {formatWIBDate(slot.assignment.assigned_at)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-[#526a5e] dark:text-[#a3c9b4]">
