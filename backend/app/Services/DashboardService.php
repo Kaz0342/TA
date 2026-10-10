@@ -30,10 +30,20 @@ class DashboardService
     public function getQuickStats(): array
     {
         // 1. Total Baglog Aktif (W-03: Net surviving baglogs dari batch aktif)
-        $activeBatchIds = BaglogBatch::active()->select('id');
+        $activeBatchIds = BaglogBatch::active()->pluck('id');
         $initialQuantity = (int) BaglogBatch::active()->sum('quantity');
         $culledQuantity = (int) BaglogCull::whereIn('baglog_batch_id', $activeBatchIds)->sum('quantity');
         $activeBaglogs = max(0, $initialQuantity - $culledQuantity);
+
+        // Baglog yang sedang aktif di rak kumbung vs belum dialokasikan (Probe P37)
+        $activeAssignedQty = (int) \App\Models\BatchSlotAssignment::whereIn('current_status', ['INCUBATION', 'FRUITING'])
+            ->whereIn('baglog_batch_id', $activeBatchIds)
+            ->sum('initial_quantity');
+        $cullsOnRack = (int) BaglogCull::whereNotNull('slot_code')
+            ->whereIn('baglog_batch_id', $activeBatchIds)
+            ->sum('quantity');
+        $activeOnRack = max(0, $activeAssignedQty - $cullsOnRack);
+        $unassignedBaglogs = max(0, $activeBaglogs - $activeOnRack);
 
         // 2. Total Panen Hari Ini
         $todayHarvest = Harvest::today()->sum('weight_kg');
@@ -51,13 +61,19 @@ class DashboardService
             $alerts = $this->sensorService->checkThresholdViolations($latestSensor);
         }
 
+        // Probe P07 & P08: Wajib select 'id' dan pre-aggregate relasi assignments
         $latestBatches = BaglogBatch::where('status', 'active')
+            ->withSum('assignments as assigned_quantity', 'initial_quantity')
+            ->withCount('assignments as assigned_slots_count')
             ->orderBy('entry_date', 'desc')
             ->limit(3)
-            ->get(['batch_code', 'entry_date', 'quantity', 'supplier'])
+            ->get(['id', 'batch_code', 'entry_date', 'quantity', 'supplier'])
             ->map(function ($batch) {
                 // Tambahkan field komputasi umur hari
                 $batch->age_days = Carbon::parse($batch->entry_date)->diffInDays(now());
+                $batch->assigned_quantity = (int) ($batch->assigned_quantity ?? 0);
+                $batch->unassigned_quantity = max(0, $batch->quantity - $batch->assigned_quantity);
+                $batch->assigned_slots_count = (int) ($batch->assigned_slots_count ?? 0);
 
                 return $batch;
             });
@@ -69,6 +85,8 @@ class DashboardService
         return [
             'active_baglogs' => (int) $activeBaglogs,
             'active_baglogs_count' => (int) $activeBaglogs,
+            'active_on_rack' => (int) $activeOnRack,
+            'unassigned_quantity' => (int) $unassignedBaglogs,
             'today_harvest_kg' => (float) $todayHarvest,
             'monthly_revenue_idr' => (float) $monthlyRevenue,
             'weekly_revenue' => (float) $weeklyRevenue,

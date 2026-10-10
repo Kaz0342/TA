@@ -28,6 +28,7 @@ import { useThemeStore } from '../stores/themeStore';
 import SemiCircleGauge from '../components/SemiCircleGauge';
 import AnimatedNumber from '../components/AnimatedNumber';
 import HarvestPauseWidget from '../components/HarvestPauseWidget';
+import { formatWIBDate } from '../utils/date';
 
 // Fetchers
 const fetchStats = async () => (await api.get('/dashboard/stats')).data.data;
@@ -297,6 +298,65 @@ export default function Dashboard() {
   const smoothedChart = useMemo(() => {
     return processChartData(rawChartData, timeRange, latestSensor);
   }, [rawChartData, timeRange, latestSensor?.temperature, latestSensor?.humidity, latestSensor?.recorded_at]);
+
+  // Dynamic YAxis Domains & Ticks untuk Iklim (Menjamin Rentang Aman & Data Sensor Selalu Terlihat Penuh)
+  const { humChartDomain, humChartTicks } = useMemo(() => {
+    const dataMin = smoothedChart.length > 0 
+      ? Math.min(...smoothedChart.map((d: any) => Number(d.humidity ?? 100))) 
+      : (humVal || 100);
+    const dataMax = smoothedChart.length > 0 
+      ? Math.max(...smoothedChart.map((d: any) => Number(d.humidity ?? 0))) 
+      : (humVal || 0);
+
+    const minCandidate = Math.min(humMin, humVal > 0 ? humVal : humMin, dataMin);
+    const maxCandidate = Math.max(humMax, humVal > 0 ? humVal : humMax, dataMax);
+
+    // Padding batas bawah ke kelipatan 10 (misal threshold 65%, yMin = 50%)
+    const yMin = Math.max(30, Math.floor((minCandidate - 5) / 10) * 10);
+    const yMax = Math.max(100, Math.ceil(maxCandidate / 10) * 10);
+
+    const ticks: number[] = [];
+    for (let t = yMin; t <= yMax; t += 10) {
+      ticks.push(t);
+    }
+    if (!ticks.includes(yMax)) {
+      ticks.push(yMax);
+    }
+
+    return {
+      humChartDomain: [yMin, yMax] as [number, number],
+      humChartTicks: ticks,
+    };
+  }, [humMin, humMax, humVal, smoothedChart]);
+
+  const { tempChartDomain, tempChartTicks } = useMemo(() => {
+    const dataMin = smoothedChart.length > 0 
+      ? Math.min(...smoothedChart.map((d: any) => Number(d.temp ?? 30))) 
+      : (tempVal || 25);
+    const dataMax = smoothedChart.length > 0 
+      ? Math.max(...smoothedChart.map((d: any) => Number(d.temp ?? 20))) 
+      : (tempVal || 30);
+
+    const minCandidate = Math.min(tempMin, tempVal > 0 ? tempVal : tempMin, dataMin);
+    const maxCandidate = Math.max(tempMax, tempVal > 0 ? tempVal : tempMax, dataMax);
+
+    const yMin = Math.min(22, Math.floor(minCandidate - 3));
+    const yMax = Math.max(34, Math.ceil(maxCandidate + 3));
+
+    const step = Math.max(2, Math.round((yMax - yMin) / 4));
+    const ticks: number[] = [];
+    for (let t = yMin; t <= yMax; t += step) {
+      ticks.push(t);
+    }
+    if (!ticks.includes(yMax)) {
+      ticks.push(yMax);
+    }
+
+    return {
+      tempChartDomain: [yMin, yMax] as [number, number],
+      tempChartTicks: ticks,
+    };
+  }, [tempMin, tempMax, tempVal, smoothedChart]);
 
   // Harvest / Crop Progress data mapped from API
   const cropProgressData = harvestChartData && harvestChartData.length > 0
@@ -733,8 +793,8 @@ export default function Dashboard() {
                             minTickGap={20}
                           />
                           <YAxis
-                            domain={[22, 34]}
-                            ticks={[22, 25, 28, 31, 34]}
+                            domain={tempChartDomain}
+                            ticks={tempChartTicks}
                             tick={{ fontSize: 9, fill: isDark ? '#a3c9b4' : '#334155', fontWeight: 'bold' }}
                             tickFormatter={(v) => `${v}°`}
                             axisLine={{ stroke: isDark ? '#1e382b' : '#334155', strokeWidth: 1.5 }}
@@ -829,8 +889,8 @@ export default function Dashboard() {
                             minTickGap={20}
                           />
                           <YAxis
-                            domain={[80, 100]}
-                            ticks={[80, 85, 90, 95, 100]}
+                            domain={humChartDomain}
+                            ticks={humChartTicks}
                             tick={{ fontSize: 9, fill: isDark ? '#a3c9b4' : '#334155', fontWeight: 'bold' }}
                             tickFormatter={(v) => `${v}%`}
                             axisLine={{ stroke: isDark ? '#1e382b' : '#334155', strokeWidth: 1.5 }}
@@ -952,8 +1012,8 @@ export default function Dashboard() {
                         yAxisId="temp"
                         orientation="left"
                         type="number"
-                        domain={[20, 34]}
-                        ticks={[20, 23, 26, 29, 32, 34]}
+                        domain={tempChartDomain}
+                        ticks={tempChartTicks}
                         tick={{ fontSize: 10, fill: isDark ? '#fbbf24' : '#d97706', fontWeight: 'bold' }}
                         tickFormatter={(v) => `${v}°`}
                         axisLine={{ stroke: isDark ? '#78350f' : '#f59e0b', strokeWidth: 1.5 }}
@@ -963,8 +1023,8 @@ export default function Dashboard() {
                         yAxisId="hum"
                         orientation="right"
                         type="number"
-                        domain={[65, 98]}
-                        ticks={[65, 70, 75, 80, 85, 90, 95]}
+                        domain={humChartDomain}
+                        ticks={humChartTicks}
                         tick={{ fontSize: 10, fill: isDark ? '#38bdf8' : '#0284c7', fontWeight: 'bold' }}
                         tickFormatter={(v) => `${v}%`}
                         axisLine={{ stroke: isDark ? '#0369a1' : '#93c5fd', strokeWidth: 1.5 }}
@@ -1505,7 +1565,7 @@ export default function Dashboard() {
                           <tr key={batch.batch_code} className="hover:bg-[#f7faf8] dark:hover:bg-[#182c20]/60 transition-colors">
                             <td className="py-2.5 px-3 font-bold text-[#192e22] dark:text-[#e4efe8]">{batch.batch_code}</td>
                             <td className="py-2.5 px-3 text-slate-600 dark:text-[#a3c9b4]">
-                              {new Date(batch.entry_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              {formatWIBDate(batch.entry_date)}
                             </td>
                             <td className="py-2.5 px-3">
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${batch.age_days >= 30
@@ -1548,7 +1608,7 @@ export default function Dashboard() {
                           <div>
                             <span className="text-[10px] text-slate-400 block">Tgl Masuk</span>
                             <span className="font-medium text-slate-700 dark:text-slate-300">
-                              {new Date(batch.entry_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                              {formatWIBDate(batch.entry_date)}
                             </span>
                           </div>
                           <div>
