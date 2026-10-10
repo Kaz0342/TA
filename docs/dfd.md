@@ -46,22 +46,22 @@ flowchart TD
     Admin -->|"Kredensial Login, Data Akun Pekerja"| System
     Admin -->|"Konfigurasi Ambang Batas Iklim & Preset"| System
     Admin -->|"Data Pengadaan Batch Baglog Baru"| System
-    Admin -->|"Perintah Alokasi Spasial Slot Rak 3D (WMS)"| System
-    Admin -->|"Instruksi Tutup Siklus Rak & Auto-Cull"| System
-    Admin -->|"Instruksi Voiding Transaksi (Harvest/Sale/Cull)"| System
-    Admin -->|"Data Beban Operasional Kumbung (Listrik/Air/TK)"| System
-    Admin -->|"Pencatatan Nota Penjualan Jamur"| System
+    Admin -->|"Perintah Alokasi Spasial Slot Rak 3D (WMS, Cap 3000)"| System
+    Admin -->|"Instruksi Tutup Siklus Rak (EXHAUSTED) & Auto-Cull"| System
+    Admin -->|"Instruksi Voiding Transaksi (Harvest/Sale/Cull/Expense)"| System
+    Admin -->|"Data Beban Operasional Kumbung (Listrik/Air/Nutrisi/TK)"| System
+    Admin -->|"Pencatatan Nota Penjualan Jamur & Opsi Force Sale Defisit"| System
 
     %% Admin Outflows
     System -->|"Token Sesi Sanctum, Status Autentikasi"| Admin
     System -->|"Dashboard Ringkasan 4 Kartu KPI & EWS Alert"| Admin
     System -->|"Visualisasi Denah Spasial 300 Slot & Heatmap"| Admin
-    System -->|"Laporan Finansial: HPP Dinamis & Margin Laba"| Admin
-    System -->|"Tabel Riwayat Ledger Audit Trail (Soft Voided)"| Admin
+    System -->|"Laporan Finansial: HPP Non-Retroaktif, Margin & Rekonsiliasi Omzet"| Admin
+    System -->|"Tabel Riwayat Ledger Audit Trail (Soft Voided voided_by)"| Admin
 
     %% Worker Inflows
     Worker -->|"Kredensial Login"| System
-    Worker -->|"Data Timbangan Panen Harian (Slot & Flush)"| System
+    Worker -->|"Data Timbangan Panen Harian (Slot & Flush 1-7, Grade A/B/REJECT)"| System
     Worker -->|"Data Mutasi Afkir Baglog (Penyebab Rusak)"| System
     Worker -->|"Perintah Interupsi Jeda Panen (2h/4h/6h/8h)"| System
     Worker -->|"Perintah Resume ke Mode AUTO"| System
@@ -131,17 +131,17 @@ flowchart TD
 
     %% Process 3: Spasial WMS 3D
     P3(("3.0<br/>Manajemen Spasial WMS<br/>& Batch Baglog"))
-    Admin -->|Batch Baru, Alokasi Slot, Tutup Siklus| P3
+    Admin -->|Batch Baru, Alokasi Slot (Cap 3000), Tutup Siklus (EXHAUSTED)| P3
     P3 <-->|Kapasitas Rak & Grid 300 Slot| D6
-    P3 <-->|Relasi Alokasi Kamar Rak| D7
+    P3 <-->|Relasi Alokasi Kamar Rak (Cek Pasangan Unik)| D7
     P3 <-->|Master Batch Media Tanam| D5
-    P3 -->|Auto-Cull Sisa Kapasitas| D8
+    P3 -->|Auto-Cull Sisa Kapasitas (HABIS_PRODUKSI)| D8
     P3 -->|Grid Interaktif, Heatmap Panen, Status Slot| Admin
     P3 -->|Denah Rak Visual & Kapasitas Aktif| Worker
 
     %% Process 4: Cull Ledger
     P4(("4.0<br/>Manajemen Afkir &<br/>Biosekuriti"))
-    Admin -->|Alasan Void Afkir| P4
+    Admin -->|Alasan Void Afkir (voided_by)| P4
     Worker -->|Lapor Afkir Baglog Rusak| P4
     P4 <-->|Jurnal Mutasi Culls, Void Timestamp| D8
     P4 <-->|Decrement / Restore Active Capacity| D7
@@ -149,28 +149,29 @@ flowchart TD
     P4 -->|Notifikasi Sukses Input Afkir| Worker
 
     %% Process 5: Harvest Multi-Flush
-    P5(("5.0<br/>Pencatatan Panen<br/>Multi-Flush"))
-    Admin -->|Alasan Void Panen| P5
-    Worker -->|Timbangan KG, Slot, Flush| P5
-    P5 <-->|Ledger Panen, Status Void| D9
-    D7 -->|Validasi Alokasi Aktif Slot| P5
+    P5(("5.0<br/>Pencatatan Panen<br/>Multi-Flush (<= 7)"))
+    Admin -->|Alasan Void Panen (voided_by)| P5
+    Worker -->|Timbangan KG, Slot, Flush 1-7, Grade A/B/REJECT| P5
+    P5 <-->|Ledger Panen, Status Void, Isolasi REJECT| D9
+    D7 -->|Validasi Alokasi Aktif Slot & Kapasitas| P5
     P5 -->|Grafik Tren 14 Hari, Total Hari Ini| Admin
     P5 -->|Toast Sukses, Ringkasan Harian| Worker
 
     %% Process 6: Supply Chain Sales
     P6(("6.0<br/>Manajemen Penjualan<br/>& Rantai Pasok"))
-    Admin -->|Transaksi Nota Penjualan, Void Sale| P6
-    P6 <-->|Jurnal Nota Penjualan, Void State| D10
-    P6 -->|Tabel Penjualan, Peringkat Pembeli, Omzet| Admin
+    Admin -->|Nota Penjualan, Bypass Force Sale, Void Sale (voided_by)| P6
+    D9 -->|Akumulasi Stok Layak Jual (Grade A+B Non-Void)| P6
+    P6 <-->|Jurnal Penjualan, Validasi Saldo Stok Real-Time| D10
+    P6 -->|Tabel Penjualan, Tag [FORCE SALE], Omzet| Admin
 
     %% Process 7: Costing & Dynamic COGS
-    P7(("7.0<br/>Akuntansi Biaya &<br/>HPP Dinamis"))
-    Admin -->|Input Beban Listrik/Air/Gaji| P7
-    P7 <-->|Buku Beban Operasional| D11
-    D5 -->|Biaya Pengadaan Bibit Batch| P7
+    P7(("7.0<br/>Akuntansi Biaya &<br/>HPP Dinamis (UC-30)"))
+    Admin -->|Input Beban Operasional, Void Expense (voided_by)| P7
+    P7 <-->|Buku Beban Operasional (Scope withoutVoided)| D11
+    D5 -->|Biaya Pokok Pengadaan Bibit Batch| P7
     D9 -->|Total Bobot Panen Bersih Non-Void| P7
-    D10 -->|Rata-rata Harga Jual Pasar| P7
-    P7 -->|Metrik HPP/KG & Margin Kontribusi| Admin
+    D10 -->|Omzet Batch & Rekonsiliasi Omzet Farm| P7
+    P7 -->|Metrik HPP/KG Non-Retroaktif, Margin Laba, Audit Void| Admin
 
     %% Process 8: Failsafe Actuator
     P8(("8.0<br/>Kontrol Interupsi &<br/>Edge Actuator"))
@@ -190,7 +191,7 @@ flowchart TD
 ## 4. DFD Level 2: Dekomposisi Proses Kritis
 
 ### 4.1 DFD Level 2 — Proses 3.0: Manajemen Spasial WMS & Siklus Rak (UC-08, UC-19, UC-29)
-Membedah interaksi kompleks alokasi kamar rak 3D, kunci atomik kapasitas, dan penutupan siklus panen.
+Membedah interaksi kompleks alokasi kamar rak 3D, verifikasi hard cap 3.000 baglog, kunci atomik kapasitas, dan penutupan siklus panen.
 
 ```mermaid
 flowchart TD
@@ -205,24 +206,25 @@ flowchart TD
     P31 -->|"Konfirmasi ID Batch Tersimpan"| Admin
 
     Admin -->|"Pilih Batch ID & Daftar Slot [R1-S1, ...]"| P32(("3.2<br/>Alokasi Massal<br/>Slot Rak (Bulk)"))
-    P32 <-->|"lockForUpdate & Cek Max Capacity (10)"| D6
+    P32 <-->|"lockForUpdate & Cek Max Cap Slot (10)"| D6
+    P32 <-->|"Validasi Total Kumbung <= 3.000 Baglog & Cek Pasangan Unik (AUD-10)"| D7
     P32 <-->|"Cek Status Batch Aktif"| D5
-    P32 -->|"Insert Assignment (Status: FRUITING)"| D7
+    P32 -->|"Insert Assignment (Status: FRUITING, initial: 10, active: 10)"| D7
     P32 -->|"Update Slot (Status: OCCUPIED)"| D6
     P32 -->|"Status Sukses Alokasi & Grid Refresh"| Admin
 
-    Admin -->|"Instruksi Tutup Siklus Slot {assignment_id}"| P33(("3.3<br/>Tutup Siklus &<br/>Auto-Cull WMS"))
+    Admin -->|"Instruksi Tutup Siklus Slot {assignment_id, completed_reason: 'EXHAUSTED'}"| P33(("3.3<br/>Tutup Siklus &<br/>Auto-Cull WMS"))
     P33 <-->|"Lock Assignment & Ambil Sisa active_capacity"| D7
     P33 -->|"Auto-Cull Sisa Baglog Aktif (Reason: HABIS_PRODUKSI)"| D8
-    P33 -->|"Update Assignment (Status: COMPLETED, active_capacity: 0)"| D7
+    P33 -->|"Update Assignment (Status: COMPLETED, completed_reason: 'EXHAUSTED', active: 0)"| D7
     P33 -->|"Update Slot (Status: AVAILABLE)"| D6
     P33 -->|"Notifikasi Siklus Selesai & Slot Kosong"| Admin
 ```
 
 ---
 
-### 4.2 DFD Level 2 — Proses 7.0: Akuntansi Biaya Manajerial & HPP Dinamis (UC-22, UC-23)
-Membedah kalkulasi Harga Pokok Produksi dinamis yang mengisolasi data transaksi ter-void.
+### 4.2 DFD Level 2 — Proses 7.0: Akuntansi Biaya Manajerial & HPP Dinamis (UC-22, UC-23, UC-30)
+Membedah kalkulasi Harga Pokok Produksi dinamis non-retroaktif, presisi moneter `bcmath`, dan audit pembatalan pengeluaran operasional (*soft void*).
 
 ```mermaid
 flowchart TD
@@ -238,39 +240,46 @@ flowchart TD
 
     Admin -->|"Akses Menu Analisis HPP"| P72(("7.2<br/>Engine Agregasi<br/>Finansial Batch"))
     D5 -->|"Biaya Pokok Pengadaan Bibit Baglog"| P72
-    D11 -->|"Total Beban Operasional Periode Batch"| P72
+    D11 -->|"Preload Beban Non-Void: expense_date >= entry_date & <= batchEndDate"| P72
     D9 -->|"Total Panen Bersih: SUM(weight_kg) WHERE voided_at IS NULL"| P72
-    D10 -->|"Rata-rata Harga Realisasi Jual Pasar"| P72
+    D10 -->|"Omzet Batch & Farm Total Sales Revenue"| P72
 
     P72 -->|"Data Komponen Biaya & Bobot Panen"| P73(("7.3<br/>Kalkulasi HPP &<br/>Margin Kontribusi"))
-    P73 -->|"HPP/KG = (Biaya Bibit + Operasional) / Total Panen KG"| P73
-    P73 -->|"Margin Kontribusi = Harga Jual - HPP/KG"| P73
-    P73 -->|"Laporan Finansial: HPP/KG, Margin Laba %, Status Sehat/Rugi"| Admin
+    P73 -->|"HPP/KG = bcdiv(bcadd(Bibit, SharedOverhead), TotalPanenKG)"| P73
+    P73 -->|"Margin Kontribusi = bcsub(OmzetBatch, TotalBiayaBatch)"| P73
+    P73 -->|"Laporan Finansial: HPP/KG, Margin, Rekonsiliasi Omzet"| Admin
+
+    Admin -->|"Instruksi Void Expense {id, reason: min 5 char}"| P74(("7.4<br/>Pembatalan Beban<br/>(Void Expense UC-30)"))
+    P74 <-->|"Lock & Verifikasi Belum Void (voided_at IS NULL)"| D11
+    P74 -->|"Soft Void: voided_at = now(), voided_by = admin_id, void_reason"| D11
+    P74 -->|"Konfirmasi Void Berhasil & Nilai HPP Otomatis Terkoreksi"| Admin
 ```
 
 ---
 
 ## 5. Kamus Data Aliran Informasi (Data Dictionary)
 
-Spesifikasi struktur data pada arus informasi utama sistem:
+Spesifikasi struktur data pada arus informasi utama sistem yang selaras dengan skema database dan validasi request:
 
 | Arus Data | Sumber & Tujuan | Format & Struktur Atribut |
 |---|---|---|
 | `TelemetriSensor` | ESP32 $\rightarrow$ P2.0 $\rightarrow$ `sensor_data` | `{temp_top: Float, temp_mid: Float, temp_bottom: Float, humidity_avg: Float, heat_index: Float, created_at: Timestamp}` |
 | `BatasThreshold` | Admin $\rightarrow$ P8.0 $\rightarrow$ `threshold_settings` | `{temp_min: Float, temp_max: Float, humidity_min: Float, humidity_max: Float, phase_preset: String}` *(Syarat: `humidity_max - humidity_min >= 4`)* |
 | `CommandJeda` | User $\rightarrow$ P8.0 $\rightarrow$ `Cache` $\rightarrow$ ESP32 | `{command: Enum('AUTO','PAUSE'), duration_seconds: Int, expires_at: Timestamp}` |
-| `AlokasiSlot` | Admin $\rightarrow$ P3.2 $\rightarrow$ `batch_slot_assignments` | `{baglog_batch_id: Int, assigned_at: Date, slots: Array<{slot_code: String, initial_quantity: Int, initial_mycelium_stage: Enum}>}` |
+| `AlokasiSlot` | Admin $\rightarrow$ P3.2 $\rightarrow$ `batch_slot_assignments` | `{baglog_batch_id: Int, assigned_at: Date, slots: Array<{slot_code: String, initial_quantity: Int, initial_mycelium_stage: Enum}>}` *(Validasi: Kapasitas kumbung $\le 3.000$ baglog, pasangan batch-slot belum aktif)* |
+| `TutupSiklusRequest` | Admin $\rightarrow$ P3.3 $\rightarrow$ `batch_slot_assignments` | `{assignment_id: Int, completed_reason: Enum('EXHAUSTED','DISCARDED','FAILED')}` |
 | `JurnalAfkir` | User $\rightarrow$ P4.0 $\rightarrow$ `baglog_culls` | `{slot_code: String, quantity: Int, reason: Enum('TRICHODERMA','CONTAMINATED','DRIED','HABIS_PRODUKSI'), notes: String}` |
-| `VoidRequest` | Admin $\rightarrow$ P4.0 / P5.0 / P6.0 | `{id: Int, void_reason: String(min: 3), void_by: Int, voided_at: Timestamp}` |
-| `DataPanen` | Worker $\rightarrow$ P5.0 $\rightarrow$ `harvests` | `{slot_code: String, flush_number: Int(1-7), weight_kg: Decimal(8,2), quality_grade: Enum('SUPER','GRADE_A','AFKIR')}` |
-| `NotaPenjualan` | Admin $\rightarrow$ P6.0 $\rightarrow$ `sales` | `{buyer_name: String, quantity_kg: Decimal(8,2), price_per_kg: Decimal(12,2), payment_method: String, total_amount: Decimal}` |
-| `RingkasanHPP` | P7.3 $\rightarrow$ Admin UI | `{batch_id: Int, total_procurement_cost: Decimal, total_opex: Decimal, net_harvest_kg: Decimal, cogs_per_kg: Decimal, margin_profit_pct: Float}` |
+| `VoidRequest` | Admin $\rightarrow$ P4.0 / P5.0 / P6.0 / P7.4 | `{id: Int, reason: String(min: 5), voided_by: Int, voided_at: Timestamp}` *(Berlaku seragam untuk Cull, Harvest, Sale, dan Expense)* |
+| `DataPanen` | Worker $\rightarrow$ P5.0 $\rightarrow$ `harvests` | `{slot_code: Nullable<String>, baglog_batch_id: Nullable<Int>, flush_number: Int(1-7), weight_kg: Decimal(8,2), quality_grade: Enum('A','B','REJECT'), harvest_date: Date}` *(Grade REJECT diisolasi dari stok jual)* |
+| `NotaPenjualan` | Admin $\rightarrow$ P6.0 $\rightarrow$ `sales` | `{buyer_name: String, quantity_kg: Decimal(8,2), price_per_kg: Decimal(12,2), payment_method: String, total_revenue: Decimal(12,2), force: Boolean, force_reason: Nullable<String>}` *(Wajib lolos saldo stok riil kecuali force: true)* |
+| `BebanOperasional` | Admin $\rightarrow$ P7.1 $\rightarrow$ `operational_expenses` | `{baglog_batch_id: Nullable<Int>, expense_date: Date, category: Enum('LISTRIK','AIR','NUTRISI','LABOR','PACKAGING','LAINNYA'), amount: Decimal(12,2), notes: Nullable<String>, voided_at: Nullable<Timestamp>, voided_by: Nullable<Int>, void_reason: Nullable<String>}` |
+| `RingkasanHPP` | P7.3 $\rightarrow$ Admin UI | `{batch_id: Int, procurement_cost: Decimal, allocated_overhead: Decimal, total_cost: Decimal, net_harvest_kg: Decimal, hpp_per_kg: Decimal, contribution_margin: Decimal, farm_total_sales_revenue: Decimal, unattributed_sales_revenue: Decimal}` |
 
 ---
 
 ## 6. Matriks Relasi DFD vs Use Case vs Data Store
 
-Traceability menyeluruh untuk menjamin validitas rekayasa perangkat lunak tanpa inkonsistensi:
+Traceability menyeluruh untuk menjamin validitas rekayasa perangkat lunak tanpa celah fungsional (*zero orphaned use case*):
 
 | ID DFD | Nama Proses DFD | Kode Use Case Terkait | Data Store yang Terlibat |
 |---|---|---|---|
@@ -279,6 +288,6 @@ Traceability menyeluruh untuk menjamin validitas rekayasa perangkat lunak tanpa 
 | **3.0** | Spasial WMS 3D & Siklus | UC-08, UC-09, UC-10, UC-19, UC-20, UC-29 | `D5: baglog_batches`, `D6: slots`, `D7: batch_slot_assignments`, `D8: baglog_culls` |
 | **4.0** | Mutasi Afkir & Biosekuriti | UC-21, UC-28 | `D7: batch_slot_assignments`, `D8: baglog_culls` |
 | **5.0** | Pencatatan Panen Multi-Flush | UC-11, UC-12, UC-14, UC-26 | `D7: batch_slot_assignments`, `D9: harvests` |
-| **6.0** | Manajemen Penjualan | UC-13, UC-27 | `D10: sales` |
-| **7.0** | Akuntansi HPP Dinamis | UC-22, UC-23 | `D5: baglog_batches`, `D9: harvests`, `D10: sales`, `D11: operational_expenses` |
-| **8.0** | Kontrol Failsafe & Aktuator | UC-15, UC-16, UC-17, UC-18, UC-24, UC-25 | `D2: threshold_settings`, `D4: sprinkler_logs`, `Cache: device_command` |
+| **6.0** | Manajemen Penjualan & Rantai Pasok | UC-13, UC-27 | `D9: harvests`, `D10: sales` |
+| **7.0** | Akuntansi HPP Dinamis & Beban | UC-22, UC-23, UC-30 | `D5: baglog_batches`, `D9: harvests`, `D10: sales`, `D11: operational_expenses` |
+| **8.0** | Kontrol Failsafe & Aktuator | UC-07, UC-15, UC-16, UC-17, UC-18, UC-24, UC-25 | `D2: threshold_settings`, `D4: sprinkler_logs`, `Cache: device_command` |

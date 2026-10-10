@@ -29,7 +29,7 @@ Sistem membagi pengguna dan entitas interaktif menjadi 3 aktor utama:
 
 ## 3. Katalog Use Case
 
-Use case sistem dikelompokkan ke dalam 8 modul utama (total 29 Use Cases):
+Use case sistem dikelompokkan ke dalam 8 modul utama (total 30 Use Cases):
 
 ### Modul A: Autentikasi & Otorisasi Pengguna
 - **UC-01: Melakukan Login** (Admin, Worker)
@@ -65,6 +65,7 @@ Use case sistem dikelompokkan ke dalam 8 modul utama (total 29 Use Cases):
 ### Modul F: Akuntansi Biaya Manajerial & HPP Dinamis
 - **UC-22: Mencatat Beban Biaya Operasional Kumbung** (Admin)
 - **UC-23: Memantau Analisis HPP Dinamis & Margin Kontribusi** (Admin)
+- **UC-30: Membatalkan Catatan Biaya Operasional (Void Expense Audit Trail)** (Admin)
 
 ### Modul G: Kontrol Interupsi & Mode Panen (Failsafe)
 - **UC-24: Mengaktifkan Mode Jeda Panen (Failsafe Timer Interupsi IoT)** (Admin, Worker)
@@ -123,6 +124,7 @@ flowchart LR
         %% Modul F
         UC22([UC-22: Catat Biaya Operasional])
         UC23([UC-23: Analisis HPP & Margin Kontribusi])
+        UC30([UC-30: Batalkan Biaya Operasional Void])
 
         %% Modul G
         UC24([UC-24: Aktifkan Mode Jeda Panen])
@@ -162,6 +164,7 @@ flowchart LR
     Admin --> UC27
     Admin --> UC28
     Admin --> UC29
+    Admin --> UC30
 
     %% Relasi Worker
     Worker --> UC01
@@ -219,6 +222,7 @@ flowchart LR
 | **UC-27** | Membatalkan Transaksi Penjualan (Void)| ✅ | ❌ | ❌ | `POST /api/sales/{id}/void` (Admin only, Audit trail) |
 | **UC-28** | Membatalkan Catatan Afkir (Void) | ✅ | ❌ | ❌ | `POST /api/baglog-culls/{id}/void` (Admin only, Restore capacity) |
 | **UC-29** | Menyelesaikan Siklus Kamar Rak WMS | ✅ | ❌ | ❌ | `POST /api/batch-slot-assignments/{id}/complete` (Admin only, Auto-culls) |
+| **UC-30** | Membatalkan Biaya Operasional (Void) | ✅ | ❌ | ❌ | `POST /api/operational-expenses/{id}/void` (Admin only, Audit trail) |
 
 ---
 
@@ -321,7 +325,7 @@ flowchart LR
 * **Aktor:** Admin
 * **Deskripsi:** Admin membatalkan catatan panen harian yang salah input (misal salah ketik bobot KG atau salah slot) tanpa menghapus rekaman riwayat secara permanen.
 * **Precondition:** Rekaman panen berstatus aktif (`voided_at IS NULL`).
-* **Postcondition:** Record panen ditandai `voided_at = now()`, `void_reason`, dan `void_by`. Angka akumulasi panen harian dan grafik tren otomatis mengecualikan record ini.
+* **Postcondition:** Record panen ditandai `voided_at = now()`, `void_reason`, dan `voided_by`. Angka akumulasi panen harian dan grafik tren otomatis mengecualikan record ini.
 * **Alur Normal:**
   1. Admin membuka halaman *Harvest Management* dan mencari baris panen yang keliru.
   2. Admin menekan tombol aksi "Batalkan (Void)".
@@ -337,7 +341,7 @@ flowchart LR
 * **Aktor:** Admin
 * **Deskripsi:** Admin membatalkan transaksi penjualan jamur basah yang keliru dicatat (misal retur pasar atau salah harga) demi akurasi pelaporan omzet dan HPP.
 * **Precondition:** Transaksi penjualan aktif (`voided_at IS NULL`).
-* **Postcondition:** Record penjualan ditandai `voided_at = now()`, `void_reason`, dan `void_by`. Agregasi total omzet dan margin kontribusi pada kartu HPP otomatis terpotong kembali.
+* **Postcondition:** Record penjualan ditandai `voided_at = now()`, `void_reason`, dan `voided_by`. Agregasi total omzet dan margin kontribusi pada kartu HPP otomatis terpotong kembali.
 * **Alur Normal:**
   1. Admin membuka menu *Sales Management*.
   2. Admin mengklik tombol "Batalkan (Void)" pada tabel riwayat penjualan.
@@ -375,4 +379,20 @@ flowchart LR
   5. Frontend mengirim `POST /api/batch-slot-assignments/{id}/complete` dengan payload `{cull_reason}` opsional.
   6. Backend mengeksekusi transaksi database: meng-update alokasi ke `COMPLETED`, menerbitkan record cull `HABIS_PRODUKSI`, dan mereset `active_capacity = 0`.
   7. Kotak slot di denah visual berubah warna menjadi abu-abu (status Selesai) dan slot dapat dialokasikan batch baru.
+
+---
+
+### UC-30: Membatalkan Catatan Biaya Operasional (Void Expense Audit Trail)
+* **Aktor:** Admin
+* **Deskripsi:** Admin membatalkan catatan pengeluaran operasional yang salah input atau duplikat tanpa menghapus data fisik demi integritas audit keuangan.
+* **Precondition:** Rekaman biaya operasional aktif (`voided_at IS NULL`).
+* **Postcondition:** Record pengeluaran ditandai `voided_at = now()`, `void_reason`, dan `voided_by`. Nilai beban otomatis dieksklusikan dari perhitungan agregasi HPP dinamis dan margin kontribusi.
+* **Alur Normal:**
+  1. Admin membuka tab Biaya Operasional pada halaman *Sales Management*.
+  2. Admin menekan tombol "Batalkan (Void)" pada catatan pengeluaran yang keliru.
+  3. Modal konfirmasi meminta alasan pembatalan audit trail (minimal 3 karakter).
+  4. Admin memasukkan alasan pembatalan dan mengonfirmasi.
+  5. Frontend mengirim `POST /api/operational-expenses/{id}/void` dengan payload `{"void_reason": "..."}`.
+  6. Backend memverifikasi hak akses Admin, menandai soft-void, dan mengembalikan HTTP 200 OK.
+  7. Kartu ringkasan HPP langsung menghitung ulang margin kontribusi tanpa melibatkan biaya yang dibatalkan.
 

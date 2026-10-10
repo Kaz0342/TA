@@ -12,3 +12,4 @@ __pycache__/
 .agents/
 .gemini/
 docs/manual/.build-tools/
+storage/

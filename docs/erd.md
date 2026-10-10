@@ -20,7 +20,7 @@ Perancangan basis data **Smart Shroom SCM** menerapkan prinsip **Database First*
    - **Slot / Rak** adalah entitas statis permanen (`slots`), sedangkan **Batch Baglog** adalah entitas dinamis yang menempati slot melalui tabel pivot alokasi (`batch_slot_assignments`). Mutasi antar rak dilarang demi ketertelusuran biosekuriti.
 3. **Pencatatan Berbasis Ledger Imutabel & Soft-Void Audit Trail:**
    - Pengurangan populasi jamur tidak dilakukan dengan mengedit angka total secara manual, melainkan dicatat melalui jurnal mutasi afkir (`baglog_culls`).
-   - Pembatalan transaksi (*human error*) pada panen, penjualan, dan afkir dilarang menggunakan hard-delete (`DELETE FROM`), melainkan menerapkan **Voiding Ledger Pattern** (`voided_at`, `void_reason`, `void_by`) demi menjaga kepatuhan audit biosekuriti dan rekonsiliasi akuntansi.
+   - Pembatalan transaksi (*human error*) pada panen, penjualan, afkir, dan biaya operasional dilarang menggunakan hard-delete (`DELETE FROM`), melainkan menerapkan **Voiding Ledger Pattern** (`voided_at`, `void_reason`, `voided_by`) demi menjaga kepatuhan audit biosekuriti dan rekonsiliasi akuntansi.
    - Data sensor telemetri (`sensor_data`) bersifat *append-only* tanpa kolom `updated_at`.
 4. **Strategi Pengindeksan (Query Optimization):**
    - Menerapkan *Single-Column Index* dan *Composite Index* pada foreign key (`user_id`, `baglog_batch_id`), kolom penanggalan (`entry_date`, `harvest_date`, `sale_date`, `cull_date`, `expense_date`), koordinat slot (`slot_code`), status pembatalan (`voided_at`), serta timestamp sensor (`recorded_at`, `[device_id, recorded_at]`) untuk menjamin latensi query dashboard tetap sub-100ms.
@@ -99,7 +99,7 @@ erDiagram
         varchar_30 current_status "INCUBATION | FRUITING | COMPLETED"
         date assigned_at "Indexed"
         timestamp completed_at "nullable (Waktu tutup siklus)"
-        varchar_255 completion_reason "nullable (HABIS_PRODUKSI | KONTAMINASI_MASSAL)"
+        varchar_255 completed_reason "nullable (EXHAUSTED | CONTAMINATED | DISPOSED | MANUAL)"
         timestamp created_at
         timestamp updated_at
     }
@@ -114,7 +114,7 @@ erDiagram
         text notes "nullable (alasan spesifik/audit garansi vendor)"
         timestamp voided_at "nullable (Indexed, soft-void audit trail)"
         varchar_255 void_reason "nullable"
-        bigint void_by FK "users.id (Set Null, nullable)"
+        bigint voided_by FK "users.id (Set Null, nullable)"
         timestamp created_at
         timestamp updated_at
     }
@@ -130,7 +130,7 @@ erDiagram
         text notes "nullable"
         timestamp voided_at "nullable (Indexed, soft-void audit trail)"
         varchar_255 void_reason "nullable"
-        bigint void_by FK "users.id (Set Null, nullable)"
+        bigint voided_by FK "users.id (Set Null, nullable)"
         timestamp created_at
         timestamp updated_at
     }
@@ -147,7 +147,7 @@ erDiagram
         text notes "nullable"
         timestamp voided_at "nullable (Indexed, soft-void audit trail)"
         varchar_255 void_reason "nullable"
-        bigint void_by FK "users.id (Set Null, nullable)"
+        bigint voided_by FK "users.id (Set Null, nullable)"
         timestamp created_at
         timestamp updated_at
     }
@@ -156,9 +156,12 @@ erDiagram
         bigint id PK
         bigint user_id FK "users.id (Cascade)"
         date expense_date "Indexed"
-        varchar_50 category "electricity | water_misting | labor | maintenance | logistics | other"
+        varchar_50 category "LISTRIK | AIR | NUTRISI | LABOR | PACKAGING | LAINNYA"
         decimal_12_2 amount "Biaya pengeluaran (IDR)"
         text notes "nullable (Keterangan bukti/nota)"
+        timestamp voided_at "nullable (Indexed, soft-void audit trail)"
+        varchar_255 void_reason "nullable"
+        bigint voided_by FK "users.id (Set Null, nullable)"
         timestamp created_at
         timestamp updated_at
     }
@@ -273,7 +276,7 @@ Menghubungkan batch baglog ke koordinat slot kamar fisik kumbung.
 | `current_status` | `VARCHAR(30)` | ❌ | `'INCUBATION'`| — | Status kamar: `INCUBATION`, `FRUITING`, `COMPLETED`. |
 | `assigned_at` | `DATE` | ❌ | — | **Index** | Tanggal baglog dimasukkan ke rak. |
 | `completed_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu siklus rak dinyatakan selesai/tutup siklus. |
-| `completion_reason`| `VARCHAR(255)` | ✅ | `NULL` | — | Alasan tutup siklus (`HABIS_PRODUKSI`, `KONTAMINASI_MASSAL`, `AFKIR_TOTAL`, `MANUAL`). |
+| `completed_reason`| `VARCHAR(255)` | ✅ | `NULL` | — | Alasan tutup siklus (`EXHAUSTED`, `CONTAMINATED`, `DISPOSED`, `MANUAL`). |
 | `created_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu rekaman alokasi dibuat. |
 | `updated_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu status alokasi diperbarui. |
 
@@ -297,7 +300,7 @@ Jurnal audit pengurangan kapasitas baglog akibat kontaminasi atau kematian fisik
 | `notes` | `TEXT` | ✅ | `NULL` | — | Keterangan tambahan untuk klaim garansi vendor. |
 | `voided_at` | `TIMESTAMP` | ✅ | `NULL` | **Index** | Waktu pembatalan afkir (*Soft-void audit trail*). |
 | `void_reason` | `VARCHAR(255)` | ✅ | `NULL` | — | Alasan pembatalan catatan afkir. |
-| `void_by` | `BIGINT UNSIGNED` | ✅ | `NULL` | **Foreign Key** → `users(id)` (Set Null) | Admin/User yang membatalkan catatan afkir. |
+| `voided_by` | `BIGINT UNSIGNED` | ✅ | `NULL` | **Foreign Key** → `users(id)` (Set Null) | Admin/User yang membatalkan catatan afkir. |
 | `created_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu entri dicatat. |
 | `updated_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu pembaruan entri. |
 
@@ -318,7 +321,7 @@ Mencatat hasil panen harian, dilengkapi nomor flush siklus panen dan koordinat s
 | `notes` | `TEXT` | ✅ | `NULL` | — | Catatan kualitas panen / cuaca. |
 | `voided_at` | `TIMESTAMP` | ✅ | `NULL` | **Index** | Waktu pembatalan panen (*Soft-void audit trail*). |
 | `void_reason` | `VARCHAR(255)` | ✅ | `NULL` | — | Alasan pembatalan data panen. |
-| `void_by` | `BIGINT UNSIGNED` | ✅ | `NULL` | **Foreign Key** → `users(id)` (Set Null) | Admin yang membatalkan data panen. |
+| `voided_by` | `BIGINT UNSIGNED` | ✅ | `NULL` | **Foreign Key** → `users(id)` (Set Null) | Admin yang membatalkan data panen. |
 | `created_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu pencatatan disimpan. |
 | `updated_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu modifikasi panen. |
 
@@ -340,23 +343,26 @@ Mencatat data transaksi penjualan jamur kuping basah kepada pembeli pasar/tengku
 | `notes` | `TEXT` | ✅ | `NULL` | — | Catatan tambahan transaksi. |
 | `voided_at` | `TIMESTAMP` | ✅ | `NULL` | **Index** | Waktu pembatalan transaksi (*Soft-void audit trail*). |
 | `void_reason` | `VARCHAR(255)` | ✅ | `NULL` | — | Alasan pembatalan transaksi penjualan. |
-| `void_by` | `BIGINT UNSIGNED` | ✅ | `NULL` | **Foreign Key** → `users(id)` (Set Null) | Admin yang membatalkan transaksi penjualan. |
+| `voided_by` | `BIGINT UNSIGNED` | ✅ | `NULL` | **Foreign Key** → `users(id)` (Set Null) | Admin yang membatalkan transaksi penjualan. |
 | `created_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu transaksi dibuat. |
 | `updated_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu transaksi diubah. |
 
 ---
 
 ### 3.8 Tabel `operational_expenses` (Biaya Operasional Kumbung)
-Mencatat beban operasional harian/bulanan kumbung guna komputasi Harga Pokok Produksi (HPP) dan Margin Kontribusi.
+Mencatat beban operasional harian/bulanan kumbung guna komputasi Harga Pokok Produksi (HPP) dan Margin Kontribusi. Mengadopsi **Voiding Ledger Pattern** (`voided_at`, `void_reason`, `voided_by`) demi menjaga integritas audit finansial tanpa hard-delete fisik.
 
 | Nama Kolom | Tipe Data | Nullable | Default | Constraints / Index | Keterangan |
 |---|---|:---:|:---:|:---:|---|
 | `id` | `BIGINT UNSIGNED` | ❌ | Auto Increment | **Primary Key** | Identifier unik pengeluaran. |
 | `user_id` | `BIGINT UNSIGNED` | ❌ | — | **Foreign Key** → `users(id)` (Cascade), **Index** | Admin pembukuan biaya. |
 | `expense_date` | `DATE` | ❌ | — | **Index** | Tanggal transaksi pengeluaran. |
-| `category` | `VARCHAR(50)` | ❌ | — | **Index** | Kategori: `electricity`, `water_misting`, `labor`, `maintenance`, `logistics`, `other`. |
+| `category` | `VARCHAR(50)` | ❌ | — | **Index** | Kategori: `LISTRIK`, `AIR`, `NUTRISI`, `LABOR`, `PACKAGING`, `LAINNYA` (dan kompatibilitas `MISTING`, `PLASTIK`, `ALKOHOL`). |
 | `amount` | `DECIMAL(12,2)`| ❌ | — | — | Nominal pengeluaran dalam Rupiah (IDR). |
 | `notes` | `TEXT` | ✅ | `NULL` | — | Deskripsi rincian biaya / nomor nota. |
+| `voided_at` | `TIMESTAMP` | ✅ | `NULL` | **Index** | Waktu pembatalan pengeluaran (*Soft-void audit trail*). |
+| `void_reason` | `VARCHAR(255)` | ✅ | `NULL` | — | Alasan pembatalan catatan pengeluaran. |
+| `voided_by` | `BIGINT UNSIGNED` | ✅ | `NULL` | **Foreign Key** → `users(id)` (Set Null) | Admin yang membatalkan catatan pengeluaran. |
 | `created_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu pencatatan pengeluaran. |
 | `updated_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu pembaruan rekaman. |
 
@@ -437,6 +443,6 @@ Mencatat histori durasi dan pemicu aktivasi aktuator (Pompa Misting, Exhaust Fan
 | *"Kenapa tabel `slots` dan `batch_slot_assignments` dipisah, tidak langsung simpan koordinat di tabel `baglog_batches`?"* | Memisahkan entitas fisik (kamar rak statis) dengan entitas dinamis (batch baglog) mengadopsi standar **Warehouse Management System (WMS)**. Satu batch pengadaan (1.500 baglog) menempati 150 slot berbeda di kumbung. Menyimpan koordinat di tabel batch melanggar 1NF (*repeating groups*) dan membuat pelacakan denah 3D menjadi tidak mungkin. |
 | *"Kenapa pengurangan baglog rusak/mati dibuat tabel terpisah `baglog_culls`, bukan langsung kurangi field `quantity` di tabel batch?"* | Prinsip **Accounting Ledger & Biosecurity Audit Trail**. Dalam budidaya jamur, kematian akibat *Trichoderma* (jamur hijau) harus dapat dilacak kapan dan di koordinat mana titik mulanya terjadi. Selain itu, catatan ini menjadi bukti audit klaim garansi retur ke vendor bibit. |
 | *"Kenapa `laba_bersih_real` dianalisis sebagai Margin Kontribusi pada modul HPP?"* | Secara teori akuntansi biaya manajerial, pengeluaran operasional yang dimasukkan adalah biaya variabel (listrik, misting, tenaga kerja harian). Karena belum mencakup depresiasi aset tetap (struktur bangunan kumbung & hardware mikrokontroler), penyebutan **Margin Kontribusi** jauh lebih jujur dan akurat secara ilmiah dibandingkan laba bersih absolut. |
-| *"Kenapa koreksi salah catat panen/penjualan/afkir menggunakan kolom void (`voided_at`, `void_reason`, `void_by`) dan bukan `DELETE` biasa?"* | Mengadopsi prinsip **Voiding Ledger Pattern & Non-Destructive Accounting**. Menghapus baris transaksi (`DELETE`) menghilangkan jejak audit (*audit trail break*), mengaburkan investigasi selisih kas/stok, dan melanggar standar akuntansi. Melalui soft-void, riwayat kesalahan manusia tetap terekam bersama penanggung jawab dan alasannya, sedangkan agregasi metrik otomatis mengecualikan record void melalui scope `whereNull('voided_at')`. |
+| *"Kenapa koreksi salah catat panen/penjualan/afkir/biaya operasional menggunakan kolom void (`voided_at`, `void_reason`, `voided_by`) dan bukan `DELETE` biasa?"* | Mengadopsi prinsip **Voiding Ledger Pattern & Non-Destructive Accounting**. Menghapus baris transaksi (`DELETE`) menghilangkan jejak audit (*audit trail break*), mengaburkan investigasi selisih kas/stok, dan melanggar standar akuntansi. Melalui soft-void, riwayat kesalahan manusia tetap terekam bersama penanggung jawab dan alasannya, sedangkan agregasi metrik otomatis mengecualikan record void melalui scope `whereNull('voided_at')`. |
 | *"Bagaimana sistem mengosongkan rak saat siklus kamar selesai jika masih ada sisa baglog tua?"* | Melalui mekanisme **WMS Cycle Completion with Auto-Culls (`HABIS_PRODUKSI`)**. Dalam transaksi atomik ber-lock (`DB::transaction`), sistem menandai alokasi slot sebagai `COMPLETED`, mencatat `completed_at`, dan secara otomatis mencatatkan sisa `active_capacity` ke jurnal `baglog_culls` dengan alasan `HABIS_PRODUKSI`. Langkah ini menjamin kapasitas rak kembali 0 dan total baglog kumbung tetap presisi tanpa ada baglog gaib. |
 | *"Bagaimana data sensor tetap akurat jika salah satu sensor SHT30/DHT22 rusak?"* | Firmware v3.6 dan API menerapkan **Weighted Sensor Fusion dengan Dynamic Normalization**. Bobot standar 35% Atas, 40% Tengah, 25% Bawah otomatis dinormalisasi ulang hanya pada sensor yang mengembalikan nilai valid (`!isnan`), sehingga sistem tidak freeze (*fail-soft*). |

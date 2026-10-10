@@ -141,26 +141,34 @@ sequenceDiagram
     participant Ctrl as BatchSlotAssignmentController
     participant DB as Database (MySQL Transaction)
 
-    Admin->>FE: Pilih Batch Baglog, pilih koordinat slot (misal: R1-S1, R1-S2), isi Qty
+    Admin->>FE: Pilih Batch Baglog, pilih koordinat slot (misal: A-01-01 s.d. A-01-10), isi Qty
     FE->>API: POST /api/batch-slot-assignments {baglog_batch_id, assigned_at, slots: [...]}
+    API->>API: Verifikasi Sanctum Token & role:admin
     API->>Ctrl: store(Request $request)
-    Ctrl->>Ctrl: Validasi payload & cek duplikasi kode slot
+    Ctrl->>Ctrl: Validasi payload & cek batas fisik kumbung (300 slot / 3.000 baglog)
     Ctrl->>DB: DB::beginTransaction()
-    Ctrl->>DB: Slot::whereIn('slot_code', ...)->lockForUpdate()
-    loop Untuk Setiap Slot
-        Ctrl->>DB: Cek kapasitas: slot.active_capacity + new_qty <= max_capacity (10)
-        alt Kapasitas Terlampaui
-            Ctrl->>DB: DB::rollBack()
-            Ctrl-->>FE: HTTP 422 {error: "Slot R1-S1 melebihi kapasitas!"}
-            FE-->>Admin: Alert pesan kapasitas slot penuh
+    Ctrl->>DB: Cek duplikasi pasangan sama (batch_id, slot_code)
+    alt Pasangan Batch & Slot Pernah Dialokasikan Sebelumnya (Probe P38)
+        Ctrl->>DB: DB::rollBack()
+        Ctrl-->>FE: HTTP 422 {error: "Slot pernah ditempati batch yang sama, gunakan slot lain"}
+        FE-->>Admin: Alert penolakan penempatan ulang
+    else Pasangan Valid
+        Ctrl->>DB: Slot::whereIn('slot_code', ...)->lockForUpdate()
+        loop Untuk Setiap Slot
+            Ctrl->>DB: Cek kapasitas: slot.active_capacity + new_qty <= max_capacity (10)
+            alt Kapasitas Terlampaui
+                Ctrl->>DB: DB::rollBack()
+                Ctrl-->>FE: HTTP 422 {error: "Slot melebihi kapasitas!"}
+                FE-->>Admin: Alert pesan kapasitas slot penuh
+            end
+            Ctrl->>DB: BatchSlotAssignment::create([batch_id, slot_code, current_status: 'INCUBATION', active_capacity: qty])
+            Ctrl->>DB: Slot::update([current_status: 'OCCUPIED'])
         end
-        Ctrl->>DB: BatchSlotAssignment::create([batch_id, slot_code, current_status: 'FRUITING', active_capacity: qty])
-        Ctrl->>DB: Slot::update([current_status: 'OCCUPIED'])
+        Ctrl->>DB: DB::commit()
+        Ctrl-->>FE: HTTP 201 Created {message: "Alokasi WMS berhasil"}
+        FE->>FE: Invalidate Query 'slots' & update warna kotak denah (Kuning Inkubasi / Hijau Aktif)
+        FE-->>Admin: Denah Spasial ter-update seketika
     end
-    Ctrl->>DB: DB::commit()
-    Ctrl-->>FE: HTTP 201 Created {message: "Alokasi WMS berhasil"}
-    FE->>FE: Invalidate Query 'slots' & update warna kotak denah (Hijau Aktif)
-    FE-->>Admin: Denah Spasial ter-update seketika
 ```
 
 ---
@@ -184,14 +192,14 @@ sequenceDiagram
     API->>Ctrl: completeCycle($id)
     Ctrl->>DB: DB::beginTransaction()
     Ctrl->>DB: BatchSlotAssignment::findOrFail($id)->lockForUpdate()
-    DB-->>Ctrl: Assignment {id, active_capacity: 4, slot_code: 'R2-S3'}
+    DB-->>Ctrl: Assignment {id, active_capacity: 4, slot_code: 'B-02-03'}
     alt Sisa Baglog Aktif > 0
-        Ctrl->>DB: BaglogCull::create([assignment_id, quantity: 4, cull_reason: 'HABIS_PRODUKSI'])
-        Ctrl->>DB: Assignment::update([active_capacity: 0, current_status: 'COMPLETED', completed_at: now()])
+        Ctrl->>DB: BaglogCull::create([baglog_batch_id, slot_code, quantity: 4, reason: 'HABIS_PRODUKSI'])
+        Ctrl->>DB: Assignment::update([active_capacity: 0, current_status: 'COMPLETED', completed_at: now(), completed_reason: 'EXHAUSTED'])
     else Sisa Baglog == 0
-        Ctrl->>DB: Assignment::update([current_status: 'COMPLETED', completed_at: now()])
+        Ctrl->>DB: Assignment::update([current_status: 'COMPLETED', completed_at: now(), completed_reason: 'EXHAUSTED'])
     end
-    Ctrl->>DB: Slot::where('slot_code', 'R2-S3')->update([current_status: 'AVAILABLE'])
+    Ctrl->>DB: Slot::where('slot_code', 'B-02-03')->update([current_status: 'AVAILABLE'])
     Ctrl->>DB: DB::commit()
     Ctrl-->>FE: HTTP 200 OK {message: "Siklus slot selesai"}
     FE->>FE: State denah berubah jadi abu-abu (Siap diisi batch baru)
@@ -235,7 +243,7 @@ sequenceDiagram
     actor Admin as Admin
     Admin->>FE: Klik "Batalkan Afkir (Void)" pada baris riwayat
     FE-->>Admin: Modal input alasan void (min 3 karakter)
-    Admin->>FE: Submit alasan: "Salah lapor rak R1-S2, harusnya R1-S3"
+    Admin->>FE: Submit alasan: "Salah lapor rak A-01-02, harusnya A-01-03"
     FE->>API: POST /api/baglog-culls/{id}/void {void_reason}
     API->>API: Cek Role Admin
     API->>Ctrl: void($id, Request $request)
@@ -244,7 +252,7 @@ sequenceDiagram
     Ctrl->>DB: BatchSlotAssignment::findOrFail(assignment_id)->lockForUpdate()
     Ctrl->>DB: Cek status assignment != 'COMPLETED'
     Ctrl->>DB: Assignment::increment('active_capacity', 2)
-    Ctrl->>DB: BaglogCull::update([voided_at: now(), void_reason: '...', void_by: admin_id])
+    Ctrl->>DB: BaglogCull::update([voided_at: now(), void_reason: '...', voided_by: admin_id])
     Ctrl->>DB: DB::commit()
     Ctrl-->>FE: HTTP 200 OK {message: "Void afkir berhasil"}
     FE->>FE: Baris tabel dicoret (line-through), kapasitas slot pulih
@@ -256,7 +264,7 @@ sequenceDiagram
 ## 6. Modul E: Rantai Pasok Panen & Penjualan
 
 ### SD-07: Pencatatan Panen Multi-Flush (UC-11) & Void Panen (UC-26)
-Pencatatan hasil timbangan harian per slot rak dan pembatalan (*void audit trail*) tanpa penghapusan data fisik.
+Pencatatan hasil timbangan harian per slot/batch dengan batas flush $\le 7$, isolasi grade REJECT, dan pembatalan (*void audit trail*) non-destruktif.
 
 ```mermaid
 sequenceDiagram
@@ -265,28 +273,41 @@ sequenceDiagram
     participant FE as Modal Input Panen
     participant API as Laravel API (auth:sanctum)
     participant Ctrl as HarvestController
-    participant DB as Database (harvests table)
+    participant Svc as HarvestService
+    participant DB as Database (harvests, slots)
 
-    Worker->>FE: Pilih Slot (R1-S2), Flush #1, Bobot 1.85 KG, Kualitas 'SUPER'
-    FE->>API: POST /api/harvests {slot_code, flush_number: 1, weight_kg: 1.85, quality_grade: 'SUPER'}
+    Worker->>FE: Pilih Slot (A-01-02), Flush #1 (maks 7), Bobot 1.85 KG, Grade 'GRADE_A'
+    FE->>API: POST /api/harvests {slot_code, flush_number: 1, weight_kg: 1.85, grade: 'GRADE_A'}
     API->>Ctrl: store(Request $request)
-    Ctrl->>DB: Cek alokasi aktif slot -> dapatkan batch_id & assignment_id
-    Ctrl->>DB: Harvest::create([assignment_id, batch_id, flush_number, weight_kg: 1.85, ...])
-    DB-->>Ctrl: Harvest ID #104 tersimpan
-    Ctrl-->>FE: HTTP 201 Created {data: harvest}
-    FE->>FE: Update Kartu Total Panen Hari Ini & Chart Tren 14 Hari
-    FE-->>Worker: Tampilkan Toast Sukses Input Panen
+    Ctrl->>Svc: createHarvest(payload)
+    alt Nomor Flush > 7 (Probe P11)
+        Svc-->>Ctrl: Validasi Gagal (Flush maksimal 7)
+        Ctrl-->>FE: HTTP 422 {error: "Nomor flush gelombang panen maksimal 7"}
+        FE-->>Worker: Alert nomor flush melebihi batas siklus biologis
+    else Validasi Berhasil
+        Svc->>DB: Cek alokasi aktif slot -> dapatkan batch_id & assignment_id
+        alt Grade == 'REJECT' (Probe P12)
+            Svc->>DB: Harvest::create([..., grade: 'REJECT']) (Catat log panen, TIDAK menambah stok jual)
+        else Grade == 'GRADE_A' / 'GRADE_B'
+            Svc->>DB: Harvest::create([..., grade: 'GRADE_A']) (Menambah stok jamur layak jual)
+        end
+        DB-->>Svc: Harvest ID #104 tersimpan
+        Svc-->>Ctrl: Harvest instance
+        Ctrl-->>FE: HTTP 201 Created {data: harvest}
+        FE->>FE: Update Kartu Total Panen Hari Ini & Invalidate Query 'harvests'
+        FE-->>Worker: Tampilkan Toast Sukses Input Panen
+    end
 
     Note over Worker, DB: Admin Melakukan Void Panen (UC-26)
     actor Admin as Admin
     Admin->>FE: Temukan baris panen salah, klik "Void"
-    FE-->>Admin: Dialog konfirmasi: Alasan void wajib diisi
+    FE-->>Admin: Dialog konfirmasi: Alasan void wajib diisi (min 3 char)
     Admin->>FE: Masukkan alasan: "Timbangan belum ditera / salah ketik 18.5kg"
     FE->>API: POST /api/harvests/104/void {void_reason: "..."}
     API->>API: Validasi role:admin
     API->>Ctrl: void($id)
     Ctrl->>DB: Harvest::whereNull('voided_at')->findOrFail(104)
-    Ctrl->>DB: Harvest::update([voided_at: now(), void_reason: "...", void_by: admin_id])
+    Ctrl->>DB: Harvest::update([voided_at: now(), void_reason: "...", voided_by: admin_id])
     DB-->>Ctrl: Success
     Ctrl-->>FE: HTTP 200 OK {message: "Panen berhasil dibatalkan"}
     FE->>FE: Baris panen menjadi abu-abu tercoret, total KG panen otomatis berkurang
@@ -295,8 +316,8 @@ sequenceDiagram
 
 ---
 
-### SD-08: Transaksi Penjualan & Void Sales (UC-13, UC-27)
-Pencatatan penjualan ke pasar/tengkulak serta pembatalan transaksi dengan re-kalkulasi instan pada omzet dan HPP.
+### SD-08: Transaksi Penjualan, Validasi Stok Jual & Void Sales (UC-13, UC-27)
+Pencatatan penjualan ke pasar/tengkulak dengan validasi saldo stok riil, proteksi force sale, dan pembatalan (*soft-void*).
 
 ```mermaid
 sequenceDiagram
@@ -305,23 +326,34 @@ sequenceDiagram
     participant FE as Halaman Penjualan (React Query)
     participant API as Laravel API (auth:sanctum, role:admin)
     participant Ctrl as SaleController
-    participant DB as Database (sales table)
+    participant Svc as SaleService
+    participant DB as Database (sales, harvests)
 
-    Admin->>FE: Input Form Penjualan: Pembeli 'Pasar Induk', Qty 25 KG, Harga Rp 28.000/KG
-    FE->>API: POST /api/sales {buyer_name, quantity_kg: 25, price_per_kg: 28000, payment_method}
+    Admin->>FE: Input Penjualan: Pembeli 'Pasar Induk', Qty 25 KG, Harga Rp 28.000/KG
+    FE->>API: POST /api/sales {buyer_name, quantity_kg: 25, price_per_kg: 28000, force: false}
     API->>Ctrl: store(Request $request)
-    Ctrl->>Ctrl: Hitung total_amount = 25 * 28000 = Rp 700.000
-    Ctrl->>DB: Sale::create([...])
-    DB-->>Ctrl: Record Penjualan tersimpan
-    Ctrl-->>FE: HTTP 201 Created
-    FE->>FE: Refresh Tabel Penjualan & Summary Omzet
-    FE-->>Admin: Toast sukses transaksi
+    Ctrl->>Svc: createSale(payload)
+    Svc->>DB: Hitung Stok Tersedia = SUM(Grade A + B Non-Void) - SUM(Penjualan Non-Void)
+    DB-->>Svc: available_stock = 20 KG (misal stok kurang)
+    alt Qty Jual > Stok Tersedia & force == false (AUD-02)
+        Svc-->>Ctrl: Defisit Stok Terdeteksi
+        Ctrl-->>FE: HTTP 422 {error: "Stok jamur tidak mencukupi (Tersedia: 20 KG, Diminta: 25 KG)"}
+        FE-->>Admin: Alert modal: aktifkan toggle Force Sale jika panen fisik belum diinput
+    else Force Sale Aktif {force: true, force_reason: "Panen subuh 10kg belum sempat diinput"}
+        Svc->>Ctrl: Hitung total_revenue = bcmul(25, 28000) = Rp 700.000
+        Svc->>DB: Sale::create([notes: "[FORCE SALE: Panen subuh...]", total_revenue: 700000, ...])
+        DB-->>Svc: Record Penjualan tersimpan
+        Svc-->>Ctrl: Sale instance
+        Ctrl-->>FE: HTTP 201 Created
+        FE->>FE: Refresh Tabel Penjualan, Stok Tersedia & Summary Omzet
+        FE-->>Admin: Toast sukses transaksi dengan audit force sale
+    end
 
     Note over Admin, DB: Pembatalan Transaksi Penjualan (UC-27)
     Admin->>FE: Klik "Batalkan (Void)" pada transaksi penjualan
     FE->>API: POST /api/sales/{id}/void {void_reason: "Pembeli membatalkan pesanan di tempat"}
     API->>Ctrl: void($id)
-    Ctrl->>DB: Sale::findOrFail($id)->update([voided_at: now(), void_reason: '...'])
+    Ctrl->>DB: Sale::findOrFail($id)->update([voided_at: now(), void_reason: '...', voided_by: admin_id])
     DB-->>Ctrl: Updated
     Ctrl-->>FE: HTTP 200 OK
     FE->>FE: Rekapitulasi omzet dan kalkulasi margin laba HPP otomatis terpotong
@@ -332,30 +364,68 @@ sequenceDiagram
 
 ## 7. Modul F: Akuntansi Biaya Manajerial & HPP Dinamis
 
-### SD-09: Kalkulasi HPP Dinamis & Margin Kontribusi (UC-22, UC-23)
-Sistem mengagregasikan biaya bibit baglog, proporsi beban operasional kumbung (listrik, air, tenaga kerja), dan total bobot panen bersih (*net harvest excluding voids*).
+### SD-09: Kalkulasi HPP Dinamis Stabil & Rekonsiliasi Omzet (UC-22, UC-23)
+Sistem mengagregasikan biaya bibit baglog, shared overhead non-retroaktif (terisolasi rentang masa aktif batch), presisi moneter `bcmath`, dan query budget $O(1)$.
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Admin as Admin
     participant FE as Tab Analisis HPP & Keuangan
-    participant API as Laravel Routing (auth:sanctum)
+    participant API as Laravel Routing (auth:sanctum, role:admin)
     participant Ctrl as BaglogBatchController
-    participant DB as Database (baglog_batches, harvests, expenses)
+    participant DB as Database (O(1) Query Budget)
 
     Admin->>FE: Membuka Halaman Analisis HPP
     FE->>API: GET /api/baglogs/hpp-summary
     API->>Ctrl: hppSummary()
-    Ctrl->>DB: Query Batch Baglog Aktif + Total Pengadaan (Bibit)
-    Ctrl->>DB: Query Total Panen Bersih: SUM(weight_kg) WHERE voided_at IS NULL
-    Ctrl->>DB: Query Beban Operasional: SUM(amount) periode batch
-    DB-->>Ctrl: Data finansial mentah
-    Ctrl->>Ctrl: Hitung HPP per KG = (Biaya Bibit + Beban Operasional) / Total Panen KG
-    Ctrl->>Ctrl: Hitung Margin Kontribusi = Rata-rata Harga Jual - HPP per KG
-    Ctrl-->>FE: HTTP 200 OK {summary: {total_harvest_kg, hpp_per_kg, contribution_margin, profit_margin_pct}}
+    Ctrl->>DB: Eager load 9 Query Flat O(1): batches, culls, harvests, sales, operational_expenses
+    DB-->>Ctrl: Preloaded collections mentah
+    loop Untuk Setiap Batch Baglog
+        Ctrl->>Ctrl: Hitung Shared Overhead Non-Retroaktif: expense_date >= entry_date & <= batchEndDate
+        Ctrl->>Ctrl: Bagi rata biaya hanya ke batch yang eksis pada tanggal pengeluaran (AUD-11)
+        Ctrl->>Ctrl: Hitung Total Biaya = bcadd(modal_awal, allocated_overhead)
+        Ctrl->>Ctrl: Hitung HPP per KG = bcdiv(total_biaya, total_panen_kg)
+        Ctrl->>Ctrl: Hitung Margin Kontribusi = bcsub(omzet_batch, total_biaya)
+    end
+    Ctrl->>Ctrl: Rekonsiliasi Omzet: unattributed_sales_revenue & farm_total_sales_revenue (AUD-13)
+    Ctrl-->>FE: HTTP 200 OK {summary, batches_hpp, unattributed_sales_revenue, farm_total_sales_revenue}
     FE->>FE: Render Kartu Metrik Finansial & Diagram Donat Biaya
-    FE-->>Admin: Tampilan Dashboard HPP siap dianalisis
+    FE-->>Admin: Tampilan Dashboard HPP siap dianalisis tanpa distorsi masa depan
+```
+
+### SD-12: Pembatalan Biaya Operasional / Void Expense Audit Trail (UC-30)
+Pembatalan pencatatan pengeluaran operasional secara aman tanpa mutasi destruktif (*soft immutable audit trail*), otomatis mengecualikan beban biaya dari kalkulasi HPP batch.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Admin as Admin (Owner)
+    participant FE as Modal Void Expense UI
+    participant API as Laravel Routing (auth:sanctum, role:admin)
+    participant Ctrl as OperationalExpenseController
+    participant DB as Database (operational_expenses table)
+
+    Admin->>FE: Buka Rincian Biaya & Klik "Batalkan Pengeluaran (Void)"
+    FE->>FE: Tampilkan Modal Dialog Alasan Pembatalan (Min 5 Karakter)
+    Admin->>FE: Input Alasan Pembatalan (cth: "Kuitansi listrik ganda") & Konfirmasi
+    FE->>API: POST /api/operational-expenses/{id}/void {reason: "Kuitansi listrik ganda"}
+    API->>Ctrl: void(Request $request, $id)
+    
+    Ctrl->>DB: OperationalExpense::withVoided()->find($id)
+    DB-->>Ctrl: Model expense
+    alt Record Tidak Ditemukan
+        Ctrl-->>FE: HTTP 404 Not Found {message: "Data pengeluaran operasional tidak ditemukan"}
+    else Record Sudah Di-void Sebelumnya
+        Ctrl-->>FE: HTTP 422 Unprocessable Entity {message: "Data pengeluaran operasional sudah dibatalkan sebelumnya"}
+    else Record Valid & Aktif
+        Ctrl->>Ctrl: Validasi Alasan (required|string|min:5|max:255)
+        Ctrl->>DB: expense->void(auth_user_id, reason) [isi voided_at, voided_by, void_reason]
+        DB-->>Ctrl: Updated (Soft Void Ledger Persisted)
+        Ctrl-->>FE: HTTP 200 OK {status: 'success', data: expense}
+        FE->>FE: Invalidate Cache React Query (Biaya & HPP) & Pasang Badge "VOID"
+        FE-->>Admin: Notifikasi Toast Berhasil, Angka Overhead HPP Otomatis Terkoreksi Tanpa Beban Ini
+    end
 ```
 
 ---
@@ -465,6 +535,8 @@ Untuk memastikan integritas analisis perangkat lunak tanpa celah fungsional (*ze
 | | UC-06 | Peringatan Dini EWS | **SD-03** | Edge & Frontend Evaluation |
 | | UC-07 | Memantau Log Aktuator | **SD-11** | Historical Actuator Audit |
 | **Modul C** | UC-08 | Tambah Batch Baglog | **SD-04** (Precondition)| Master Data Procurement |
+| | UC-09 | Perbarui Status Siklus | **SD-05** (Variant) | Status Lifecycle Transition |
+| | UC-10 | Riwayat Batch Baglog | **SD-04** (Variant) | Paginated Batch History |
 | | UC-19 | Alokasi Batch ke Slot WMS 3D | **SD-04** | Atomic DB Lock & Bulk Insert |
 | | UC-20 | Memantau Heatmap Grid | **SD-04** | Spasial Coordinates Query |
 | | UC-29 | Tutup Siklus & Auto-Cull | **SD-05** | Atomic DB Transaction & Cull Generation |
@@ -472,14 +544,17 @@ Untuk memastikan integritas analisis perangkat lunak tanpa celah fungsional (*ze
 | | UC-28 | Membatalkan Catatan Afkir | **SD-06** (Fase 2) | Atomic Void Rollback Capacity |
 | **Modul E** | UC-11 | Mencatat Panen Harian | **SD-07** (Fase 1) | Multi-Flush Slot Attribution |
 | | UC-26 | Membatalkan Catatan Panen | **SD-07** (Fase 2) | Void Audit Trail Ledger |
+| | UC-12 | Analisis Tren Panen 14 Hari | **SD-07** (Variant) | Historical Yield Timeseries |
 | | UC-13 | Mencatat Transaksi Penjualan | **SD-08** (Fase 1) | Sales Order Processing |
 | | UC-27 | Membatalkan Penjualan | **SD-08** (Fase 2) | Void Audit Trail & Omzet Reversal |
 | | UC-14 | Rekap Mingguan & Stok | **SD-08** | Stock Accumulation |
 | **Modul F** | UC-22 | Beban Biaya Operasional | **SD-09** | Ledger Expense Accounting |
 | | UC-23 | Analisis HPP Dinamis | **SD-09** | Dynamic Batch Costing Formula |
+| | UC-30 | Membatalkan Biaya Operasional | **SD-12** | Soft Void Audit Trail & Overhead Exclusion |
 | **Modul G** | UC-24 | Aktifkan Mode Jeda Panen | **SD-10** | Failsafe Cache Command Override |
 | | UC-25 | Akhiri Mode Jeda Panen | **SD-10** | Immediate Resume to AUTO |
-| **Modul H** | UC-16 | Pengiriman Telemetri Sensor | **SD-11** | Non-Blocking IoT Push Telemetry |
+| **Modul H** | UC-15 | Konfigurasi Ambang Batas Iklim | **SD-11** (Precondition) | Actuator Threshold Tuning |
+| | UC-16 | Pengiriman Telemetri Sensor | **SD-11** | Non-Blocking IoT Push Telemetry |
 | | UC-17 | Polling Threshold & Command | **SD-11** | Edge Sync Execution |
 | | UC-18 | Pengiriman Log Aktuator | **SD-11** | Hardware Event Auditing |
 
@@ -488,8 +563,10 @@ Untuk memastikan integritas analisis perangkat lunak tanpa celah fungsional (*ze
 ## 11. Karakteristik Ketahanan Sistem (System Resilience & Edge Cases)
 
 1. **Idempotensi & Void Safety**:  
-   Seluruh operasi pembatalan (`/void`) pada Panen, Penjualan, dan Afkir tidak pernah menjalankan perintah SQL `DELETE`. Sistem menerapkan *soft immutable audit trail* dengan mengisikan `voided_at`, `void_reason`, dan `void_by` untuk menjamin tidak ada manipulasi data terselubung oleh pengguna.
+   Seluruh operasi pembatalan (`/void`) pada Panen, Penjualan, Afkir, dan Biaya Operasional tidak pernah menjalankan perintah SQL `DELETE`. Sistem menerapkan *soft immutable audit trail* dengan mengisikan `voided_at`, `void_reason`, dan `voided_by` (standar atribut konsisten di seluruh tabel transaksi) untuk menjamin tidak ada manipulasi data terselubung oleh pengguna.
 2. **Atomic Capacity Recovery**:  
    Pada `SD-06` (Void Cull), pengembalian kapasitas aktif (`active_capacity`) dilindungi pengecekan status alokasi. Jika slot sudah ditutup siklusnya (`COMPLETED`), pembatalan ditolak untuk mencegah anomali *ghost capacity* pada rak kosong.
-3. **Edge IoT Autonomous Failsafe**:  
+3. **Kapasitas Spasial WMS Terkunci**:  
+   Pada `SD-04` (Alokasi Slot), sistem memverifikasi batas keras 3.000 baglog per kumbung (3 rak $\times$ 100 slot/rak $\times$ 10 baglog/slot) serta menolak penugasan pasangan batch-slot yang sudah aktif terdaftar (`AUD-10`).
+4. **Edge IoT Autonomous Failsafe**:  
    Jika koneksi internet atau server backend mati, ESP32 tetap menjalankan logika histeresis mandiri menggunakan batas threshold terakhir yang tersimpan di flash memory (NVS), memastikan kumbung jamur tidak mengalami gagal panen akibat dehidrasi.

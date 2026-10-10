@@ -255,46 +255,46 @@
   * **Aturan:** Menolak penempatan batch baru pada slot yang statusnya masih `active` (terisi baglog yang belum selesai siklusnya).
   * **Tujuan:** Mencegah tumpang tindih alokasi fisik di dalam kumbung (*anti-double-booking*).
 
-* **L-38: Dynamic Rack Capacity Expansion**
-  * **Lokasi:** `SlotController.php` (`storeRack`), `RackManagementTest.php`
-  * **Aturan:** Admin dapat menambah baris rak baru (misal Baris D, E) yang otomatis men-generate 100 slot baru (1.000 kapasitas baglog per rak).
-  * **Tujuan:** Fleksibilitas skalabilitas gudang kumbung tanpa perlu modifikasi kode program.
+* **L-38: Physical Kumbung Capacity Guard (Max 3 Rak / 3.000 Baglog)**
+  * **Lokasi:** `config/baglog.php`, `SlotController.php` (`storeRack`), `RackManagementTest.php`
+  * **Aturan:** Kapasitas kumbung dikunci pada batas fisik maksimal 3 rak (Baris A, B, C) dengan total 300 slot (10 bay $\times$ 10 tier $\times$ 10 baglog = 3.000 kapasitas). Penambahan rak di luar A/B/C atau melebihi 300 slot otomatis ditolak (HTTP 422). Pembuatan 100 slot rak dibungkus dalam `DB::transaction` atomik.
+  * **Tujuan:** Menyelaraskan batas fisik riil kumbung, mencegah penambahan rak fiktif (*infinite rack bloat*), dan menjaga integritas grid 3D.
 
-* **L-39: Protected Rack Deletion**
+* **L-39: Protected Rack Deletion & Audit Trail Preservation**
   * **Lokasi:** `SlotController.php` (`destroyRack`)
-  * **Aturan:** Rak dilarang dihapus jika terdapat minimal satu slot yang masih memiliki penugasan baglog aktif.
-  * **Tujuan:** Integritas referensial data agar data batch dan panen tidak menjadi yatim piatu (*orphaned records*).
+  * **Aturan:** Rak dilarang dihapus jika terdapat riwayat alokasi batch, panen, maupun afkir—termasuk rekaman yang telah di-void (`voided_at IS NOT NULL`).
+  * **Tujuan:** Menjaga jejak audit (*audit trail preservation*) agar data historis mutasi dan pembatalan tidak terhapus kaskade.
 
-* **L-40: Dynamic Total Capacity Aggregator**
-  * **Lokasi:** `DashboardService.php`, `BaglogManagement.tsx`
-  * **Aturan:** Kapasitas total kumbung dihitung dinamis lewat `Slot::sum('max_capacity')` (bukan angka statis 3.000).
-  * **Tujuan:** Menjaga akurasi persentase keterisian gudang (*occupancy rate*) secara real-time.
+* **L-40: Dynamic Total Capacity Aggregator (3.000 Hard Limit)**
+  * **Lokasi:** `DashboardService.php`, `BaglogManagement.tsx`, `config/baglog.php`
+  * **Aturan:** Kapasitas total kumbung dihitung dinamis lewat `Slot::sum('max_capacity')` dengan baseline kapasitas fisik 3.000 baglog (300 slot).
+  * **Tujuan:** Menjaga akurasi persentase keterisian gudang (*occupancy rate*) secara real-time sesuai kapasitas fisik riil.
 
 ---
 
 ### Kelompok F: Pencatatan Panen & Siklus Flush (L-41 – L-44)
 
 * **L-41: Multi-Flush Productivity Tracking (Siklus 1–7)**
-  * **Lokasi:** `Harvest.php`, `StoreHarvestRequest.php`, `BatchSlotAssignment.php`
-  * **Aturan:** Mencatat nomor flush panen (1 s.d. 7) dan mengklasifikasikan umur baglog:
+  * **Lokasi:** `Harvest.php`, `StoreHarvestRequest.php`, `HarvestService.php`, `BatchSlotAssignment.php`
+  * **Aturan:** Mencatat nomor flush panen (1 s.d. 7). Flush ke-8 ditolak (HTTP 422). Pada mode timbang per batch, pencatatan panen otomatis memajukan seluruh slot aktif dari `INCUBATION` ke `FRUITING`, serta dialokasikan prorata ke visual heatmap. Klasifikasi visual:
     * Flush 1–4: *Prime Productive*
     * Flush 5: *Aging Warning* (Kuning)
     * Flush $\ge 6$: *Exhausted / Tua* (Merah)
-  * **Tujuan:** Mengidentifikasi kurva degradasi nutrisi substrat baglog per siklus pemetikan.
+  * **Tujuan:** Mengidentifikasi kurva degradasi nutrisi substrat baglog per siklus pemetikan dan mengaktifkan visual heatmap.
 
-* **L-42: Quality Grading Multi-Tier**
-  * **Lokasi:** `Harvest.php`, `StoreHarvestRequest.php`
-  * **Aturan:** Setiap panen diklasifikasikan ke Grade A (daun mekar tebal kenyal), Grade B (standar), atau Grade C (rusak/afkir).
-  * **Tujuan:** Diferensiasi harga jual pasar dan analisis korelasi mutu jamur terhadap iklim mikro.
+* **L-42: Quality Grading Multi-Tier & Reject Isolation**
+  * **Lokasi:** `Harvest.php`, `StoreHarvestRequest.php`, `SaleService.php`
+  * **Aturan:** Setiap panen diklasifikasikan ke Grade A (daun mekar tebal kenyal), Grade B (standar), atau REJECT (rusak/busuk). Panen berstatus REJECT diisolasi dari stok layak jual dan dilaporkan terpisah pada neraca SCM.
+  * **Tujuan:** Menjamin hanya jamur layak konsumsi yang dapat dijual dan mencegah over-estimasi persediaan.
 
 * **L-43: WMS Lifecycle Cycle Completion (`HABIS_PRODUKSI`)**
-  * **Lokasi:** `BatchSlotAssignmentController.php`, `BaglogCullController.php`
-  * **Aturan:** Saat siklus slot ditutup (`COMPLETED`), sisa baglog di slot otomatis dicatatkan ke jurnal afkir dengan alasan `HABIS_PRODUKSI` dalam satu transaksi database (`DB::transaction`).
-  * **Tujuan:** Mengosongkan slot secara bersih tanpa menyisakan baglog fiktif (*zero ghost inventory*).
+  * **Lokasi:** `BatchSlotAssignmentController.php`, `BaglogCullController.php`, `BaglogBatch.php`
+  * **Aturan:** Saat siklus slot ditutup (`COMPLETED`), sisa baglog di slot otomatis dicatatkan ke jurnal afkir dengan alasan `HABIS_PRODUKSI` dalam satu transaksi database (`DB::transaction`). Afkir `HABIS_PRODUKSI` dikecualikan dari perhitungan mortalitas biosekuriti. Sinkronisasi status batch berlangsung dua arah (`syncLifecycleState()`).
+  * **Tujuan:** Mengosongkan slot secara bersih tanpa menyisakan baglog fiktif (*zero ghost inventory*) dan mengisolasi indikator mortalitas penyakit.
 
 * **L-44: Non-Destructive Voiding Ledger Pattern**
-  * **Lokasi:** `HarvestController.php`, `SaleController.php`, `BaglogCullController.php`
-  * **Aturan:** Koreksi salah input tidak menggunakan perintah SQL `DELETE`, melainkan soft-void (`voided_at`, `void_reason`, `voided_by`).
+  * **Lokasi:** `HarvestController.php`, `SaleController.php`, `BaglogCullController.php`, `OperationalExpenseController.php`, `HasVoid.php`
+  * **Aturan:** Koreksi salah input tidak menggunakan perintah SQL `DELETE` fisik, melainkan soft-void (`voided_at`, `void_reason`, `voided_by`) yang berlaku untuk panen, penjualan, afkir, dan pengeluaran operasional.
   * **Tujuan:** Menjaga jejak audit (*audit trail*) dan kepatuhan akuntansi manajerial.
 
 ---
@@ -302,42 +302,40 @@
 ### Kelompok G: Inventori Penjualan & Finansial HPP (L-45 – L-47)
 
 * **L-45: High-Precision Monetary Engine (`bcmath` / `DECIMAL`)**
-  * **Lokasi:** `BaglogBatch.php`, `SaleService.php`, Migrations
-  * **Aturan:** Semua perhitungan uang menggunakan pustaka `bcmath` dan kolom database `DECIMAL(15,2)`, bukan tipe data `FLOAT`.
-  * **Tujuan:** Mencegah galat pembulatan fraksi sen/perak pada transaksi penjualan dan valuasi inventori.
+  * **Lokasi:** `BaglogBatch.php`, `SaleService.php`, `OperationalExpense.php`, Migrations
+  * **Aturan:** Semua perhitungan uang (modal bibit, biaya operasional langsung, prorata overhead historis, omzet kotor, margin kontribusi, dan HPP/kg) menggunakan pustaka `bcmath` dengan skala 2–4 desimal dan kolom database `DECIMAL(12,2)`.
+  * **Tujuan:** Mencegah galat pembulatan fraksi sen/perak (*floating point error*) pada transaksi penjualan dan valuasi inventori.
 
-* **L-46: Dynamic Cost of Goods Sold (HPP per Kg)**
-  * **Lokasi:** `BaglogBatch.php` (`calculateHpp()`), `HppAnalysisCard.tsx`
-  * **Aturan:** Menghitung biaya pokok produksi riil per kilogram jamur yang dipanen:
-    $$\text{HPP/kg} = \frac{\text{Biaya Pembelian Bibit Batch} + \sum \text{Biaya Operasional (Listrik, Air, Harian)}}{\text{Total Berat Panen Valid (kg)}}$$
-  * **Tujuan:** Menentukan batas bawah harga jual (*break-even floor price*) agar penjualan ke tengkulak tidak merugi.
+* **L-46: Dynamic Cost of Goods Sold & Retroactive-Protected Overhead (HPP per Kg)**
+  * **Lokasi:** `BaglogBatch.php` (`marginKontribusi()`), `BaglogBatchController.php` (`hppSummary()`)
+  * **Aturan:** Menghitung biaya pokok produksi riil per kilogram jamur yang dipanen. Alokasi biaya operasional bersama (overhead kumbung) hanya memperhitungkan pengeluaran yang terjadi selama rentang masa aktif batch tersebut, mencegah distorsi nilai retroaktif saat ada batch baru masuk:
+    $$\text{HPP/kg} = \frac{\text{Modal Pembelian Bibit} + \sum \text{Biaya Langsung} + \sum \text{Overhead Aktif Terbagi}}{\text{Total Bobot Panen Valid (kg)}}$$
+  * **Tujuan:** Menentukan batas bawah harga jual (*break-even floor price*) secara adil dan stabil sepanjang waktu.
 
-* **L-47: Real-Time Sales Inventory Deduction**
-  * **Lokasi:** `SaleService.php`, `SaleController.php`
-  * **Aturan:** Transaksi penjualan otomatis memvalidasi ketersediaan stok panen siap jual dan memotong stok gudang.
-  * **Tujuan:** Menjamin konsistensi stok fisik terhadap saldo sistem (*stock synchronization*).
+* **L-47: Real-Time Sales Inventory Deduction & Force Sale Guard**
+  * **Lokasi:** `SaleService.php`, `StoreSaleRequest.php`, `SalesManagement.tsx`
+  * **Aturan:** Transaksi penjualan otomatis memvalidasi stok layak jual: $\text{Stok Tersedia} = \sum(\text{Panen Grade A + B}) - \sum(\text{Penjualan Non-Void})$. Penjualan melebihi stok ditolak (HTTP 422), kecuali jika admin mengaktifkan flag `force: true` dengan alasan `force_reason` (min 10 karakter) yang diaudit transparan sebagai `[FORCE SALE: ...]`.
+  * **Tujuan:** Mencegah penjualan fiktif (*stock underflow*) sekaligus memberi fleksibilitas lapangan saat panen fisik belum sempat diinput staf.
 
 ---
 
 ### Kelompok H: KPI Agrikultur & Heatmap Dashboard (L-48 – L-50)
 
-* **L-48: Heatmap Produktivitas Spasial 3D**
+* **L-48: Heatmap Produktivitas Spasial 3D & Batch Harvest Proration**
   * **Lokasi:** `SlotController.php` (`heatmap()`), `KumbungGrid.tsx`
-  * **Aturan:** Menghitung intensitas warna (0.0 s.d. 1.0) berdasarkan rasio hasil panen slot terhadap panen tertinggi di kumbung:
-    $$\text{Intensity} = \frac{\text{Total Panen Slot (kg)}}{\max(\text{Total Panen Kumbung (kg)})}$$
+  * **Aturan:** Menghitung intensitas warna (0.0 s.d. 1.0) berdasarkan rasio hasil panen slot terhadap panen tertinggi di kumbung. Hasil panen mode penimbangan per batch diprorata ke slot aktif yang menampungnya sehingga visual heatmap tetap aktif.
   * **Tujuan:** Deteksi visual zona kumbung yang mandul vs zona yang subur untuk evaluasi peletakan nozzle.
 
-* **L-49: Biological Efficiency (BE %)**
-  * **Lokasi:** `DashboardService.php`, `Dashboard.tsx`
-  * **Aturan:** Mengukur efisiensi biologi konversi substrat menjadi tubuh buah jamur segar:
-    $$\text{BE (\%)} = \frac{\text{Total Bobot Panen Basah (kg)}}{\text{Total Bobot Substrat Kering (kg)}} \times 100\%$$
-  * **Tujuan:** Metrik agrikultur ilmiah penentu keberhasilan formulasi serbuk kayu dan bibit.
+* **L-49: Biological Efficiency (BE % — Future Enhancement Note)**
+  * **Lokasi:** `docs/update/IMPLEMENTATION_PLAN_WMS_SCM.md`
+  * **Aturan:** Diidentifikasi sebagai *Future Enhancement / Riset Lanjutan*: Pengukuran rasio konversi biologis ($\text{Bobot Panen} / \text{Bobot Substrat Kering}$) membutuhkan penimbangan kadar air serbuk kayu kering per baglog saat formulasi, yang saat ini belum dicatat dalam alur operasional pembelian bibit jadi.
+  * **Tujuan:** Dokumentasi batasan sistem operasional riil vs teori buku teks agrikultur.
 
-* **L-50: Mortality / Cull Rate Tracking**
-  * **Lokasi:** `DashboardService.php`, `BaglogManagement.tsx`
-  * **Aturan:** Menghitung rasio kematian baglog terhadap total populasi:
-    $$\text{Cull Rate (\%)} = \frac{\sum \text{Kuantitas Afkir}}{\sum \text{Kuantitas Baglog Terdaftar}} \times 100\%$$
-  * **Tujuan:** Mengukur efektivitas biosekuriti dan sterilisasi ruangan kumbung.
+* **L-50: Mortality / Cull Rate Tracking (Pure Biosecurity Indicator)**
+  * **Lokasi:** `BaglogBatch.php` (`marginKontribusi()`), `DashboardService.php`, `HppAnalysisCard.tsx`
+  * **Aturan:** Menghitung rasio kematian baglog terhadap populasi awal dengan **mengecualikan** mutasi afkir penutupan normal (`HABIS_PRODUKSI`):
+    $$\text{Mortality Rate (\%)} = \frac{\sum \text{Afkir Kerusakan/Penyakit (Trichoderma, Hama, Rusak)}}{\text{Kuantitas Baglog Awal}} \times 100\%$$
+  * **Tujuan:** Mengukur efektivitas biosekuriti dan sterilisasi ruangan kumbung secara murni tanpa terdistorsi siklus panen alami.
 
 ---
 
@@ -382,18 +380,18 @@
 | 35 | L-35 | Batch Code Generator | SCM | Laravel Model | `BL-YYYYMMDD-XXX` berbasis WIB |
 | 36 | L-36 | 3D Grid Spatial Coord | WMS | Database / UI | Format Row-Bay-Tier (300 Slot) |
 | 37 | L-37 | Slot Collision Guard | WMS | Controller | Larangan tumpang tindih slot aktif |
-| 38 | L-38 | Dynamic Rack Expansion | WMS | Controller | Penambahan 100 slot per baris rak baru |
-| 39 | L-39 | Protected Rack Deletion | WMS | Controller | Cegah hapus rak yang masih berisi baglog |
-| 40 | L-40 | Dynamic Total Capacity | WMS | Service | Sum database kapasitas total kumbung |
-| 41 | L-41 | Multi-Flush Tracking | SCM | Database / UI | Klasifikasi siklus petik Flush 1 s.d. 7 |
-| 42 | L-42 | Multi-Tier Quality Grade | SCM | Database | Grade A, B, C |
-| 43 | L-43 | WMS Lifecycle Completion | WMS | DB Transaction | Alasan `HABIS_PRODUKSI` auto-culls |
-| 44 | L-44 | Non-Destructive Voiding | SCM | Soft-Void Ledger | Audit trail pembatalan mutasi |
-| 45 | L-45 | Monetary Precision Engine | Finance | `bcmath` / Decimal | Anti-float rounding discrepancy |
-| 46 | L-46 | Dynamic COGS / HPP | Finance | Service / Model | Biaya bibit + ops per kg panen |
-| 47 | L-47 | Sales Stock Deduction | SCM | Sales Service | Pemotongan inventori panen otomatis |
-| 48 | L-48 | Spatial 3D Heatmap | Analitik | API / UI | Rasio intensitas warna panen per slot |
-| 49 | L-49 | Biological Efficiency (BE)| Analitik | Dashboard KPI | Bobot jamur / Bobot substrat (%) |
-| 50 | L-50 | Mortality / Cull Rate | Analitik | Dashboard KPI | Total afkir / Total baglog (%) |
+| 38 | L-38 | Capacity Guard (Max 3 Rak) | WMS | Config & Controller | Hard limit 3 rak (A,B,C) / 300 slot / 3.000 baglog |
+| 39 | L-39 | Protected Rack Deletion | WMS | Controller | Cegah hapus rak yang memiliki riwayat aktif / void |
+| 40 | L-40 | Dynamic Total Capacity | WMS | Service & Config | Sum database dengan baseline fisik 3.000 baglog |
+| 41 | L-41 | Multi-Flush Tracking | SCM | Database & Service | Flush 1–7 (max 7), auto-advance FRUITING |
+| 42 | L-42 | Quality Grade & Reject Isolation | SCM | Database & Service | Grade A, B, REJECT (terisolasi dari stok jual) |
+| 43 | L-43 | WMS Lifecycle Completion | WMS | Model & Controller | Alasan `HABIS_PRODUKSI` auto-culls & 2-way sync |
+| 44 | L-44 | Non-Destructive Voiding | SCM | HasVoid Trait | Soft-void panen, penjualan, afkir & biaya operasional |
+| 45 | L-45 | Monetary Precision Engine | Finance | `bcmath` / Decimal | Anti-float rounding discrepancy pada seluruh HPP |
+| 46 | L-46 | Dynamic COGS & Stable Overhead | Finance | Model & Service | Biaya bibit + ops (overhead non-retroaktif) |
+| 47 | L-47 | Stock Deduction & Force Sale | SCM | Sales Service | Validasi stok jual bersih & override `[FORCE SALE]` |
+| 48 | L-48 | Spatial 3D Heatmap | Analitik | API / UI | Rasio intensitas warna panen & prorata batch |
+| 49 | L-49 | Biological Efficiency (BE) | Analitik | Future Enhancement | Rasio biologi substrat (catatan riset lanjutan) |
+| 50 | L-50 | Mortality Rate (Pure Biosecurity) | Analitik | Dashboard & HPP | Mengisolasi penyakit murni (tanpa HABIS_PRODUKSI) |
 
 ---
