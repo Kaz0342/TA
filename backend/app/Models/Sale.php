@@ -67,7 +67,7 @@ class Sale extends Model
     protected function casts(): array
     {
         return [
-            'sale_date' => 'date',
+            'sale_date' => 'date:Y-m-d',
             'quantity_kg' => 'decimal:2',
             'price_per_kg' => 'decimal:2',
             'total_revenue' => 'decimal:2',

@@ -28,9 +28,9 @@ class StoreHarvestRequest extends FormRequest
         return [
             'harvest_date' => 'required|date|before_or_equal:today',
             'weight_kg' => 'required|numeric|min:0.01',
-            'baglog_batch_id' => 'nullable|exists:baglog_batches,id',
-            'slot_code' => 'nullable|string|exists:slots,slot_code',
-            'flush_number' => 'nullable|integer|min:1|max:10',
+            'baglog_batch_id' => 'required_without:slot_code|nullable|exists:baglog_batches,id',
+            'slot_code' => 'required_without:baglog_batch_id|nullable|string|exists:slots,slot_code',
+            'flush_number' => 'nullable|integer|min:1|max:7',
             'quality_grade' => 'nullable|in:A,B,REJECT',
             'notes' => 'nullable|string',
         ];

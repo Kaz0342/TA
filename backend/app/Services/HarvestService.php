@@ -96,12 +96,33 @@ class HarvestService
                     ]);
                 }
 
+                // Invarian tanggal: tanggal panen tidak boleh sebelum entry_date batch (Probe P12)
+                if ($batch && $batch->entry_date && Carbon::parse($data['harvest_date'])->lt(Carbon::parse($batch->entry_date))) {
+                    throw ValidationException::withMessages([
+                        'harvest_date' => 'Tanggal panen tidak boleh sebelum tanggal masuk batch (' . Carbon::parse($batch->entry_date)->toDateString() . ').',
+                    ]);
+                }
+
                 if (empty($data['flush_number'])) {
                     $lastFlush = (int) Harvest::where('baglog_batch_id', $batchId)->max('flush_number');
                     $data['flush_number'] = $lastFlush ? ($lastFlush + 1) : 1;
                 }
+
+                // Batasi flush mode batch maksimal 7 sesuai config biologis (Probe P11)
+                if ($data['flush_number'] > (int) config('baglog.max_flush', 7)) {
+                    throw ValidationException::withMessages([
+                        'flush_number' => 'Melebihi batas flush maksimal (' . config('baglog.max_flush', 7) . '); siklus batch telah selesai.',
+                    ]);
+                }
+
+                // Transisi status otomatis kohor: panen batch menggerakkan slot yang INCUBATION -> FRUITING (Probe P11)
+                BatchSlotAssignment::where('baglog_batch_id', $batchId)
+                    ->where('current_status', BatchSlotAssignment::STATUS_INCUBATION)
+                    ->update(['current_status' => BatchSlotAssignment::STATUS_FRUITING]);
             } else {
-                $data['flush_number'] = $data['flush_number'] ?? 1;
+                throw ValidationException::withMessages([
+                    'baglog_batch_id' => 'Pencatatan panen wajib menyertakan batch baglog atau kode slot.',
+                ]);
             }
 
             return $this->repository->store($data);

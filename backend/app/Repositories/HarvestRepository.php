@@ -12,7 +12,10 @@ class HarvestRepository implements HarvestRepositoryInterface
 {
     public function getAll(array $filters = []): Collection
     {
-        $query = Harvest::with('baglogBatch'); // Eager load relasi
+        $query = Harvest::with([
+            'baglogBatch' => fn ($q) => $q->withSum('assignments as assigned_quantity', 'initial_quantity')
+                ->withCount('assignments as assigned_slots_count'),
+        ]);
 
         if (isset($filters['start_date']) && isset($filters['end_date'])) {
             $query->betweenDates($filters['start_date'], $filters['end_date']);

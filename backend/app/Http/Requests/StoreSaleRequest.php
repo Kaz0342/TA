@@ -17,12 +17,14 @@ class StoreSaleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'sale_date' => 'required|date',
+            'sale_date' => 'required|date|before_or_equal:today',
             'baglog_batch_id' => 'nullable|exists:baglog_batches,id',
-            'quantity_kg' => 'required|numeric|min:0.1',
+            'quantity_kg' => 'required|numeric|min:0.01',
             'price_per_kg' => 'required|numeric|min:1000',
             'buyer_name' => 'required|string|max:100',
             'notes' => 'nullable|string',
+            'force' => 'nullable|boolean',
+            'force_reason' => 'required_if:force,true|nullable|string|min:10',
         ];
     }
 

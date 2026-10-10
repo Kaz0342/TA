@@ -61,7 +61,7 @@ class Harvest extends Model
     protected function casts(): array
     {
         return [
-            'harvest_date' => 'date',
+            'harvest_date' => 'date:Y-m-d',
             'weight_kg' => 'decimal:2',
             'flush_number' => 'integer',
             'voided_at' => 'datetime',
