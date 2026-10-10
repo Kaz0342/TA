@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\BaglogBatch;
 use App\Models\ThresholdSetting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -222,9 +223,15 @@ class SecurityAuthTest extends TestCase
     public function test_worker_can_create_harvest(): void
     {
         $worker = User::factory()->create(['role' => User::ROLE_WORKER]);
+        $batch = BaglogBatch::factory()->create([
+            'user_id' => $worker->id,
+            'entry_date' => '2026-08-01',
+            'quantity' => 100,
+        ]);
 
         $response = $this->actingAs($worker, 'sanctum')
             ->postJson('/api/harvests', [
+                'baglog_batch_id' => $batch->id,
                 'harvest_date' => '2026-08-15',
                 'weight_kg' => 5.5,
             ]);

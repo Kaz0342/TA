@@ -42,49 +42,48 @@ class RackManagementTest extends TestCase
             ->assertJsonPath('data.2.row', 'C');
     }
 
-    public function test_admin_can_create_new_rack_with_standard_dimensions(): void
+    public function test_admin_cannot_create_rack_beyond_physical_capacity(): void
     {
         Sanctum::actingAs($this->admin);
 
+        // Kumbung sudah penuh (A, B, C = 300 slot / 3000 baglog)
         $response = $this->postJson('/api/racks', [
             'row' => 'D',
         ]);
 
-        $response->assertCreated()
-            ->assertJsonPath('success', true)
-            ->assertJsonPath('data.row', 'D')
-            ->assertJsonPath('data.slots_created', 100)
-            ->assertJsonPath('data.total_capacity', 1000);
-
-        // Verifikasi 100 slot baru tersimpan di database
-        $this->assertEquals(400, Slot::count());
-        $this->assertTrue(Slot::where('slot_code', 'D-01-01')->exists());
-        $this->assertTrue(Slot::where('slot_code', 'D-10-10')->exists());
+        $response->assertStatus(422)
+            ->assertJsonPath('success', false);
+        $this->assertStringContainsString('Kapasitas kumbung telah mencapai batas maksimal', $response->json('message'));
     }
 
-    public function test_admin_can_auto_assign_next_alphabet_letter(): void
+    public function test_admin_can_auto_assign_missing_alphabet_letter(): void
     {
         Sanctum::actingAs($this->admin);
 
-        // Tidak mengirimkan 'row', harusnya otomatis dapat 'D'
+        // Hapus Rak C sehingga tersisa A dan B
+        $this->deleteJson('/api/racks/C')->assertOk();
+        $this->assertEquals(200, Slot::count());
+
+        // Tidak mengirimkan 'row', harusnya otomatis dapat 'C' dari allowed_rows
         $response = $this->postJson('/api/racks');
 
         $response->assertCreated()
-            ->assertJsonPath('data.row', 'D');
+            ->assertJsonPath('data.row', 'C')
+            ->assertJsonPath('data.slots_created', 100);
 
-        // Panggil lagi, harusnya otomatis dapat 'E'
+        $this->assertEquals(300, Slot::count());
+
+        // Panggil lagi saat kapasitas sudah penuh (A, B, C terpasang), harus ditolak 422
         $response2 = $this->postJson('/api/racks');
-        $response2->assertCreated()
-            ->assertJsonPath('data.row', 'E');
-
-        $this->assertEquals(500, Slot::count());
+        $response2->assertStatus(422)
+            ->assertJsonPath('success', false);
     }
 
     public function test_worker_cannot_create_or_delete_rack(): void
     {
         Sanctum::actingAs($this->worker);
 
-        $this->postJson('/api/racks', ['row' => 'D'])
+        $this->postJson('/api/racks', ['row' => 'B'])
             ->assertForbidden();
 
         $this->deleteJson('/api/racks/C')
@@ -95,30 +94,56 @@ class RackManagementTest extends TestCase
     {
         Sanctum::actingAs($this->admin);
 
+        // Hapus Rak C agar slot tersisa 200 dan kuota rak masih ada
+        $this->deleteJson('/api/racks/C')->assertOk();
+
         // Coba buat Rak A yang sudah ada
         $response = $this->postJson('/api/racks', ['row' => 'A']);
 
         $response->assertStatus(422)
             ->assertJsonPath('success', false);
+        $this->assertStringContainsString('Rak A sudah ada', $response->json('message'));
     }
 
-    public function test_admin_can_delete_empty_rack(): void
+    public function test_cannot_create_rack_outside_allowed_rows(): void
     {
         Sanctum::actingAs($this->admin);
 
-        // Tambah Rak D
-        $this->postJson('/api/racks', ['row' => 'D'])->assertCreated();
-        $this->assertEquals(400, Slot::count());
+        // Hapus Rak C agar slot tersisa 200
+        $this->deleteJson('/api/racks/C')->assertOk();
 
-        // Hapus Rak D
-        $response = $this->deleteJson('/api/racks/D');
+        // Coba buat Rak D atau Z (di luar A, B, C)
+        $response = $this->postJson('/api/racks', ['row' => 'D']);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('success', false);
+        $this->assertStringContainsString('tidak diizinkan', $response->json('message'));
+    }
+
+    public function test_admin_can_delete_empty_rack_and_recreate(): void
+    {
+        Sanctum::actingAs($this->admin);
+
+        // Hapus Rak C
+        $response = $this->deleteJson('/api/racks/C');
 
         $response->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.deleted_slots', 100);
 
+        $this->assertEquals(200, Slot::count());
+        $this->assertFalse(Slot::where('row', 'C')->exists());
+
+        // Buat ulang Rak C
+        $respCreate = $this->postJson('/api/racks', ['row' => 'C']);
+        $respCreate->assertCreated()
+            ->assertJsonPath('data.row', 'C')
+            ->assertJsonPath('data.slots_created', 100)
+            ->assertJsonPath('data.total_capacity', 1000);
+
         $this->assertEquals(300, Slot::count());
-        $this->assertFalse(Slot::where('row', 'D')->exists());
+        $this->assertTrue(Slot::where('slot_code', 'C-01-01')->exists());
+        $this->assertTrue(Slot::where('slot_code', 'C-10-10')->exists());
     }
 
     public function test_admin_cannot_delete_rack_with_active_assignments(): void
@@ -159,13 +184,21 @@ class RackManagementTest extends TestCase
             ->assertJsonPath('data.total_kumbung_capacity', 3000)
             ->assertJsonPath('data.total_slots_count', 300);
 
-        // Tambah Rak D (+1000 kapasitas)
-        $this->postJson('/api/racks', ['row' => 'D'])->assertCreated();
+        // Hapus Rak C (-1000 kapasitas)
+        $this->deleteJson('/api/racks/C')->assertOk();
 
-        // Cek lagi, harusnya 4000
+        // Cek lagi, harusnya 2000
         $res2 = $this->getJson('/api/dashboard/stats');
         $res2->assertOk()
-            ->assertJsonPath('data.total_kumbung_capacity', 4000)
-            ->assertJsonPath('data.total_slots_count', 400);
+            ->assertJsonPath('data.total_kumbung_capacity', 2000)
+            ->assertJsonPath('data.total_slots_count', 200);
+
+        // Pasang kembali Rak C (+1000 kapasitas)
+        $this->postJson('/api/racks', ['row' => 'C'])->assertCreated();
+
+        $res3 = $this->getJson('/api/dashboard/stats');
+        $res3->assertOk()
+            ->assertJsonPath('data.total_kumbung_capacity', 3000)
+            ->assertJsonPath('data.total_slots_count', 300);
     }
 }

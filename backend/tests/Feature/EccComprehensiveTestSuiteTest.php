@@ -219,6 +219,7 @@ class EccComprehensiveTestSuiteTest extends TestCase
             'user_id' => $admin->id,
             'status' => BaglogBatch::STATUS_ACTIVE,
             'quantity' => 300,
+            'entry_date' => '2026-09-01',
         ]);
 
         // Act
@@ -255,6 +256,8 @@ class EccComprehensiveTestSuiteTest extends TestCase
             'price_per_kg' => 24500,
             'buyer_name' => 'Resto Jamur Nusantara',
             'notes' => 'Pembayaran tunai',
+            'force' => true,
+            'force_reason' => 'Pengujian akurasi presisi desimal BCMath',
         ]);
 
         // Assert
@@ -647,6 +650,8 @@ class EccComprehensiveTestSuiteTest extends TestCase
             'quantity_kg' => 10.0,
             'price_per_kg' => 25000,
             'buyer_name' => $sqliPayload,
+            'force' => true,
+            'force_reason' => 'Pengujian keamanan SQL Injection',
         ]);
 
         // Assert: Tabel users TIDAK BOLEH terhapus dan query berhasil tanpa celah SQLi
@@ -670,6 +675,8 @@ class EccComprehensiveTestSuiteTest extends TestCase
             'quantity_kg' => 3.33,
             'price_per_kg' => 33333,
             'buyer_name' => 'Kolektor Pecahan Presisi',
+            'force' => true,
+            'force_reason' => 'Pengujian trap floating point precision',
         ]);
 
         // Assert: bcmul(3.33, 33333, 2) = 110998.89
