@@ -41,7 +41,7 @@ Versi Sistem: Dashboard Web + Firmware ESP32 v3.6
 
 ## 1.1 Apa itu Smart Shroom SCM?
 
-Smart Shroom SCM adalah dashboard web untuk mengelola **kumbung (rumah) jamur tiram** dari ujung ke ujung:
+Smart Shroom SCM adalah dashboard web untuk mengelola **kumbung (rumah) jamur kuping** dari ujung ke ujung:
 
 - **Monitoring mikroklimat**: suhu dan kelembapan dibaca sensor ESP32 secara berkala.
 - **Otomasi**: pompa misting dan exhaust fan menyala sendiri sesuai batas yang Anda atur.
@@ -52,10 +52,10 @@ Smart Shroom SCM adalah dashboard web untuk mengelola **kumbung (rumah) jamur ti
 
 | Peran | Jumlah maks. | Boleh melakukan |
 |-------|--------------|-----------------|
-| **Admin** | 1 | Semua fitur: atur threshold, buat batch baglog, alokasi rak, catat/hapus biaya operasional, catat/void penjualan, daftarkan akun worker |
-| **Worker** | 5 | Lihat monitoring, lihat baglog, catat panen, catat afkir, void panen/afkir, jeda/lanjutkan otomasi saat panen, lihat rak |
+| **Admin** | 1 | Semua fitur: atur threshold, buat batch baglog, alokasi rak, catat/void biaya operasional, catat/void penjualan, void panen/afkir, daftarkan akun worker |
+| **Worker** | 5 | Lihat monitoring, lihat baglog, catat panen, catat afkir, jeda/lanjutkan otomasi saat panen, lihat denah rak |
 
-Worker **tidak** melihat menu Penjualan & Cuan dan tidak bisa mengubah threshold.
+Worker **tidak** melihat menu Penjualan & Biaya HPP, tidak bisa mengubah threshold, dan **dilarang membatalkan (*void*) transaksi** demi menjaga integritas audit biosekuriti dan finansial.
 
 ## 1.3 Gambaran Alur Kerja
 
@@ -342,7 +342,7 @@ Afkir = baglog rusak yang dikeluarkan.
 
 Jika isi aktif slot menjadi 0, slot otomatis **COMPLETED (EXHAUSTED)**.
 
-**Membatalkan afkir (void)** wajib menyertakan alasan minimal 5 karakter. Kapasitas dikembalikan, dan slot dibuka kembali bila sebelumnya otomatis selesai.
+**Membatalkan afkir (void — Khusus Admin):** Tindakan ini hanya dapat dilakukan oleh Admin untuk mengoreksi salah input. Wajib menyertakan alasan minimal 5 karakter. Kapasitas baglog aktif dikembalikan, dan slot dibuka kembali bila sebelumnya otomatis selesai.
 
 ## 6.7 Menutup Siklus
 
@@ -385,9 +385,9 @@ Sistem membatasi **maks. 7 flush**. Jika terlampaui, muncul pesan agar Anda **me
 | Panen sebelum tanggal penempatan | Perbaiki tanggal panen |
 | Flush melebihi batas | Tutup siklus slot (Bab 6.7) |
 
-## 7.4 Membatalkan Panen (Void)
+## 7.4 Membatalkan Panen (Void — Khusus Admin)
 
-Salah input? Gunakan **Void**, bukan hapus. Wajib isi alasan **5 sampai 255 karakter**. Data void tetap tersimpan sebagai jejak audit, tetapi **tidak dihitung** di total, grafik, dan HPP.
+Salah input timbangan? Gunakan **Void**, bukan hapus (fitur ini hanya dapat dieksekusi oleh akun **Admin**). Wajib isi alasan **5 sampai 255 karakter**. Data void tetap tersimpan sebagai jejak audit, tetapi **tidak dihitung** di total, grafik, dan HPP.
 
 <div class="pagebreak"></div>
 
@@ -760,7 +760,7 @@ Ruang kumbung: **5 x 7 x 3,5 m (122,5 m3)**.
 | Relay exhaust fan | GPIO 33 |
 | LCD I2C 16x2 (opsional) | GPIO 21 / 22 (I2C addr 0x27) |
 
-## A.4 Parameter Firmware v3.5
+## A.4 Parameter Firmware v3.6
 
 | Parameter | Nilai |
 |-----------|-------|
@@ -776,8 +776,8 @@ Ruang kumbung: **5 x 7 x 3,5 m (122,5 m3)**.
 | Kipas siang maks. | 180 s, cooldown 60 s |
 | Override kipas | Suhu > batas atas + 2 °C |
 | Homogenisasi | 30 s bila selisih RH > 12 %, cooldown 15 menit |
-| Purge malam | RH ≥ 96 %, 45 s, cooldown 30 menit |
-| Flush CO2 malam | 45 s tiap 60 menit |
+| Purge malam | RH ≥ 96 %, 300 s, cooldown 30 menit |
+| Flush CO2 malam | 300 s tiap 60 menit |
 | Jeda setelah misting | 60 s |
 | Antrean offline | 10 entri (RAM) |
 | Filter data basi | 15 s |
@@ -844,17 +844,17 @@ Dasar: `{VITE_API_URL}` (contoh `http://localhost:8000/api`). Autentikasi: heade
 | DELETE | `/racks/{row}` | Admin | Hapus rak kosong |
 | GET | `/baglogs` | Auth | Daftar batch |
 | POST | `/baglogs` | Admin | Buat batch |
-| PATCH | `/baglogs/{id}/status` | Auth | Ubah status |
-| GET | `/baglogs/hpp-summary` | Auth | Ringkasan HPP |
-| GET | `/baglogs/{id}/hpp` | Auth | HPP satu batch |
+| PATCH | `/baglogs/{id}/status` | Admin | Ubah status batch |
+| GET | `/baglogs/hpp-summary` | Admin | Ringkasan HPP |
+| GET | `/baglogs/{id}/hpp` | Admin | HPP satu batch |
 | GET | `/harvests` | Auth | Daftar panen |
 | POST | `/harvests` | Auth | Catat panen |
-| POST | `/harvests/{id}/void` | Auth | Void panen |
+| POST | `/harvests/{id}/void` | Admin | Void panen (Audit Trail) |
 | GET | `/harvests/today-total` | Auth | Total hari ini |
 | GET | `/harvests/chart` | Auth | Grafik panen |
 | GET | `/sales` | Admin | Daftar penjualan |
 | POST | `/sales` | Admin | Catat penjualan |
-| POST | `/sales/{id}/void` | Admin | Void penjualan |
+| POST | `/sales/{id}/void` | Admin | Void penjualan (Audit Trail) |
 | GET | `/sales/weekly-report` | Admin | Laporan mingguan |
 | GET | `/sales/buyer-ranking` | Admin | Peringkat pembeli |
 | GET | `/sales/price-trend` | Admin | Tren harga |
@@ -863,10 +863,11 @@ Dasar: `{VITE_API_URL}` (contoh `http://localhost:8000/api`). Autentikasi: heade
 | GET | `/slots/{code}` | Auth | Detail slot |
 | GET | `/baglog-culls` | Auth | Daftar afkir |
 | POST | `/baglog-culls` | Auth | Catat afkir |
-| POST | `/baglog-culls/{id}/void` | Auth | Void afkir |
-| GET | `/operational-expenses` | Auth | Daftar biaya |
-| POST | `/operational-expenses` | Admin | Tambah biaya |
-| DELETE | `/operational-expenses/{id}` | Admin | Hapus biaya |
+| POST | `/baglog-culls/{id}/void` | Admin | Void afkir (Audit Trail) |
+| GET | `/operational-expenses` | Admin | Daftar biaya operasional |
+| POST | `/operational-expenses` | Admin | Tambah biaya operasional |
+| POST | `/operational-expenses/{id}/void` | Admin | Void biaya operasional (Audit Trail) |
+| DELETE | `/operational-expenses/{id}` | Admin | Hapus biaya fisik |
 | POST | `/batch-slot-assignments` | Admin | Alokasi baglog ke slot |
 | PATCH | `/batch-slot-assignments/{id}/status` | Admin | Ubah status penempatan |
 | POST | `/batch-slot-assignments/{id}/complete` | Admin | Tutup siklus |
@@ -884,7 +885,7 @@ Dasar: `{VITE_API_URL}` (contoh `http://localhost:8000/api`). Autentikasi: heade
 
 ## A.9 Pengujian
 
-Backend: `php artisan test` menghasilkan **168 tes dan 591 assertion lulus**. Frontend: lint dengan `npm run lint` dan build dengan `npm run build` (belum ada kerangka tes frontend).
+Backend: `php artisan test` menghasilkan **198 tes dan 797 assertion lulus (100% Zero Failure)**. Frontend: lint dengan `npm run lint` dan build dengan `npm run build` (lulus tanpa galat tipe atau kompilasi).
 
 ## A.10 Data Demo (Seeder)
 
@@ -900,12 +901,12 @@ Hal-hal berikut ditemukan saat menyusun manual ini dan perlu diselesaikan pengem
 
 | No | Temuan | Keterangan |
 |----|--------|------------|
-| 1 | Versi di README | README menyebut Laravel 12, React 18, PHP 8.2. Kode sebenarnya Laravel 13, React 19, PHP 8.3 |
+| 1 | Versi di README | Terpecahkan (11 Okt 2026): README dan dokumen sudah memakai Laravel 13, React 19, PHP 8.3 sesuai `composer.json` dan `package.json` |
 | 2 | Akun demo | Tombol login memakai `@smartshroom.com`, seeder membuat `@smartshroom.test` |
 | 3 | Alamat produksi | `tugasakhir-lime.vercel.app` mengembalikan HTTP 402, tertulis di simulator, firmware, dan dokumen |
 | 4 | Kategori biaya | UI: NUTRISI/LABOR/PACKAGING/LAINNYA. Backend juga menerima LISTRIK/AIR. Konstanta model: LISTRIK/MISTING/PLASTIK/LAINNYA |
 | 5 | Komentar firmware | Header menulis timeout misting 60 s, konstanta aktual 90 s (manual ini memakai 90 s) |
-| 6 | Daftar belanja hardware | Menyebut RTC/blackbox/SPIFFS, sedangkan firmware v3.5 memakai antrean RAM dan NTP |
+| 6 | Daftar belanja hardware | Terpecahkan: Daftar belanja dan arsitektur IoT telah disinkronkan ke firmware v3.6 (NTP + antrean RAM 10 log, tanpa RTC/SPIFFS/MQ-135) di `docs/teknis-iot/hardware-shopping-list.md` |
 
 ---
 
