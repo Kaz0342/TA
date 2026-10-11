@@ -114,76 +114,76 @@ flowchart TD
 
     %% Process 1: Auth
     P1(("1.0<br/>Autentikasi &<br/>Manajemen Akun"))
-    Admin -->|Kredensial, Registrasi| P1
-    Worker -->|Kredensial| P1
-    P1 <-->|Verifikasi Kredensial, Kuota Worker| D1
-    P1 -->|Bearer Token, Role| Admin
-    P1 -->|Bearer Token, Role| Worker
+    Admin -->|"Kredensial, Registrasi"| P1
+    Worker -->|"Kredensial"| P1
+    P1 <-->|"Verifikasi Kredensial, Kuota Worker"| D1
+    P1 -->|"Bearer Token, Role"| Admin
+    P1 -->|"Bearer Token, Role"| Worker
 
     %% Process 2: IoT Telemetry & EWS
     P2(("2.0<br/>Monitoring Iklim &<br/>EWS Engine"))
-    ESP32 -->|Raw 3x SHT30 Data| P2
-    P2 -->|Simpan Telemetri Fusi| D3
-    D3 -->|Stream 5s Telemetri| P2
-    D2 -->|Baca Batas Optimal| P2
-    P2 -->|Dial Gauges, Status EWS, Grafik Riwayat| Admin
-    P2 -->|Dial Gauges, Status EWS| Worker
+    ESP32 -->|"Raw 3x SHT30 Data"| P2
+    P2 -->|"Simpan Telemetri Fusi"| D3
+    D3 -->|"Stream 5s Telemetri"| P2
+    D2 -->|"Baca Batas Optimal"| P2
+    P2 -->|"Dial Gauges, Status EWS, Grafik Riwayat"| Admin
+    P2 -->|"Dial Gauges, Status EWS"| Worker
 
     %% Process 3: Spasial WMS 3D
     P3(("3.0<br/>Manajemen Spasial WMS<br/>& Batch Baglog"))
-    Admin -->|Batch Baru, Alokasi Slot (Cap 3000), Tutup Siklus (EXHAUSTED)| P3
-    P3 <-->|Kapasitas Rak & Grid 300 Slot| D6
-    P3 <-->|Relasi Alokasi Kamar Rak (Cek Pasangan Unik)| D7
-    P3 <-->|Master Batch Media Tanam| D5
-    P3 -->|Auto-Cull Sisa Kapasitas (HABIS_PRODUKSI)| D8
-    P3 -->|Grid Interaktif, Heatmap Panen, Status Slot| Admin
-    P3 -->|Denah Rak Visual & Kapasitas Aktif| Worker
+    Admin -->|"Batch Baru, Alokasi Slot (Cap 3000), Tutup Siklus (EXHAUSTED)"| P3
+    P3 <-->|"Kapasitas Rak & Grid 300 Slot"| D6
+    P3 <-->|"Relasi Alokasi Kamar Rak (Cek Pasangan Unik)"| D7
+    P3 <-->|"Master Batch Media Tanam"| D5
+    P3 -->|"Auto-Cull Sisa Kapasitas (HABIS_PRODUKSI)"| D8
+    P3 -->|"Grid Interaktif, Heatmap Panen, Status Slot"| Admin
+    P3 -->|"Denah Rak Visual & Kapasitas Aktif"| Worker
 
     %% Process 4: Cull Ledger
     P4(("4.0<br/>Manajemen Afkir &<br/>Biosekuriti"))
-    Admin -->|Alasan Void Afkir (voided_by)| P4
-    Worker -->|Lapor Afkir Baglog Rusak| P4
-    P4 <-->|Jurnal Mutasi Culls, Void Timestamp| D8
-    P4 <-->|Decrement / Restore Active Capacity| D7
-    P4 -->|Tabel Audit Afkir, Konfirmasi Restore| Admin
-    P4 -->|Notifikasi Sukses Input Afkir| Worker
+    Admin -->|"Alasan Void Afkir (voided_by)"| P4
+    Worker -->|"Lapor Afkir Baglog Rusak"| P4
+    P4 <-->|"Jurnal Mutasi Culls, Void Timestamp"| D8
+    P4 <-->|"Decrement / Restore Active Capacity"| D7
+    P4 -->|"Tabel Audit Afkir, Konfirmasi Restore"| Admin
+    P4 -->|"Notifikasi Sukses Input Afkir"| Worker
 
     %% Process 5: Harvest Multi-Flush
-    P5(("5.0<br/>Pencatatan Panen<br/>Multi-Flush (<= 7)"))
-    Admin -->|Alasan Void Panen (voided_by)| P5
-    Worker -->|Timbangan KG, Slot, Flush 1-7, Grade A/B/REJECT| P5
-    P5 <-->|Ledger Panen, Status Void, Isolasi REJECT| D9
-    D7 -->|Validasi Alokasi Aktif Slot & Kapasitas| P5
-    P5 -->|Grafik Tren 14 Hari, Total Hari Ini| Admin
-    P5 -->|Toast Sukses, Ringkasan Harian| Worker
+    P5(("5.0<br/>Pencatatan Panen<br/>Multi-Flush (Maks 7 Flush)"))
+    Admin -->|"Alasan Void Panen (voided_by)"| P5
+    Worker -->|"Timbangan KG, Slot, Flush 1-7, Grade A/B/REJECT"| P5
+    P5 <-->|"Ledger Panen, Status Void, Isolasi REJECT"| D9
+    D7 -->|"Validasi Alokasi Aktif Slot & Kapasitas"| P5
+    P5 -->|"Grafik Tren 14 Hari, Total Hari Ini"| Admin
+    P5 -->|"Toast Sukses, Ringkasan Harian"| Worker
 
     %% Process 6: Supply Chain Sales
     P6(("6.0<br/>Manajemen Penjualan<br/>& Rantai Pasok"))
-    Admin -->|Nota Penjualan, Bypass Force Sale, Void Sale (voided_by)| P6
-    D9 -->|Akumulasi Stok Layak Jual (Grade A+B Non-Void)| P6
-    P6 <-->|Jurnal Penjualan, Validasi Saldo Stok Real-Time| D10
-    P6 -->|Tabel Penjualan, Tag [FORCE SALE], Omzet| Admin
+    Admin -->|"Nota Penjualan, Bypass Force Sale, Void Sale (voided_by)"| P6
+    D9 -->|"Akumulasi Stok Layak Jual (Grade A+B Non-Void)"| P6
+    P6 <-->|"Jurnal Penjualan, Validasi Saldo Stok Real-Time"| D10
+    P6 -->|"Tabel Penjualan, Tag [FORCE SALE], Omzet"| Admin
 
     %% Process 7: Costing & Dynamic COGS
     P7(("7.0<br/>Akuntansi Biaya &<br/>HPP Dinamis (UC-30)"))
-    Admin -->|Input Beban Operasional, Void Expense (voided_by)| P7
-    P7 <-->|Buku Beban Operasional (Scope withoutVoided)| D11
-    D5 -->|Biaya Pokok Pengadaan Bibit Batch| P7
-    D9 -->|Total Bobot Panen Bersih Non-Void| P7
-    D10 -->|Omzet Batch & Rekonsiliasi Omzet Farm| P7
-    P7 -->|Metrik HPP/KG Non-Retroaktif, Margin Laba, Audit Void| Admin
+    Admin -->|"Input Beban Operasional, Void Expense (voided_by)"| P7
+    P7 <-->|"Buku Beban Operasional (Scope withoutVoided)"| D11
+    D5 -->|"Biaya Pokok Pengadaan Bibit Batch"| P7
+    D9 -->|"Total Bobot Panen Bersih Non-Void"| P7
+    D10 -->|"Omzet Batch & Rekonsiliasi Omzet Farm"| P7
+    P7 -->|"Metrik HPP/KG Non-Retroaktif, Margin Laba, Audit Void"| Admin
 
     %% Process 8: Failsafe Actuator
     P8(("8.0<br/>Kontrol Interupsi &<br/>Edge Actuator"))
-    Admin -->|Update Threshold, Jeda Panen| P8
-    Worker -->|Jeda Panen / Resume AUTO| P8
-    P8 <-->|Put / Get Status Mode Jeda| Cache
-    P8 <-->|Simpan Ambang Batas Aktif| D2
-    ESP32 <-->|Polling Threshold & Command| P8
-    ESP32 -->|Log Status Pompa/Kipas| P8
-    P8 -->|Catat Riwayat Eksekusi Relay| D4
-    P8 -->|Countdown Timer UI, Status Mode| Admin
-    P8 -->|Countdown Timer UI, Status Mode| Worker
+    Admin -->|"Update Threshold, Jeda Panen"| P8
+    Worker -->|"Jeda Panen / Resume AUTO"| P8
+    P8 <-->|"Put / Get Status Mode Jeda"| Cache
+    P8 <-->|"Simpan Ambang Batas Aktif"| D2
+    ESP32 <-->|"Polling Threshold & Command"| P8
+    ESP32 -->|"Log Status Pompa/Kipas"| P8
+    P8 -->|"Catat Riwayat Eksekusi Relay"| D4
+    P8 -->|"Countdown Timer UI, Status Mode"| Admin
+    P8 -->|"Countdown Timer UI, Status Mode"| Worker
 ```
 
 ---
