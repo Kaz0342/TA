@@ -1,13 +1,13 @@
 # Arsitektur & Spesifikasi IoT: Smart Shroom SCM
 
-Dokumen teknis ini menjelaskan spesifikasi perangkat keras (hardware) dan arsitektur aliran data (data flow) dari sistem IoT yang digunakan pada kumbung jamur pintar (Smart Shroom). Dokumen ini disusun sesuai standar penyusunan bab perancangan sistem untuk Tugas Akhir (TA).
+Dokumen teknis ini menjelaskan spesifikasi perangkat keras (hardware) dan arsitektur aliran data (data flow) dari sistem IoT produksi as-built yang digunakan pada kumbung jamur pintar (Smart Shroom).
 
 ## 1. Spesifikasi Perangkat Keras (Hardware)
 
 Sistem IoT ini berpusat pada mikrokontroler yang terhubung ke jaringan internet dan bertugas membaca beberapa sensor iklim secara real-time.
 
 ### 1.1 Mikrokontroler
-*   **Komponen:** ESP32 (NodeMCU / Wemos D1 Mini / DevKit V1)
+*   **Komponen:** ESP32 DevKit V1 (30-Pin ESP32-WROOM-32) + Terminal Screw Shield
 *   **Fungsi:** Bertindak sebagai otak utama (edge device) yang membaca data dari seluruh sensor, memformatnya menjadi JSON, dan mengirimkannya ke server backend via HTTP POST. ESP32 dipilih karena memiliki prosesor Dual-Core 240MHz dan modul Wi-Fi terintegrasi.
 
 ### 1.2 Sensor Suhu & Kelembapan (3 Unit — Segitiga Diagonal)
@@ -21,11 +21,11 @@ Sistem IoT ini berpusat pada mikrokontroler yang terhubung ke jaringan internet 
     $$RH_{\text{avg}} = 0.35 \cdot RH_A + 0.40 \cdot RH_B + 0.25 \cdot RH_C$$
     Jika salah satu sensor mengalami kegagalan baca (NaN), firmware secara otomatis menormalisasi ulang bobot dari sensor yang masih valid.
 *   **Fungsi & Keunggulan:** Mengukur suhu ruangan (°C) dan kelembapan relatif (%). SHT30/SHT31 dipilih karena memiliki presisi tinggi (±2% RH, ±0.2°C) dengan enkapsulasi probe logam berpori mikron (IP68) serta fitur *on-chip internal heater* yang kebal terhadap *condensation saturation* pada kelembaban tinggi (85–95% RH), jauh lebih andal dan tahan lama dibanding DHT22 yang rentan drift dan rusak di lingkungan basah kumbung jamur.
-*   **Referensi:** Lihat `docs/penempatan_sensor.md`, `docs/rancangan_hardware_kumbung.md`, dan `docs/logika_aktuator.md` untuk detail komprehensif.
+*   **Referensi:** Lihat `docs/teknis-iot/penempatan_sensor.md`, `docs/teknis-iot/rancangan_hardware_kumbung.md`, dan `docs/logika-bisnis/logika_aktuator.md` untuk detail komprehensif.
 
-### 1.3 Sensor Kadar CO2 & Intensitas Cahaya
-*   **Komponen CO2:** MQ-135 (General Air Quality) atau MH-Z19 (NDIR CO2 Sensor).
-*   **Komponen Cahaya:** BH1750 (Digital Light Sensor) atau modul LDR (Light Dependent Resistor).
+### 1.3 Baseline Ambient CO2 & Display Lokal (As-Built Release)
+*   **Parameter CO2:** Menggunakan baseline ambien standar budidaya jamur (480 ppm) yang dikirim firmware v3.6 secara deterministik. Sensor fisik CO2 (MQ-135/MH-Z19) dan sensor intensitas cahaya (BH1750) dieliminasi pada rilis as-built untuk menekan *point of failure* dan biaya komponen yang tidak esensial bagi jamur kuping (kumbung gelap tertutup).
+*   **Display Lokal (T1):** LCD 16×2 I2C (PCF8574, alamat `0x27`) dihubungkan ke bus I2C utama ESP32 untuk pemantauan onsite tanpa smartphone (menampilkan IP Wi-Fi, suhu/RH rata-rata, status aktuator, dan hitung mundur jeda panen).
 
 ### 1.4 Aktuator Pengendali Mikroklimat
 *   **Pompa Misting High-Pressure 12V DC:** Pompa diafragma 130–160 PSI disambungkan ke 14 nozzle brass 0.3mm untuk menaikkan kelembapan dan pendinginan evaporatif tanpa membasahi lantai secara berlebihan.
@@ -51,11 +51,9 @@ Sistem memanfaatkan protokol HTTP/HTTPS berbasis **REST API** (*stateless*). Pen
 ```json
 {
   "device_id": "ESP32-KUMBUNG-01",
-  "temperature": 27.50,
-  "humidity": 88.00,
-  "co2_level": 450.50,
-  "light_intensity": 120.50,
-  "recorded_at": "2026-09-27T09:00:00Z"
+  "temperature": "27.50",
+  "humidity": "88.00",
+  "co2_level": 480
 }
 ```
 

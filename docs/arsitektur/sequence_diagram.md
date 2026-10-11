@@ -2,7 +2,7 @@
 
 **Judul Tugas Akhir:** *Sistem Informasi Supply Chain Management dan Spasial WMS pada Kumbung Jamur Terintegrasi dengan Otomasi dan Monitoring Mikroklimat IoT*  
 **Dokumen:** Spesifikasi Interaksi Sekuensial Sistem (UML Sequence Diagrams)  
-**Referensi Terkait:** [docs/use_case.md](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/use_case.md) | [docs/dfd.md](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/dfd.md) | [docs/PRD.md](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/PRD.md) | [docs/erd.md](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/erd.md)  
+**Referensi Terkait:** [use_case.md](use_case.md) | [dfd.md](dfd.md) | [PRD.md](PRD.md) | [erd.md](erd.md)  
 **Penyusun:** Benedictus Vio  
 **Standar Rekayasa:** Ponytail Lean Spec (Zero-Bloat, Anti-Bab 1-5 Skripsi, 100% Pure Architecture & Code Lifelines)
 
@@ -15,7 +15,7 @@ Seluruh sequence diagram dalam dokumen ini menggunakan interaksi antar-lifeline 
 | Komponen Lifeline | Entitas Nyata dalam Kode | Peran & Tanggung Jawab |
 |---|---|---|
 | `Actor` | Admin / Worker / ESP32 | Pengguna fisik atau mikrokontroler di kumbung. |
-| `FE` (Frontend UI) | React 18, Vite, Tailwind, Zustand, TanStack Query | Antarmuka pengguna, form validation, optimistic state, modal dialog. |
+| `FE` (Frontend UI) | React 19, Vite, Tailwind, Zustand, TanStack Query | Antarmuka pengguna, form validation, optimistic state, modal dialog. |
 | `API` (Laravel Router) | `routes/api.php`, Sanctum Middleware, RateLimiter | Endpoint router, token authentication, RBAC guard (`role:admin`). |
 | `Controller` | `App\Http\Controllers\Api\*` | Validasi payload request (`Validator`), orkestrasi business logic. |
 | `DB` (Database Server) | MySQL / SQLite, Eloquent ORM | Transaksi data atomik (`DB::transaction`), isolasi state, foreign key integrity. |

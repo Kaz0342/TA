@@ -5,13 +5,13 @@
 **Konteks:** Tugas Akhir Program Studi Sistem Informasi  
 **Penyusun:** Benedictus Vio  
 **Terakhir Diperbarui:** Oktober 2026 (Sinkronisasi WMS Fase A–D, Voiding Ledger Audit Trail, HPP Dinamis, & IoT Rule Engine)  
-**Dokumen Terkait:** [docs/sequence_diagram.md](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/sequence_diagram.md) (Sequence Diagram UML) \| [docs/dfd.md](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/dfd.md) (Data Flow Diagram)  
+**Dokumen Terkait:** [sequence_diagram.md](sequence_diagram.md) (Sequence Diagram UML) \| [dfd.md](dfd.md) (Data Flow Diagram)  
 
 ---
 
 ## 1. Pendahuluan
 
-Dokumen ini mendefinisikan analisis Use Case untuk sistem **Smart Shroom SCM**, mencakup batasan sistem, identifikasi aktor, diagram Use Case UML, matriks hak akses, serta spesifikasi skenario rinci (*Use Case Specifications*). Analisis ini diselaraskan secara langsung dengan implementasi backend Laravel 12 (Sanctum Auth, RBAC), frontend React 18 (Zustand, TanStack Query), dan mikrokontroler IoT ESP32.
+Dokumen ini mendefinisikan analisis Use Case untuk sistem **Smart Shroom SCM**, mencakup batasan sistem, identifikasi aktor, diagram Use Case UML, matriks hak akses, serta spesifikasi skenario rinci (*Use Case Specifications*). Analisis ini diselaraskan secara langsung dengan implementasi backend Laravel 13 (Sanctum Auth, RBAC), frontend React 19 (Zustand, TanStack Query), dan mikrokontroler IoT ESP32.
 
 ---
 

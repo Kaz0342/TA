@@ -38,7 +38,7 @@ erDiagram
     USERS ||--o{ SALES : "mencatat / membatalkan void (1:N)"
     USERS ||--o{ BAGLOG_CULLS : "membatalkan void (1:N)"
     USERS ||--o{ THRESHOLD_SETTINGS : "mengonfigurasi (1:N)"
-    USERS ||--o{ OPERATIONAL_EXPENSES : "membukukan (1:N)"
+    USERS ||--o{ OPERATIONAL_EXPENSES : "membukukan / membatalkan void (1:N)"
 
     BAGLOG_BATCHES ||--o{ BATCH_SLOT_ASSIGNMENTS : "dialokasikan ke (1:N)"
     SLOTS ||--o{ BATCH_SLOT_ASSIGNMENTS : "ditempati oleh (1:N)"

@@ -73,18 +73,18 @@ Budidaya jamur kuping memerlukan pengendalian lingkungan yang ketat (suhu 24–3
 
 ```
 [ ESP32 Edge Device (3x SHT30/SHT31 + TCA9548A, Relays) ]
-       │  (HTTP POST / GET Polling ~10-30s)
+       │  (HTTP POST tiap 60s; polling threshold 30s; polling command 8s)
        ▼
-[ Laravel 12 Backend API (Sanctum Auth, Repository, Downsampling) ]
+[ Laravel 13 Backend API (Sanctum Auth, Repository, Downsampling) ]
        │  (SQLite Dev / PostgreSQL Production)
        ▼
-[ React 18 + Vite SPA Frontend (Harmonious Modern Sage UI & Dark Mode) ]
+[ React 19 + Vite SPA Frontend (Harmonious Modern Sage UI & Dark Mode) ]
 ```
 
-*   **Backend:** Laravel 12, PHP 8.2+, SQLite / PostgreSQL, Laravel Sanctum, Presisi `DECIMAL` & `bcmul()`.
-*   **Frontend:** React 18, TypeScript, Vite, TailwindCSS (Modern Sage Green Palette), Zustand, TanStack Query, Recharts, Lucide Icons.
-*   **IoT Firmware:** C++ Arduino ESP32 Firmware v3.5, non-blocking `millis()`, Dynamic Hysteresis, Dual Cooldown Guard, Ring Buffer Fallback.
-*   **IoT Simulator:** Python 3.10+ Engine Termodinamika (`iot_simulator.py`) v3.5 dengan Seasonal Stochastic Markov Chain.
+*   **Backend:** Laravel 13, PHP 8.3+, SQLite / PostgreSQL, Laravel Sanctum, Presisi `DECIMAL` & `bcmul()`.
+*   **Frontend:** React 19, TypeScript, Vite, TailwindCSS 3 (Modern Sage Green Palette), Zustand, TanStack Query, Recharts, Lucide Icons.
+*   **IoT Firmware:** C++ Arduino ESP32 Firmware v3.6, non-blocking `millis()`, Dynamic Hysteresis, Dual Cooldown Guard, Ring Buffer Fallback.
+*   **IoT Simulator:** Python 3.10+ Engine Termodinamika (`iot_simulator.py`) v3.6 dengan Seasonal Stochastic Markov Chain.
 
 ---
 
@@ -173,14 +173,15 @@ Sistem terdiri dari 11 entitas inti:
 | `POST` | `/api/baglog-culls/{id}/void` | Batalkan mutasi afkir & pulihkan kapasitas | Auth (Admin) |
 | `GET`  | `/api/harvests` | Daftar riwayat pemetikan panen | Auth |
 | `POST` | `/api/harvests` | Catat timbangan hasil panen harian | Auth (Admin/Worker) |
-| `POST` | `/api/harvests/{id}/void` | Batalkan catatan panen (audit trail) | Auth (Admin/Worker) |
+| `POST` | `/api/harvests/{id}/void` | Batalkan catatan panen (audit trail) | Admin |
 | `GET`  | `/api/sales` | Daftar riwayat transaksi penjualan | Auth (Admin) |
 | `POST` | `/api/sales` | Catat nota transaksi penjualan baru | Auth (Admin) |
 | `POST` | `/api/sales/{id}/void` | Batalkan transaksi penjualan (audit trail) | Auth (Admin) |
-| `GET`  | `/api/baglogs/hpp-summary` | Ringkasan HPP & Margin Kontribusi | Auth |
-| `GET`  | `/api/operational-expenses` | Daftar beban biaya operasional | Auth |
+| `GET`  | `/api/baglogs/hpp-summary` | Ringkasan HPP & Margin Kontribusi | Auth (Admin) |
+| `GET`  | `/api/operational-expenses` | Daftar beban biaya operasional | Admin |
 | `POST` | `/api/operational-expenses` | Catat pengeluaran operasional baru | Admin |
-| `DELETE`| `/api/operational-expenses/{id}` | Hapus catatan pengeluaran | Admin |
+| `POST` | `/api/operational-expenses/{id}/void` | Batalkan catatan pengeluaran (audit trail) | Admin |
+| `DELETE`| `/api/operational-expenses/{id}` | Hapus catatan pengeluaran fisik | Admin |
 | `POST` | `/api/device/pause` | Aktifkan jeda panen timer failsafe (max 8h) | Auth |
 | `POST` | `/api/device/resume` | Akhiri jeda panen & kembali ke AUTO | Auth |
 | `GET`  | `/api/thresholds` | Konfigurasi ambang batas lengkap | Admin |
@@ -193,7 +194,7 @@ Sistem terdiri dari 11 entitas inti:
 *   **Mikrokontroler:** ESP32 DevKit V1 (Dual Core 240MHz, Wi-Fi 802.11 b/g/n).
 *   **Sensor:** 3x SHT30 / SHT31 Probe IP68 Waterproof (Formasi Segitiga Diagonal: Atas 2.5m, Tengah 1.5m, Bawah 0.5m via TCA9548A Multiplexer).
 *   **Formula Fusion:** $T_{\text{avg}} = 0.35 T_A + 0.40 T_B + 0.25 T_C$; $RH_{\text{avg}} = 0.35 RH_A + 0.40 RH_B + 0.25 RH_C$.
-*   **Aktuator:** Pompa Misting 12V DC (Nozzle kabut 0.15mm), Solenoid Valve Air 12V, Exhaust Fan 220V AC, Modul Relay Optocoupler.
+*   **Aktuator:** Pompa Misting 12V DC (Nozzle kabut 0.3mm), Solenoid Valve Air 12V, Exhaust Fan 220V AC, Modul Relay Optocoupler.
 *   **Display Lokal:** LCD I2C 16x2 menampilkan suhu, kelembapan, status MIST/FAN, dan sisa timer mode panen.
 
 ---
@@ -211,13 +212,14 @@ Sistem terdiri dari 11 entitas inti:
 
 ## 12. Strategi Pengujian & QA
 
-### 12.1 Automated Testing (PHPUnit) — 168 Tests Passing (591 Assertions)
+### 12.1 Automated Testing (PHPUnit) — 198 Tests Passing (797 Assertions)
 Seluruh pengujian otomatis backend mencapai **100% kelulusan** tanpa kegagalan:
 *   `Phase2ModelsTest.php`: Integritas skema database, foreign key constraints, perhitungan umur dinamis, formula kapasitas aktif slot, dan relasi master slots.
 *   `Phase3ApiTest.php`: Validasi endpoint alokasi slot WMS, pelarangan tumpang tindih slot, pencatatan ledger afkir, kalkulasi HPP dinamis, dan agregasi heatmap panen.
 *   `Phase4DeviceControlTest.php`: Pengujian aktivasi mode jeda panen (`/device/pause`), validasi timer non-blocking, persistensi log sistem aktuator, dan resume kembali ke mode AUTO.
 *   `Phase5IotRuleEngineTest.php`: Ingesti data telemetri berpresisi desimal, penerimaan log aktuator misting/fan, penegakan rate limiting (20 req/menit), sinkronisasi threshold dinamis, dan verifikasi endpoint latest.
 *   `WmsPhaseATest.php` s.d. `WmsPhaseDTest.php`: Pengujian komprehensif lifecycle WMS baglog, pengurangan kapasitas aktif per slot, otomatisasi afkir `HABIS_PRODUKSI` saat siklus selesai, pembatalan data (*void*) dengan audit trail, eliminasi query N+1, dan proteksi race condition nomor batch `BL-YYYYMMDD-XXX`.
+*   `WmsAuditRemediationTest.php` (21 test) dan `RackManagementTest.php` (9 test): Remediasi temuan audit WMS/SCM (AUD-01 s.d. AUD-17) dan manajemen rak. Rincian temuan ada di `docs/logika-bisnis/AUDIT_WMS_SCM.md`.
 *   `EccComprehensiveTestSuiteTest.php`, `SecurityAuthTest.php`, `SecurityInjectionTest.php`, `SecurityRateLimitTest.php`: Uji keamanan injeksi SQL, token expiry, pembatasan kuota admin, dan sanitasi payload.
 
 ### 12.2 IoT Simulator Testing (`iot_simulator.py`)
