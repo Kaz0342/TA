@@ -1,8 +1,9 @@
 # Panduan Rekayasa Teknis: Evaluasi Termodinamika, Safety Override, & Dinamika Fluida IoT 🍄
 
 **Judul Dokumen:** *Panduan Arsitektur & Matriks Remediasi: Penetrasi Prematur Tier-2 Safety Override, Deadlock Algoritma P1, dan Diskrepansi Volumetrik Kipas (ACH)*  
-**Dokumen Terkait:** [iot_simulator.py](file:///d:/DevTools/Antigravity/Projects/TA_vio/iot_simulator.py) | [esp32_firmware.ino](file:///d:/DevTools/Antigravity/Projects/TA_vio/esp32_firmware/esp32_firmware.ino) | [docs/PEGANGAN_TEKNIS_DAN_DEFENSE_PROYEK.md](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/PEGANGAN_TEKNIS_DAN_DEFENSE_PROYEK.md)  
+**Dokumen Terkait:** [iot_simulator.py](file:///d:/DevTools/Antigravity/Projects/TA_vio/iot_simulator.py) | [esp32_firmware.ino](file:///d:/DevTools/Antigravity/Projects/TA_vio/esp32_firmware/esp32_firmware.ino) | [docs/teknis-iot/PEGANGAN_TEKNIS_DAN_DEFENSE_PROYEK.md](PEGANGAN_TEKNIS_DAN_DEFENSE_PROYEK.md)  
 **Status Evaluasi:** **DISETUJUI SEPENUHNYA (100% VALID — DOKUMEN PANDUAN IMPLEMENTASI TAHAP AKHIR)**  
+**Status implementasi (diverifikasi 11 Oktober 2026):** firmware v3.6 sudah memakai `NIGHT_FAN_DURATION_MS = 300000` (300 s) di `esp32_firmware.ino:128`. Angka 45 detik di dokumen ini adalah kondisi sebelum perbaikan.  
 **Penyusun:** Tim Arsitek Sistem Anti-Gravity & Benedictus Vio  
 **Standar:** Ponytail Engineering Peer-Review (Zero Academic Fluff, Strict Thermodynamic & Fluid Mechanics Proof)
 

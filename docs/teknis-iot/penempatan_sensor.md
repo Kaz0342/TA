@@ -1,5 +1,5 @@
 # Strategi Penempatan Sensor SHT30 / SHT31 (Multi-Sensor)
-**Smart Shroom SCM — Tugas Akhir**
+**Smart Shroom SCM — Panduan Penempatan Multi-Sensor & Arsitektur Fusi**
 
 Dokumen ini menjelaskan strategi penempatan 3 sensor suhu & kelembapan presisi tinggi **SHT30 / SHT31 Probe IP68 Waterproof** di kumbung jamur kuping berukuran **5m × 7m × 3.5m** (Volume: 122.5 m³) dan alasan teknis di balik keputusan desain.
 
@@ -87,7 +87,7 @@ Nilai rata-rata tertimbang inilah yang:
 
 ### Penanganan Sensor Rusak / Error (Graceful Degradation)
 
-Jika salah satu sensor mengembalikan nilai `NaN` (kabel lepas, sensor rusak), firmware v3.5 tidak menggunakan angka dummy melainkan **menormalisasi ulang bobot (*re-weighting*)** dari sensor yang masih valid:
+Jika salah satu sensor mengembalikan nilai `NaN` (kabel lepas, sensor rusak), firmware v3.6 tidak menggunakan angka dummy melainkan **menormalisasi ulang bobot (*re-weighting*)** dari sensor yang masih valid:
 
 Contoh: Jika Sensor A rusak ($T_A = \text{NaN}$), maka total bobot yang tersisa adalah $0.40 + 0.25 = 0.65$:
 $$W_B' = \frac{0.40}{0.65} \approx 61.5\%, \quad W_C' = \frac{0.25}{0.65} \approx 38.5\%$$

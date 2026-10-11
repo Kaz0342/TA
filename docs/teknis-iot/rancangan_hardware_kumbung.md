@@ -1,9 +1,9 @@
 # Rancangan Hardware Kumbung — ESP32 → Misting & Exhaust Fan
-**Smart Shroom SCM — Tugas Akhir**
+**Smart Shroom SCM — Spesifikasi Fisik & As-Built Hardware**
 
 Dokumen ini adalah **rancangan fisik (as-built plan)** untuk kumbung **5 m × 7 m × 3,5 m (122,5 m³)**
-dengan BoM terbaru (3× SHT30 I2C + TCA9548A). Daftar belanja ada di `docs/hardware-shopping-list.md`.
-Logika kendali tetap mengacu `docs/logika_aktuator.md` (firmware v3.5).
+dengan BoM terbaru (3× SHT30 I2C + TCA9548A). Daftar belanja ada di `docs/teknis-iot/hardware-shopping-list.md`.
+Logika kendali tetap mengacu `docs/logika-bisnis/logika_aktuator.md` (firmware v3.6).
 
 > **Status asumsi.** Semua koordinat di bawah adalah **asumsi desain** (posisi pintu, box, fan, tandon).
 > Kalau kondisi lapangan beda, hitung ulang tabel di bagian 3 & 4 dengan rumus yang sama.
@@ -264,7 +264,7 @@ Bobot fusion (35/40/25), deteksi NaN, dan interlock **tidak berubah**.
 4. **Beban 220 V uji:** pakai lampu pijar/bohlam di CH3 dulu, **bukan** langsung fan. Pasang snubber.
 5. **12 V:** sambung solenoid, lalu pompa. Pastikan dioda terpasang searah. Fuse 10 A terpasang.
 6. **Hidrolik:** isi tandon, buang udara (pompa jalan dengan solenoid terbuka, nozzle belum dipasang). Pasang nozzle, cek kebocoran fitting pada tekanan kerja.
-7. **Ukur debit nyata:** tampung semburan 60 s dengan gelas ukur → koreksi bagian 3.4 untuk Bab 4 TA.
+7. **Ukur debit nyata:** tampung semburan 60 s dengan gelas ukur → koreksi parameter debit bagian 3.4 untuk kalibrasi monitoring.
 8. **Uji interlock:** paksa RH rendah → misting jalan; paksa suhu tinggi → fan jalan & misting terpotong.
 9. **Uji 24 jam** sebelum dianggap selesai; cek log di dashboard.
 
@@ -287,4 +287,4 @@ Bobot fusion (35/40/25), deteksi NaN, dan interlock **tidak berubah**.
 ## 9. Rencana Cadangan (bila bench test I2C gagal)
 1. **Probe SHT RS485/Modbus** ×3 (≈ Rp 130–180 rb/unit) + 1 modul MAX485 + dongle USB-RS485 untuk set ID. Kabel cukup **satu jalur 2-kawat** (daisy-chain), firmware ganti ke Modbus.
 2. **Extender I2C diferensial** (pasangan PCA9615) per kanal.
-3. Pindahkan sensor terjauh lebih dekat ke box (efek ke penelitian kecil: yang dibuktikan adalah stratifikasi vertikal).
+3. Pindahkan sensor terjauh lebih dekat ke box (efek ke pemodelan fusi kecil: fokusnya adalah menangkap stratifikasi vertikal).

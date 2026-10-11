@@ -1,11 +1,11 @@
-# 🍄 PEDOMAN TEKNIS & PEGANGAN DEFENSE PROYEK AKHIR
+# 🍄 PEDOMAN TEKNIS & PEGANGAN DEFENSE SISTEM
 **Sistem Otomasi Mikroklimat & Smart SCM/WMS Kumbung Jamur Kuping**
 *Lokasi Studi: Muntilan (Salam / Jumoyo, Magelang, Jawa Tengah — ±400 mdpl)*
 *Dimensi Kumbung: 5m × 7m × 3.5m (Volume: 122.5 m³, Kapasitas: 3.000 Baglog)*
 
 ---
 
-Dokumen ini disusun sebagai **rujukan teknis resmi dan pegangan ilmiah** jika sewaktu-waktu dosen pembimbing atau dosen penguji proyek akhir menanyakan dasar keputusan teknik, fisika termodinamika, biologi jamur, pemilihan sensor, maupun efisiensi air.
+Dokumen ini disusun sebagai **rujukan teknis resmi dan pegangan ilmiah** saat penguji teknis atau reviewer menanyakan dasar keputusan rekayasa, fisika termodinamika, biologi jamur, pemilihan sensor, maupun efisiensi air.
 
 ---
 
