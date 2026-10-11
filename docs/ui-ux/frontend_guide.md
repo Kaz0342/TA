@@ -6,7 +6,7 @@ Dokumen panduan standar pengembangan antarmuka pengguna (*Frontend*) untuk siste
 
 ## 🛠️ Tech Stack Frontend
 
-- **Framework & Runtime:** React 18 + TypeScript + Vite
+- **Framework & Runtime:** React 19 + TypeScript + Vite
 - **Styling:** TailwindCSS v3 dengan *Custom Design Tokens* dan dukungan *Dark Mode* berbasis class (`dark:`)
 - **Icons:** Lucide React (ikon minimalis modern stroke 2)
 - **Data Fetching & Cache:** TanStack Query v5 (React Query) + Axios
@@ -117,7 +117,7 @@ Seluruh modul tabel data (*Baglog*, *Harvest*, *Sales*, dan *Ledger Culls*) waji
 
 - [`slotService.ts`](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/services/slotService.ts): Master slot spasial, heatmap panen, alokasi batch, dan `completeSlotCycle(slotCode, reason)`.
 - [`cullService.ts`](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/services/cullService.ts): Pengambilan riwayat afkir, pencatatan mutasi culls, dan `voidCull(id, reason)`.
-- [`harvestService.ts`](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/services/harvestService.ts): Pencatatan hasil panen, tren 14 hari, dan `voidHarvest(id, reason)`.
+- [`HarvestManagement.tsx`](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/pages/HarvestManagement.tsx): Pencatatan hasil panen, query tren 14 hari, dan `voidHarvest(id, reason)` via `api.ts`.
 - [`saleService.ts`](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/services/saleService.ts): Pencatatan penjualan, rekap mingguan, dan `voidSale(id, reason)`.
 - [`hppService.ts`](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/services/hppService.ts): Ringkasan HPP, margin kontribusi, dan mutasi biaya operasional.
 - [`deviceControlService.ts`](file:///d:/DevTools/Antigravity/Projects/TA_vio/frontend/src/services/deviceControlService.ts): Perintah jeda panen (`pause`) dan resume ke mode AUTO.

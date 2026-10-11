@@ -38,11 +38,11 @@ Sistem ini dibangun sebagai produk utama **Tugas Akhir (TA)** bidang Sistem Info
 
 | Layer | Teknologi | Alasan Pemilihan & Karakteristik |
 |---|---|---|
-| **Frontend** | React 18 + TypeScript + Vite | SPA berkecepatan tinggi, strictly typed, render efisien |
+| **Frontend** | React 19 + TypeScript + Vite | SPA berkecepatan tinggi, strictly typed, render efisien |
 | **Desain UI** | Harmonious Modern Sage Green & Dark Mode | Palet hijau sage `#244b37`, border halus `#d6e9df`, kontras ramah mata |
 | **Micro-Animations** | RAF & CSS Hardware Acceleration | Count-up 60 FPS (`AnimatedNumber`), jarum analog GPU (`SemiCircleGauge`), progress bar meluncur |
 | **State Management**| Zustand + TanStack Query v5 | Server state caching cerdas, polling latar belakang, no boilerplate |
-| **Backend** | Laravel 12 (PHP 8.2+) | MVC Enterprise, Repository Pattern, SQL Downsampling adaptif |
+| **Backend** | Laravel 13 (PHP 8.3+) | MVC Enterprise, Repository Pattern, SQL Downsampling adaptif |
 | **Database** | SQLite (Dev) → PostgreSQL (Prod) | Integritas tipe data `DECIMAL` moneter, presisi `bcmul()` |
 | **Hardware IoT** | ESP32 DevKit V1 + 3x SHT30/SHT31 IP68 | Weighted Sensor Fusion (35% Atas, 40% Tengah, 25% Bawah) via TCA9548A |
 | **Protokol IoT** | REST API HTTP/HTTPS (Stateless) | Ringkas tanpa ketergantungan message broker MQTT |
@@ -50,7 +50,7 @@ Sistem ini dibangun sebagai produk utama **Tugas Akhir (TA)** bidang Sistem Info
 ---
 
 ## 3. Metodologi Pengembangan (SDLC)
-Sistem dikembangkan menggunakan pendekatan **Extreme Programming (XP)** dengan iterasi cepat, Continuous Integration, dan pengujian otomatis komprehensif (**168 PHPUnit automated tests passing 100% dengan 591 assertions**).
+Sistem dikembangkan menggunakan pendekatan **Extreme Programming (XP)** dengan iterasi cepat, Continuous Integration, dan pengujian otomatis komprehensif (**198 PHPUnit automated tests passing 100% dengan 797 assertions**).
 
 ---
 
@@ -118,7 +118,8 @@ Halaman visualisasi tata ruang kumbung pintar berbasis koordinat Kartesius 3D: *
   - **HPP per Kg:** Harga pokok per kilogram jamur yang berhasil diproduksi.
   - **Banner Peringatan Harga Modal:** Banner oranye informatif otomatis muncul saat batch yang dipilih belum memiliki catatan harga beli baglog (`price_missing`).
 * **Modal Tambah Biaya Operasional:** Membukukan pengeluaran harian/bulanan dengan kategori terstandarisasi.
-* **Tabel Transaksi Terpaginasi & Void:** Riwayat nota penjualan terpaginasi per 10 baris dengan presisi moneter `bcmul()` dan tombol pembatalan transaksi (*Void Sale*).
+* **Tabel Biaya Operasional & Void (UC-30):** Tabel pencatatan pengeluaran operasional terpaginasi dengan tombol pembatalan (*Void Expense*) berdasar alasan audit trail, otomatis memulihkan saldo kalkulasi HPP secara non-destruktif.
+* **Tabel Transaksi Terpaginasi & Void (UC-13, UC-27):** Riwayat nota penjualan terpaginasi per 10 baris dengan presisi moneter `bcmul()` dan tombol pembatalan transaksi (*Void Sale*).
 
 ---
 
@@ -146,7 +147,7 @@ Terletak pada Dashboard utama, memungkinkan pekerja menjeda otomasi misting dan 
 
 ---
 
-## 13. Hubungan Antar Modul & Relevansi TA
+## 13. Hubungan Antar Modul & Integrasi Rantai Pasok
 ```
 [ WMS Spasial 3D (Slots) ]
            │
