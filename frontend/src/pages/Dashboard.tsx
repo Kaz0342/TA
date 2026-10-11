@@ -19,7 +19,8 @@ import {
   ChevronRight,
   Activity,
   TrendingUp,
-  CalendarDays
+  CalendarDays,
+  ShieldCheck
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
@@ -357,6 +358,45 @@ export default function Dashboard() {
       tempChartTicks: ticks,
     };
   }, [tempMin, tempMax, tempVal, smoothedChart]);
+
+  // Statistik Analitik Iklim Rentang Terpilih (Mengisi ruang bawah card dengan nilai analitik nyata)
+  const climateStats = useMemo(() => {
+    if (!smoothedChart || smoothedChart.length === 0) {
+      return null;
+    }
+    const temps = smoothedChart.map((d: any) => Number(d.temp)).filter((v: number) => !isNaN(v) && v > 0);
+    const hums = smoothedChart.map((d: any) => Number(d.humidity)).filter((v: number) => !isNaN(v) && v > 0);
+    if (temps.length === 0 || hums.length === 0) return null;
+
+    const minT = Math.min(...temps);
+    const maxT = Math.max(...temps);
+    const avgT = temps.reduce((a: number, b: number) => a + b, 0) / temps.length;
+
+    const minH = Math.min(...hums);
+    const maxH = Math.max(...hums);
+    const avgH = hums.reduce((a: number, b: number) => a + b, 0) / hums.length;
+
+    // Hitung persentase data point dalam zona aman (Suhu tempMin-tempMax & RH humMin-humMax)
+    let inSafeZoneCount = 0;
+    smoothedChart.forEach((d: any) => {
+      const t = Number(d.temp);
+      const h = Number(d.humidity);
+      if (t >= tempMin && t <= tempMax && h >= humMin && h <= humMax) {
+        inSafeZoneCount++;
+      }
+    });
+    const safeZonePct = Math.round((inSafeZoneCount / smoothedChart.length) * 100);
+
+    return {
+      minT,
+      maxT,
+      avgT,
+      minH,
+      maxH,
+      avgH,
+      safeZonePct,
+    };
+  }, [smoothedChart, tempMin, tempMax, humMin, humMax]);
 
   // Harvest / Crop Progress data mapped from API
   const cropProgressData = harvestChartData && harvestChartData.length > 0
@@ -774,7 +814,7 @@ export default function Dashboard() {
                       </span>
                     </div>
 
-                    <div className="h-[250px] w-full">
+                    <div className="h-[285px] sm:h-[300px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={smoothedChart} margin={{ top: 12, right: 12, left: -22, bottom: 0 }}>
                           <defs>
@@ -870,7 +910,7 @@ export default function Dashboard() {
                       </span>
                     </div>
 
-                    <div className="h-[250px] w-full">
+                    <div className="h-[285px] sm:h-[300px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={smoothedChart} margin={{ top: 12, right: 12, left: -22, bottom: 0 }}>
                           <defs>
@@ -986,7 +1026,7 @@ export default function Dashboard() {
                   </span>
                 </div>
 
-                <div className="h-[290px] w-full">
+                <div className="h-[320px] sm:h-[340px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={smoothedChart} margin={{ top: 15, right: 15, left: -15, bottom: 5 }}>
                       <defs>
@@ -1135,9 +1175,65 @@ export default function Dashboard() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Bagian Bawah: Micro Climate Analytics Banner + Footer Legend */}
+          <div className="mt-4 pt-4 border-t border-[#edf5f0] dark:border-[#1e382b] space-y-3">
+            {/* 4 Cards Ringkasan Analitik Iklim */}
+            {climateStats && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] rounded-xl p-2.5 flex items-center gap-2 shadow-2xs">
+                  <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-[#332205] border border-amber-200 dark:border-[#78350f] flex items-center justify-center text-amber-700 dark:text-[#fbbf24] shrink-0">
+                    <Thermometer className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-[#759183] dark:text-[#a3c9b4] font-medium leading-tight">Rentang Suhu</p>
+                    <p className="text-xs font-bold text-[#192e22] dark:text-[#e4efe8] truncate">
+                      {climateStats.minT.toFixed(1)}°–{climateStats.maxT.toFixed(1)}°C
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] rounded-xl p-2.5 flex items-center gap-2 shadow-2xs">
+                  <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-[#0f283d] border border-blue-200 dark:border-[#0369a1] flex items-center justify-center text-blue-700 dark:text-[#38bdf8] shrink-0">
+                    <Droplets className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-[#759183] dark:text-[#a3c9b4] font-medium leading-tight">Rentang RH</p>
+                    <p className="text-xs font-bold text-[#192e22] dark:text-[#e4efe8] truncate">
+                      {climateStats.minH.toFixed(0)}%–{climateStats.maxH.toFixed(0)}%
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] rounded-xl p-2.5 flex items-center gap-2 shadow-2xs">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-[#163321] border border-emerald-200 dark:border-[#235839] flex items-center justify-center text-emerald-700 dark:text-[#86efac] shrink-0">
+                    <Activity className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-[#759183] dark:text-[#a3c9b4] font-medium leading-tight">Kepatuhan Zona</p>
+                    <p className="text-xs font-bold text-emerald-700 dark:text-[#86efac] truncate">
+                      {climateStats.safeZonePct}% Optimal
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-[#f7faf8] dark:bg-[#111c15] border border-[#d6e9df] dark:border-[#1e382b] rounded-xl p-2.5 flex items-center gap-2 shadow-2xs">
+                  <div className="w-7 h-7 rounded-lg bg-teal-50 dark:bg-[#0d291e] border border-teal-200 dark:border-[#1e523d] flex items-center justify-center text-teal-700 dark:text-[#5eead4] shrink-0">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-[#759183] dark:text-[#a3c9b4] font-medium leading-tight">Rata-rata 3 Sensor</p>
+                    <p className="text-xs font-bold text-[#192e22] dark:text-[#e4efe8] truncate">
+                      {climateStats.avgT.toFixed(1)}°C • {climateStats.avgH.toFixed(0)}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Bottom Chart Footer Legend */}
-            <div className="mt-3 pt-3 border-t border-[#edf5f0] dark:border-[#1e382b] flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#526a5e] dark:text-[#a3c9b4]">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#526a5e] dark:text-[#a3c9b4] pt-0.5">
               <div className="flex items-center gap-2">
                 <span className="w-3.5 h-3 rounded bg-[#a7f3d0] dark:bg-[#059669]/40 border border-[#059669] dark:border-[#34d399] border-dashed inline-block"></span>
                 <span>Area hijau berbayang = <strong className="text-[#192e22] dark:text-[#e4efe8]">Zona Ideal Jamur Kuping</strong> (Suhu: {tempMin}–{tempMax}°C, RH: {humMin}–{humMax}%)</span>
