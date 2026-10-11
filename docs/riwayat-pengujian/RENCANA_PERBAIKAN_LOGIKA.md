@@ -4,6 +4,10 @@
 - **Disusun:** 1 Oktober 2026
 - **Cakupan:** logika yang salah atau berisiko (kontrol ESP32, kanal command, backend). Kesesuaian dokumen **sengaja ditunda** (lihat §9).
 - **File pendamping:** `sim_harness.py` (menghasilkan semua angka bertanda [RUN]; lihat Lampiran C).
+- **Catatan status (11 Oktober 2026):** `sim_harness.py`, `smoke_deploy.py`, dan `docs/evidence/` **tidak ada di repositori**, jadi angka [RUN] belum bisa direproduksi dari repo ini. Dokumen ini adalah snapshot commit `8187915`: rujukan "3× DHT22", "timeout 60 s", "Laravel 12", dan nomor baris `ino:` mengacu ke kondisi saat itu. Kondisi sekarang: 3× SHT30 via TCA9548A, timeout 90 s, Laravel 13, firmware v3.6.
+
+> 📅 **Status Berkas: Snapshot Riwayat Pengujian — Fase 2 (1 Oktober 2026)**  
+> Draf rencana kerja audit & remediasi yang memetakan 16 kerentanan logika laten (F-01 s/d F-16) pada commit `8187915`. Berfungsi sebagai rekam jejak formal proses identifikasi celah sebelum eksekusi perbaikan.
 
 ---
 
@@ -61,7 +65,7 @@ Setiap klaim diberi tingkat bukti:
 
 ## 2. Fase 0 — Baseline (sebelum mengubah apa pun)
 
-Tujuan: punya kondisi "sebelum" yang terdokumentasi untuk tabel sebelum–sesudah di skripsi.
+Tujuan: punya kondisi "sebelum" yang terdokumentasi untuk tabel sebelum–sesudah perbandingan performa sistem.
 
 ```bash
 git checkout develop && git pull
@@ -476,11 +480,11 @@ Sim: `iot_simulator.py:53` (`= 90`) dan `:491`. Edit juga teks "60s"/"60 detik" 
 | 0,25 | 65 → 0 | 48,5 → 68,0 | 47,3 → 34,1 | 0,1% → 0,1% |
 | 0,35 | 0 → 0 | 51,0 → 73,0 | 34,6 → 24,5 | 0,1% → 0,1% |
 
-Angka "0% timeout" bergantung pada koefisien 0,16 yang belum pernah diukur. Kalibrasi (Lampiran A) sebelum dijadikan klaim di skripsi.
+Angka "0% timeout" bergantung pada koefisien 0,16 yang belum pernah diukur. Kalibrasi (Lampiran A) sebelum dijadikan klaim performa final.
 
 **Verifikasi.** `--suite misting`: timeout% Fruiting ≈ 0 dan RH<humMin ≤ 0,1%; Wokwi: log misting berhenti dengan "Target tercapai".
 
-**Tulis di skripsi.** Metrik "% siklus berhenti karena target vs timeout"; parameter termodinamika sebagai asumsi beserta analisis sensitivitasnya.
+**Dokumentasikan.** Metrik "% siklus berhenti karena target vs timeout"; parameter termodinamika sebagai asumsi beserta analisis sensitivitasnya.
 
 ### F-13 — Paritas cadence sim ↔ firmware · P2
 
@@ -561,8 +565,8 @@ if tick_count % CONTROL_INTERVAL_S == 0:
 - [ ] `python sim_harness.py --sim iot_simulator.py --suite all > docs/evidence/after_sim.txt` dan bandingkan dengan `baseline_sim.txt`. Hasil yang diharapkan: lihat tabel F-10, F-11, F-12.
 - [ ] `smoke_deploy.py` → `after_smoke.txt` (`PAUSE / PAUSE / AUTO / 429>0`).
 - [ ] Matriks uji paritas di bawah: screenshot Serial Wokwi dan hasil sim.
-- [ ] `php artisan test` hijau, plus tes baru: register admin-only (2), cache bukan array (1), validator log (1), validator RH (1). Chart pgsql: uji manual di Supabase.
-- [ ] Tabel "temuan → commit → bukti" untuk lampiran skripsi.
+- [ ] `php artisan test` hijau, plus tes baru: register admin-only (2), cache bukan array (1), validator log (1), validator RH (1). Chart data: uji query agregasi database.
+- [ ] Tabel "temuan → commit → bukti" untuk laporan rekayasa sistem.
 
 ### Matriks uji paritas (sim dan Wokwi)
 

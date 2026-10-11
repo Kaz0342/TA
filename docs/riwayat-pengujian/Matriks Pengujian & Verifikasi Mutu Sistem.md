@@ -5,7 +5,10 @@
 **Penyusun:** Benedictus Vio  
 **Topik:** Pengujian Fungsional (*Black-Box Testing*), Pengujian Otomatis (*Automated Feature/Unit Testing*), dan Pengujian Logika IoT  
 **Target:** Dokumen Verifikasi Mutu & Pegangan Uji Sistem Proyek Akhir  
-**Terakhir Diperbarui:** Oktober 2026 (Sinkronisasi Firmware v3.6 & Validasi Iklim Muntilan)  
+**Terakhir Diperbarui:** 11 Oktober 2026 (Sinkronisasi Firmware v3.6 & Validasi Iklim Muntilan)  
+
+> 📅 **Status Berkas: Baseline Mutu Sistem Terkini — Fase 4 (11 Oktober 2026)**  
+> *Single Source of Truth (SSOT)* verifikasi mutu sistem produksi saat ini: mencakup 30 Use Cases fungsional, 198 automated unit/feature tests (100% Zero Failure), dan validasi termodinamika iklim mikro Muntilan.
 
 ---
 
@@ -15,10 +18,10 @@ Pengujian sistem **Smart Shroom SCM** menerapkan pendekatan menyeluruh untuk men
 1. **Black-Box Testing (Pengujian Kotak Hitam):**
    - Berfokus pada pengujian fungsionalitas sistem berdasarkan spesifikasi kebutuhan perangkat lunak (*Software Requirement Specification* / Use Case).
    - Menguji interaksi antarmuka pengguna (UI/UX) pada sisi web dashboard dan integrasi pertukaran data mikrokontroler ESP32 tanpa melihat alur internal baris kode.
-   - Melibatkan **29 Use Cases** (`UC-01` s/d `UC-29`) yang mencakup seluruh siklus operasional kumbung jamur, manajemen spasial WMS, pembatalan audit trail non-destruktif, dan kontrol mikroklimat IoT.
+   - Melibatkan **30 Use Cases** (`UC-01` s/d `UC-30`) yang mencakup seluruh siklus operasional kumbung jamur, manajemen spasial WMS, pembatalan audit trail non-destruktif, dan kontrol mikroklimat IoT.
 2. **Automated Testing (Pengujian Otomatis PHPUnit):**
-   - Menerapkan metodologi *Test-Driven Development (TDD) & Logic Hardening* pada backend Laravel 12.
-   - Terdiri dari **176 skenario uji otomatis** dengan total **632 assertions** yang dieksekusi secara instan (`php artisan test`) dengan tingkat kelulusan **100% (Zero Failure)** dalam waktu ~4.1 detik.
+   - Menerapkan metodologi *Test-Driven Development (TDD) & Logic Hardening* pada backend Laravel 13.
+   - Terdiri dari **198 skenario uji otomatis** dengan total **797 assertions** yang dieksekusi secara instan (`php artisan test`) dengan tingkat kelulusan **100% (Zero Failure)** dalam waktu ~5,7 detik (eksekusi 11 Oktober 2026).
 3. **Pengujian Termodinamika, Validasi Iklim, & Rule Engine IoT (`iot_simulator.py`, `validasi_simulator_vs_iklim.py`, & `simulasi_amplop_kumbung.py`):**
    - Verifikasi kurva diurnal ambient Muntilan 12 bulan (deviasi suhu rata-rata hanya 0.3°C – 0.5°C).
    - Verifikasi arsitektur pertahanan iklim P1 (Uji Probe Kipas Siang 90s & Lockout 15m), P2' (Night Misting Guard jeda 600s), dan P3 (Pagar RH Hold/Stop).
@@ -26,7 +29,7 @@ Pengujian sistem **Smart Shroom SCM** menerapkan pendekatan menyeluruh untuk men
 
 ---
 
-## 2. Matriks Pengujian Black-Box (29 Use Cases)
+## 2. Matriks Pengujian Black-Box (30 Use Cases)
 
 Pengujian fungsional kotak hitam dilakukan pada peramban web (*Google Chrome & Mobile Safari*) serta simulasi transmisi HTTP REST API dari perangkat IoT:
 
@@ -90,6 +93,7 @@ Pengujian fungsional kotak hitam dilakukan pada peramban web (*Google Chrome & M
 | 26 | **UC-14** | Tinjauan rekapitulasi mingguan dan buffer stok | Membaca widget neraca cadangan stok panen | Sistem menghitung selisih panen kumulatif dikurangi penjualan kumulatif secara dinamis. | Cadangan stok jamur di gudang tertera akurat sesuai mutasi barang. | **Valid** |
 | 27 | **UC-22** | Pembukuan beban biaya operasional kumbung | Input pengeluaran: Listrik PLN Rp 250.000,00 | Biaya tercatat pada tabel `operational_expenses` dengan kategori `electricity`. | Pengeluaran tersimpan, otomatis menambah beban biaya variabel pada batch aktif. | **Valid** |
 | 28 | **UC-23** | Evaluasi HPP & Margin Kontribusi manajerial | Membuka kartu *HPP Analysis* pada Sales Management | Sistem menampilkan: Modal Pengadaan, Biaya Ops, Total Omzet, dan Margin Kontribusi. | Margin Kontribusi = `Omzet - (Modal + Biaya Ops)` tampil presisi dalam formasi grid 2x2. | **Valid** |
+| 29 | **UC-30** | Pembatalan Beban Operasional (*Void Expense*) | Admin membatalkan catatan pengeluaran salah input | Record pengeluaran ditandai void, agregasi beban operasional HPP dikurangi kembali secara otomatis. | Tabel pengeluaran menampilkan baris void coret, kartu HPP menyesuaikan beban riil. | **Valid** |
 
 ---
 
@@ -97,89 +101,59 @@ Pengujian fungsional kotak hitam dilakukan pada peramban web (*Google Chrome & M
 
 | No. | Kode UC | Skenario Pengujian | Data Uji / Tindakan | Hasil yang Diharapkan | Hasil Pengujian Aktual | Kesimpulan |
 |---|---|---|---|---|---|:---:|
-| 29 | **UC-24** | Aktivasi Mode Jeda Panen (Failsafe Timer) | Menekan tombol preset `[ 2 Jam ]` pada widget jeda panen di dashboard | Command `PAUSE` aktif selama 7.200 detik, pompa misting dan kipas mati seketika. | Widget menampilkan countdown live, ESP32 mematikan relay misting dan fan (Fluid Dynamics Guard). | **Valid** |
-| 30 | **UC-25** | Akhiri jeda lebih awal (Resume to AUTO) | Menekan tombol "Akhiri Jeda & Balik ke AUTO" | Status kembali ke `AUTO`, ESP32 seketika melakukan *instant-read* sensor SHT30. | Mode jeda nonaktif seketika, kontrol aktuator kembali dievaluasi otomatis. | **Valid** |
-| 31 | **UC-15** | Konfigurasi ambang batas iklim & validasi deadband | Memilih preset "Fruiting" dan mencoba set RH spread < 4% | Sistem menolak jika selisih RH < 4% (mencegah osilasi pompa misting). | Validasi HTTP 422: *"Selisih RH Max dan Min harus minimal 4%"*. | **Valid** |
-| 32 | **UC-16** | Ingesti telemetri fusi sensor vertikal dari ESP32 | ESP32 mengirim JSON payload rata-rata tertimbang 3x SHT30 | Data diterima dengan status HTTP 201 Created dan tersimpan permanen (*immutable*). | Database mencatat suhu, kelembapan, CO2, dan lux dengan presisi `DECIMAL(5,2)`. | **Valid** |
-| 33 | **UC-16** | Pengujian Rate Limiting (Anti-Spam IoT) | Mengirimkan 21 request sensor data dalam rentang waktu < 1 menit | Request ke-21 ditolak oleh middleware Throttle dengan kode status `429 Too Many Requests`. | Server membatasi spamming perangkat dan mencegah overload CPU. | **Valid** |
+| 30 | **UC-24** | Aktivasi Mode Jeda Panen (Failsafe Timer) | Menekan tombol preset `[ 2 Jam ]` pada widget jeda panen di dashboard | Command `PAUSE` aktif selama 7.200 detik, pompa misting dan kipas mati seketika. | Widget menampilkan countdown live, ESP32 mematikan relay misting dan fan (Fluid Dynamics Guard). | **Valid** |
+| 31 | **UC-25** | Akhiri jeda lebih awal (Resume to AUTO) | Menekan tombol "Akhiri Jeda & Balik ke AUTO" | Status kembali ke `AUTO`, ESP32 seketika melakukan *instant-read* sensor SHT30. | Mode jeda nonaktif seketika, kontrol aktuator kembali dievaluasi otomatis. | **Valid** |
+| 32 | **UC-15** | Konfigurasi ambang batas iklim & validasi deadband | Memilih preset "Fruiting" dan mencoba set RH spread < 4% | Sistem menolak jika selisih RH < 4% (mencegah osilasi pompa misting). | Validasi HTTP 422: *"Selisih RH Max dan Min harus minimal 4%"*. | **Valid** |
+| 33 | **UC-16** | Ingesti telemetri fusi sensor vertikal dari ESP32 | ESP32 mengirim JSON payload rata-rata tertimbang 3x SHT30 | Data diterima dengan status HTTP 201 Created dan tersimpan permanen (*immutable*). | Database mencatat suhu, kelembapan, CO2, dan lux dengan presisi `DECIMAL(5,2)`. | **Valid** |
+| 34 | **UC-16** | Pengujian Rate Limiting (Anti-Spam IoT) | Mengirimkan 21 request sensor data dalam rentang waktu < 1 menit | Request ke-21 ditolak oleh middleware Throttle dengan kode status `429 Too Many Requests`. | Server membatasi spamming perangkat dan mencegah overload CPU. | **Valid** |
+| 35 | **UC-17** | Polling ambang batas & command jeda panen | ESP32 request `GET /api/thresholds/active` & `/api/device/command` | Server merespons JSON threshold aktif dan state command secara instan tanpa auth token. | ESP32 memperbarui target kontrol histeresis lokal dan mengeksekusi override jeda. | **Valid** |
+| 36 | **UC-18** | Pengiriman log eksekusi aktuator (Misting/Fan) | ESP32 mengirim data durasi semprot misting 45s ke `/api/sprinkler-logs` | Server mencatat event ke database dengan status 201 Created dan menampilkannya di histori log. | Histori aktuator tercatat di database dan tampil real-time di tabel dashboard. | **Valid** |
 
 ---
 
 ## 3. Rekapitulasi Automated Testing (PHPUnit)
 
-Pengujian unit dan integrasi otomatis dieksekusi menggunakan test runner PHPUnit pada backend Laravel 12. Seluruh suite pengujian mencakup **168 skenario** dengan **591 assertions**:
+Pengujian unit dan integrasi otomatis dieksekusi menggunakan test runner PHPUnit pada backend Laravel 13. Seluruh suite pengujian mencakup **198 skenario** dengan **797 assertions** (angka per berkas diambil dari `php artisan test --log-junit` pada 11 Oktober 2026):
 
 ### A. Tabel Rekapitulasi Test Suite
 
-| Test Suite / Berkas Pengujian | Kategori | Jumlah Test | Assertions | Status | Durasi Eksekusi |
-|---|---|:---:|:---:|:---:|:---:|
-| `WmsPhaseATest.php` | Feature / WMS Dynamic Capacity & Health | 8 | 33 | ✅ Lulus 100% | ~220 ms |
-| `WmsPhaseBTest.php` | Feature / WMS Cycle Completion & Auto-Cull | 6 | 28 | ✅ Lulus 100% | ~190 ms |
-| `WmsPhaseCTest.php` | Feature / Voiding Ledger Audit Trail | 8 | 34 | ✅ Lulus 100% | ~250 ms |
-| `WmsPhaseDTest.php` | Feature / Race Condition Batch Generator & Resiliency | 5 | 29 | ✅ Lulus 100% | ~180 ms |
-| `Phase5IotRuleEngineTest.php` | Feature / IoT & Rules (F-05) | 7 | 56 | ✅ Lulus 100% | ~600 ms |
-| `Phase4DeviceControlTest.php` | Feature / Interruption & Cache (F-03, F-04) | 5 | 20 | ✅ Lulus 100% | ~280 ms |
-| `Phase3ApiTest.php` | Feature / WMS & Chart Multi-Device (F-06, F-16) | 8 | 53 | ✅ Lulus 100% | ~420 ms |
-| `Phase2ModelsTest.php` | Unit / Data Models | 3 | 12 | ✅ Lulus 100% | ~190 ms |
-| `SecurityAuthTest.php` | Feature / RBAC & Admin Register (F-02) | 18 | 52 | ✅ Lulus 100% | ~350 ms |
-| `SecurityInjectionTest.php` | Feature / Security & RH Spread (F-15) | 23 | 70 | ✅ Lulus 100% | ~390 ms |
-| `SecurityRateLimitTest.php` | Feature / Rate Limiter Anti-Spam | 4 | 12 | ✅ Lulus 100% | ~410 ms |
-| `EccComprehensiveTestSuiteTest.php` | Feature / End-to-End Regression | 28 | 96 | ✅ Lulus 100% | ~480 ms |
-| `BaglogBatchLogicTest.php` | Unit / Lifecycle Baglog | 10 | 25 | ✅ Lulus 100% | ~150 ms |
-| `SaleCalculationTest.php` | Unit / Financial Arbitrary `bcmul` | 7 | 21 | ✅ Lulus 100% | ~120 ms |
-| `ThresholdViolationTest.php` | Unit / EWS Algorithm | 12 | 30 | ✅ Lulus 100% | ~180 ms |
-| `SensorDataHelperTest.php` | Unit / Helper Functions | 14 | 22 | ✅ Lulus 100% | ~110 ms |
-| `ExampleTest.php` | Feature & Unit / Smoke Baseline | 2 | 2 | ✅ Lulus 100% | ~50 ms |
-| **TOTAL KESELURUHAN** | **Automated Tests** | **168** | **591** | **✅ 100% PASS** | **~4.4 Detik** |
+| Test Suite / Berkas Pengujian | Kategori | Jumlah Test | Assertions | Status |
+|---|---|:---:|:---:|:---:|
+| `WmsAuditRemediationTest.php` | Feature / Remediasi Audit WMS & SCM (AUD-01 s.d. AUD-17) | 21 | 152 | ✅ Lulus 100% |
+| `EccComprehensiveTestSuiteTest.php` | Feature / End-to-End Regression | 28 | 109 | ✅ Lulus 100% |
+| `SecurityInjectionTest.php` | Feature / Security & RH Spread (F-15) | 23 | 69 | ✅ Lulus 100% |
+| `SecurityAuthTest.php` | Feature / RBAC & Admin Register (F-02) | 18 | 25 | ✅ Lulus 100% |
+| `SensorDataHelperTest.php` | Unit / Helper Functions | 14 | 15 | ✅ Lulus 100% |
+| `ThresholdViolationTest.php` | Unit / EWS Algorithm | 12 | 28 | ✅ Lulus 100% |
+| `WmsPhaseATest.php` | Feature / WMS Dynamic Capacity & Health | 11 | 35 | ✅ Lulus 100% |
+| `BaglogBatchLogicTest.php` | Unit / Lifecycle Baglog | 10 | 18 | ✅ Lulus 100% |
+| `RackManagementTest.php` | Feature / Manajemen Rak | 9 | 54 | ✅ Lulus 100% |
+| `Phase3ApiTest.php` | Feature / WMS & Chart Multi-Device (F-06, F-16) | 8 | 53 | ✅ Lulus 100% |
+| `Phase5IotRuleEngineTest.php` | Feature / IoT & Rules (F-05) | 7 | 57 | ✅ Lulus 100% |
+| `SaleCalculationTest.php` | Unit / Financial Arbitrary `bcmul` | 7 | 11 | ✅ Lulus 100% |
+| `WmsPhaseDTest.php` | Feature / Race Condition Batch Generator & Resiliency | 6 | 27 | ✅ Lulus 100% |
+| `WmsPhaseBTest.php` | Feature / WMS Cycle Completion & Auto-Cull | 5 | 32 | ✅ Lulus 100% |
+| `WmsPhaseCTest.php` | Feature / Voiding Ledger Audit Trail | 5 | 30 | ✅ Lulus 100% |
+| `Phase4DeviceControlTest.php` | Feature / Interruption & Cache (F-03, F-04) | 5 | 32 | ✅ Lulus 100% |
+| `SecurityRateLimitTest.php` | Feature / Rate Limiter Anti-Spam | 4 | 29 | ✅ Lulus 100% |
+| `Phase2ModelsTest.php` | Unit / Data Models | 3 | 19 | ✅ Lulus 100% |
+| `ExampleTest.php` (Feature + Unit) | Smoke Baseline | 2 | 2 | ✅ Lulus 100% |
+| **TOTAL KESELURUHAN** | **Automated Tests** | **198** | **797** | **✅ 100% PASS (~5,7 detik)** |
 
-### B. Bukti Output Eksekusi Terminal (`php artisan test`)
+### B. Bukti Eksekusi (`php artisan test`, 11 Oktober 2026)
 ```text
-   PASS  Tests\Feature\WmsPhaseATest
-  ✓ slot active capacity calculates correctly with culls              0.08s
-  ✓ slot capacity updates dynamically when culls recorded             0.07s
-  ✓ slot details modal api payload returns capacity metrics           0.07s
-  ✓ cannot cull more than active capacity                             0.07s
-  ✓ health percentage calculates correctly                            0.06s
-  ✓ empty slot returns zero active capacity                           0.06s
-  ✓ batch total active baglogs accounts for slot culls                0.08s
-  ✓ cull reason validation accepts valid enum values                  0.07s
-
-   PASS  Tests\Feature\WmsPhaseBTest
-  ✓ complete cycle marks assignment as completed                      0.09s
-  ✓ complete cycle automatically culls remaining active baglogs       0.08s
-  ✓ complete cycle on empty slot does not create unnecessary cull     0.07s
-  ✓ completed slot cannot be assigned until vacated                   0.07s
-  ✓ complete cycle requires admin role                                0.08s
-  ✓ complete cycle records completed at timestamp                     0.07s
-
-   PASS  Tests\Feature\WmsPhaseCTest
-  ✓ void harvest soft voids and records audit trail                   0.08s
-  ✓ void sale soft voids and excludes revenue from totals             0.08s
-  ✓ void cull restores active capacity on slot assignment             0.09s
-  ✓ voided cull cannot exceed original assignment capacity            0.07s
-  ✓ void requires reason with minimum length                          0.07s
-  ✓ void requires admin authentication                                0.07s
-  ✓ cannot void already voided record                                 0.07s
-  ✓ voided records excluded from default queries                      0.08s
-
-   PASS  Tests\Feature\WmsPhaseDTest
-  ✓ batch code generator retries on collision                         0.08s
-  ✓ batch code follows strict format bl yyyymmdd xxx                  0.07s
-  ✓ batch creation resilient under simulated collision                0.08s
-  ✓ database transaction rolls back on assignment failure             0.08s
-  ✓ missing price per baglog returns validation warning               0.07s
-
-  ... [Seluruh 168 Test Lulus Tanpa Galat] ...
-
-  Tests:    168 passed (591 assertions)
-  Duration: 4.41s
+php artisan test  ->  tests=198  passed=198  assertions=797  duration=5.71s
 ```
+
+> Daftar per-test (`✓ nama test`) versi sebelumnya dihapus karena mencerminkan suite 168 test yang sudah tidak berlaku (mis. `WmsPhaseATest` tertulis 8 test, aktualnya 11). Untuk bukti rinci, jalankan `php artisan test --log-junit=storage/app/junit.xml`.
 
 ---
 
 ## 4. Evaluasi Kinerja & Bukti Kuantitatif Logic Hardening (F-01 s/d F-16)
 
-Berdasarkan pengujian simulasi fisik stokastik (`sim_harness.py`) dan pengujian integrasi hardware-in-the-loop, berikut perbandingan kinerja sistem **sebelum vs sesudah** logic hardening:
+Berdasarkan pengujian simulasi fisik stokastik (`sim_harness.py`) dan pengujian integrasi hardware-in-the-loop, berikut perbandingan kinerja sistem **sebelum vs sesudah** logic hardening.
+
+> ⚠️ **Status bukti:** angka di bagian ini berasal dari run 1–2 Oktober 2026. Berkas `sim_harness.py` dan `docs/evidence/*.txt` **tidak ada di repositori**, sehingga angka ini belum bisa direproduksi dari repo ini. Perlakukan sebagai hasil historis sampai simulasi dijalankan ulang terhadap `iot_simulator.py` v3.6.
 
 ### 1. Eliminasi Relay Chattering Kipas saat Suhu Kritis (F-10)
 - **Sebelum Perbaikan:** Saat suhu ruang melampaui ambang kritis ($>34^\circ\text{C}$), ketiadaan histeresis 24 jam memicu pemutusan mendadak saat suhu turun $0.1^\circ\text{C}$, menghasilkan **649 kali toggle/hari** (*relay chatter* parah). Kondisi ini berpotensi membakar koil relay dan motor induksi blower.
@@ -208,9 +182,9 @@ Berdasarkan pengujian simulasi fisik stokastik (`sim_harness.py`) dan pengujian 
 
 ---
 
-## 5. Kesimpulan Hasil Pengujian untuk Sidang Skripsi
+## 5. Kesimpulan Hasil Pengujian Mutu Sistem
 
-1. **Keandalan Fungsional & Logika (100% Valid):** Seluruh 25 Use Cases dan 141 skenario pengujian otomatis lolos verifikasi tanpa satu pun kegagalan. Seluruh celah kritis (F-01 s/d F-16) telah ditutup dengan arsitektur bersih.
+1. **Keandalan Fungsional & Logika (100% Valid):** Seluruh 30 Use Cases dan 198 skenario pengujian otomatis lolos verifikasi tanpa satu pun kegagalan. Seluruh celah kritis (F-01 s/d F-16) telah ditutup dengan arsitektur bersih.
 2. **Kestabilan Termodinamika & Umur Hardware:** Implementasi histeresis adaptif dan deadband proporsional berhasil meredam osilasi relay hingga 92% dan menghapus 97% kegagalan timeout misting, memperpanjang estimasi umur pakai aktuator mekanik kumbung.
 3. **Integritas Finansial, Spasial, & Keamanan Cloud:** Sistem menjamin presisi moneter dengan `DECIMAL(10,2)` dan `bcmul()`, mencegah tabrakan batch di grid WMS 3D, serta mengamankan hak akses administrasi dan persistensi state kendali pada infrastruktur serverless.
 

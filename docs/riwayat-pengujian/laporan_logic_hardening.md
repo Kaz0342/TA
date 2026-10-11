@@ -7,11 +7,14 @@
 - **Tanggal Selesai:** 1–2 Oktober 2026
 - **Status Akhir:** ✅ **100% Lulus (16 Temuan Tuntas, 141 Automated Tests Green, Zero Failures)**
 
+> 📅 **Status Berkas: Snapshot Riwayat Pengujian — Fase 3 (1–2 Oktober 2026)**  
+> Laporan penuntasan 16 kerentanan logika kritis (F-01 s/d F-16) pada branch `fix/logic-hardening`. Menjadi tonggak stabilisasi awal kontrol aktuator dan keamanan endpoint sebelum ekspansi WMS Fase A–D dan test suite 198 tests.
+
 ---
 
 ## 1. Latar Belakang & Tujuan Hardening
 
-Audit menyeluruh terhadap sistem Smart Shroom SCM mengidentifikasi 16 temuan logika kritis (*latent logic bugs*) yang tersebar di sisi mikrokontroler ESP32, backend API Laravel 12, dan IoT simulator. Meskipun sistem sebelumnya lulus 133 pengujian fungsional dasar di lingkungan lokal, pengujian stres (*stress test*) dan kondisi batas (*boundary conditions*) membuktikan adanya kerentanan fatal:
+Audit menyeluruh terhadap sistem Smart Shroom SCM mengidentifikasi 16 temuan logika kritis (*latent logic bugs*) yang tersebar di sisi mikrokontroler ESP32, backend API Laravel 13, dan IoT simulator. Meskipun sistem sebelumnya lulus 133 pengujian fungsional dasar di lingkungan lokal, pengujian stres (*stress test*) dan kondisi batas (*boundary conditions*) membuktikan adanya kerentanan fatal:
 1. **Keamanan Cloud:** Terdapat endpoint publik tidak terlindungi (`/migrate-db` dan `/register` bebas) yang membuka celah manipulasi database produksi.
 2. **State Jeda Panen di Serverless:** Cache Vercel menggunakan memory driver `array` yang mengakibatkan perintah jeda panen (`PAUSE`) hilang seketika antar-request.
 3. **Ketahanan Mikrokontroler Saat Offline:** Firmware ESP32 mengalami pemblokiran (*blocking loop*) saat koneksi Wi-Fi putus, melumpuhkan seluruh fungsi pengawasan suhu dan proteksi aktuator.
@@ -45,7 +48,7 @@ Audit menyeluruh terhadap sistem Smart Shroom SCM mengidentifikasi 16 temuan log
 
 ## 3. Matriks Hasil Pengujian Kuantitatif (Sebelum vs Sesudah)
 
-Pengujian kuantitatif dilakukan menggunakan script pengujian fisik stokastik [`docs/sim_harness.py`](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/sim_harness.py) yang membandingkan baseline fisik kumbung terhadap sistem yang telah diperbaiki:
+Pengujian kuantitatif dilakukan menggunakan script pengujian fisik stokastik `sim_harness.py` (**tidak tersedia di repositori**) yang membandingkan baseline fisik kumbung terhadap sistem yang telah diperbaiki:
 
 ### A. Pengujian Termodinamika & Aktuator (Simulasi)
 
@@ -72,15 +75,17 @@ Pengujian kuantitatif dilakukan menggunakan script pengujian fisik stokastik [`d
 
 ## 4. Berkas Bukti Resmi (Evidence Files)
 
-Seluruh luaran mentah dari proses verifikasi disimpan di dalam repositori untuk kebutuhan lampiran skripsi:
-1. **Baseline Automated Tests:** [`docs/evidence/baseline_test.txt`](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/evidence/baseline_test.txt) *(133 passed, 418 assertions)*
-2. **Baseline Simulasi Kontrol:** [`docs/evidence/baseline_sim.txt`](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/evidence/baseline_sim.txt) *(chatter 649x, timeout 97%)*
-3. **After-Hardening Automated Tests:** [`docs/evidence/after_test.txt`](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/evidence/after_test.txt) *(141 passed, 467 assertions)*
-4. **After-Hardening Simulasi Kontrol:** [`docs/evidence/after_sim.txt`](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/evidence/after_sim.txt) *(chatter 49x, timeout 0%)*
+> ⚠️ **Status bukti (diperiksa 11 Oktober 2026):** berkas luaran mentah di bawah **tidak ditemukan di repositori** (folder `docs/evidence/` tidak ada). Angka hanya tercatat di dokumen ini dan belum bisa diverifikasi ulang. Angka test suite terkini ada di `docs/riwayat-pengujian/Matriks Pengujian & Verifikasi Mutu Sistem.md` (198 test, 797 assertion).
+
+Luaran yang pernah dicatat pada run 1–2 Oktober 2026:
+1. **Baseline Automated Tests:** `baseline_test.txt` *(133 passed, 418 assertions)*
+2. **Baseline Simulasi Kontrol:** `baseline_sim.txt` *(chatter 649x, timeout 97%)*
+3. **After-Hardening Automated Tests:** `after_test.txt` *(141 passed, 467 assertions)*
+4. **After-Hardening Simulasi Kontrol:** `after_sim.txt` *(chatter 49x, timeout 0%)*
 
 ---
 
-## 5. Rekomendasi Narasi untuk Ujian Sidang Skripsi
+## 5. Ringkasan Teknis & Executive Defense Summary
 
-Saat mempresentasikan hasil perancangan dan pengujian sistem pada Bab 4, mahasiswa dapat menggunakan poin penekanan berikut:
+Saat mempresentasikan atau mempertahankan arsitektur dan hasil pengujian sistem, tekankan poin teknis berikut:
 > *"Pengujian fungsional konvensional seringkali gagal mendeteksi kelemahan logika yang hanya muncul pada kondisi ekstrem atau arsitektur komputasi awan. Melalui metode Logic Hardening dan pengujian simulasi fisik stokastik, penelitian ini berhasil mengidentifikasi dan merekayasa ulang algoritma otomasi Smart Shroom SCM. Hasil pengujian membuktikan bahwa perbaikan histeresis adaptif mampu mereduksi osilasi mekanik relay hingga 92.4%, mengeliminasi 97% kegagalan timeout aktuator misting, mengamankan autentikasi multi-peran, serta menjamin keandalan kontrol mikrokontroler saat beroperasi dalam kondisi jaringan offline."*

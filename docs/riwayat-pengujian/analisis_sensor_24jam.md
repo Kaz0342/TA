@@ -1,7 +1,11 @@
 # 📊 Analisis Data Sensor IoT — 24 Jam Pertama
-**Smart Shroom SCM — Tugas Akhir**
-**Periode:** 7 September 2026 (06:01 WIB) — 8 September 2026 (06:00 WIB)
+**Smart Shroom SCM — Monitoring Mikroklimat & Kontrol Aktuator**
+**Periode Pengujian:** 7 September 2026 (06:01 WIB) — 8 September 2026 (06:00 WIB)
 **Total Data Points:** 5.238 records dari simulator 3 sensor (Segitiga Diagonal)
+**Sinkronisasi Arsitektur:** Dokumentasi baseline uji stres 24 jam awal (interval 10s). Sistem operasional terkini telah dioptimasi ke interval 60s (~1.440 records/hari) dengan fusi vertikal 3x SHT30 IP68 via TCA9548A serta adaptasi kurva termodinamika Muntilan.
+
+> 📅 **Status Berkas: Snapshot Riwayat Pengujian — Fase 1 (7–8 September 2026)**  
+> Rekam jejak pengujian empiris 24 jam awal nonstop (5.238 data points) untuk validasi responsivitas algoritma histeresis dan siklus diurnal sebelum era logic hardening.
 
 ---
 
@@ -106,7 +110,7 @@ Jam    | Suhu Min | Suhu Avg | Suhu Max | RH Avg  | Data
 | **Selisih** | **2.2°C** | — | **2.0%** | — |
 
 > [!TIP]
-> Selisih siang-malam 2.2°C ini sangat realistis untuk kumbung jamur yang tertutup rapat. Di lapangan (hardware asli), selisihnya bisa **3–5°C** tergantung material dinding kumbung dan ventilasi alami. Ini bahan bagus buat perbandingan di Bab 5 (Pembahasan) nanti.
+> Selisih siang-malam 2.2°C ini sangat realistis untuk kumbung jamur yang tertutup rapat. Di lapangan (hardware asli), selisihnya berkisar **3–5°C** tergantung material dinding kumbung dan ventilasi alami, yang menjadi dasar penentuan ambang histeresis dinamis pada rule engine otomatis.
 
 ---
 
@@ -140,4 +144,4 @@ Jam    | Suhu Min | Suhu Avg | Suhu Max | RH Avg  | Data
 ---
 
 *Analisis ini dihasilkan dari data simulasi IoT menggunakan model fisika sinusoidal dengan 3 sensor virtual (Segitiga Diagonal).*
-*Tool: Python + Supabase API | Tanggal: 8 September 2026*
+*Tool: `iot_simulator.py` (Python) + Laravel 13 REST API (`POST /api/sensor-data`) | Terakhir Diverifikasi: Oktober 2026*
