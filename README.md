@@ -8,16 +8,15 @@
 ## 🛠️ Tech Stack & Arsitektur
 
 ### 1. Backend (API & Business Logic)
-- **Framework:** Laravel 12 (PHP 8.2+)
-- **Framework:** Laravel 12 (PHP 8.2+)
+- **Framework:** Laravel 13 (PHP 8.3+)
 - **Database:** SQLite (Development / Testing) & PostgreSQL / Supabase (Production) dengan driver-agnostic aggregations (`date_bin` di PGSQL)
 - **Autentikasi & RBAC:** Laravel Sanctum (Token-based SPA Auth) dengan otorisasi peran `admin` dan `worker` (Registrasi dilindungi token Admin)
 - **Presisi Moneter & Lingkungan:** Penggunaan tipe data `DECIMAL` (bukan `FLOAT`) dan fungsi `bcmul()` untuk mencegah *floating-point error*
 - **Query Optimization:** Repository pattern dengan **SQL Time-Bucket Downsampling** adaptif di [SensorDataRepository.php](file:///d:/DevTools/Antigravity/Projects/TA_vio/backend/app/Repositories/SensorDataRepository.php) (latensi query turun dari ~400ms ke 14ms, payload berkurang 98.8%) serta eliminasi query N+1 pada denah WMS
-- **Automated Testing:** **168 automated tests PHPUnit dengan 591 assertions lulus 100%** (mencakup pengujian fungsional Fase 2 s.d. 5, WMS Phase A–D, Audit Trail Voiding, dan Security Hardening F-01–F-16)
+- **Automated Testing:** **198 automated tests PHPUnit dengan 797 assertions lulus 100%** (mencakup pengujian fungsional Fase 2 s.d. 5, WMS Phase A–D, Audit Trail Voiding, dan Security Hardening F-01–F-16)
 
 ### 2. Frontend (Dashboard User Interface)
-- **Framework:** React 18 + TypeScript + Vite
+- **Framework:** React 19 + TypeScript + Vite
 - **UI & Styling:** TailwindCSS dengan tema **Harmonious Modern Sage Green & Dark Mode** (desain *clean*, *rounded-3xl*, token warna netral soft, ramah mata)
 - **Mobile-First Ergonomics:** Formasi kartu KPI Grid 2x2 responsif di smartphone, kolom tier sticky solid anti-tembus pandang, dan form settings minimalis side-by-side
 - **State Management:** Zustand (Auth & UI Theme Store) + TanStack Query (Server State Cache & Polling)
@@ -92,18 +91,20 @@
 📦 TA_vio
  ┣ 📂 backend          # Laravel 13 API (Clean Architecture, Repositories, Tests)
  ┣ 📂 frontend         # React 19 + Vite SPA (Harmonious Modern Sage UI, Pages, Components)
- ┣ 📂 esp32_firmware   # Source code C++ Arduino ESP32 Firmware v3.5
- ┣ 📂 docs             # Dokumentasi arsitektur, PRD, ERD, Use Case, Sequence, DFD, & Logika Aktuator
- ┃ ┣ 📜 use_case.md    # 🎯 29 Spesifikasi Use Case SRS & Diagram UML
- ┃ ┣ 📜 sequence_diagram.md # ⚡ 11 Diagram Sekuensial UML Lifelines & Traceability Matrix
- ┃ ┣ 📜 dfd.md         # 🔄 Data Flow Diagram (Level 0, Level 1, Level 2, & Kamus Data)
- ┃ ┗ 📂 manual         # 📖 Buku Manual Pengguna (Markdown & HTML Siap Cetak A4)
- ┣ 📜 iot_simulator.py # Python IoT Simulator v3.5 (Termodinamika Kumbung 122.5 m³)
+ ┣ 📂 esp32_firmware   # Source code C++ Arduino ESP32 Firmware v3.6
+ ┣ 📂 docs             # Dokumentasi rekayasa sistem terstruktur (Lihat docs/README.md)
+ ┃ ┣ 📁 arsitektur     # PRD, ERD 3NF, DFD, 30 Use Case, Sequence Diagram, IoT Flow
+ ┃ ┣ 📁 teknis-iot     # Master Belanja (SSOT), Rancangan Fisik Kumbung, Sensor 3-Zona, Termodinamika
+ ┃ ┣ 📁 logika-bisnis  # Master Katalog 50 Logika Sistem (SSOT), Histeresis Aktuator, Audit WMS
+ ┃ ┣ 📁 ui-ux          # Dashboard Documentation, Frontend Sage Green Guidelines
+ ┃ ┣ 📁 riwayat-pengujian # Matriks Pengujian 198 Tes Lolos, Rekam Jejak Hardening, Telemetri Empiris
+ ┃ ┗ 📁 manual         # Buku Manual Pengguna (Markdown & HTML Siap Cetak A4)
+ ┣ 📜 iot_simulator.py # Python IoT Simulator v3.6 (Termodinamika Kumbung 122.5 m³)
  ┣ 📜 DESIGN.md        # Master Design System Specification & Token Manifest
- ┗ 📜 README.md        # Ringkasan Proyek
+ ┗ 📜 README.md        # Ringkasan Proyek & Panduan Memulai
 ```
 
-> 📖 **Buku Manual Pengguna Lengkap:** Silakan buka [MANUAL_BOOK.md](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/manual/MANUAL_BOOK.md) atau buka [MANUAL_BOOK.html](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/manual/MANUAL_BOOK.html) di browser untuk langsung dicetak (`Ctrl+P` → Save as PDF).
+> 📖 **Portal Dokumentasi Lengkap:** Silakan jelajahi [docs/README.md](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/README.md) untuk indeks seluruh dokumen teknis dan arsitektur, atau buka [MANUAL_BOOK.html](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/manual/MANUAL_BOOK.html) di browser untuk buku manual operasional siap cetak.
 
 
 ---
@@ -132,8 +133,8 @@ npm run dev
 ```
 Akses dashboard di browser melalui: `http://localhost:5173/`  
 Akun demo default:
-- **Admin:** `admin@kumbung.id` / `password`
-- **Worker:** `worker@kumbung.id` / `password`
+- **Admin:** `admin@smartshroom.test` / `password123`
+- **Worker:** `worker@smartshroom.test` / `password123`
 
 ### 3. Menjalankan IoT Simulator (Alternatif Hardware Fisik)
 ```bash
