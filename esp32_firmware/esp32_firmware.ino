@@ -39,8 +39,8 @@
  *   POST /api/sprinkler-logs   → { device_id, actuator, duration_seconds, trigger_reason, stop_reason }
  *   GET  /api/thresholds/active → response.data.{ temp_max, temp_min, humidity_min, humidity_max }
  * 
- * @see docs/rancangan_hardware_kumbung.md untuk detail skema wiring
- * @see docs/penempatan_sensor.md untuk detail strategi penempatan
+ * @see docs/teknis-iot/rancangan_hardware_kumbung.md untuk detail skema wiring
+ * @see docs/teknis-iot/penempatan_sensor.md untuk detail strategi penempatan
  * @see iot_simulator.py untuk verifikasi model termodinamika
  * @version 3.6.0 (SHT30 TCA9548A Support + Weighted Fusion + Dual Cooldown)
  */

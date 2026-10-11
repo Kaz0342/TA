@@ -16,7 +16,7 @@ Prinsip simulasi:
 4. Logika kontrol hysteresis IDENTIK dengan esp32_firmware.ino v3.6 (P1 Thermal Probe 90s, P2' Night Guard, P3 RH Guard)
 
 @author Smart Shroom SCM — Tugas Akhir (Pegangan Teknis Proyek Akhir)
-@see docs/penempatan_sensor.md
+@see docs/teknis-iot/penempatan_sensor.md
 """
 
 import time
@@ -1174,7 +1174,7 @@ def main():
     weather_gen = WeatherGenerator(forced_weather=args.weather, custom_month=args.month)
 
     print("=" * 60)
-    print("  🍄 Smart Shroom IoT Simulator v3.5 (Seasonal Stochastic)")
+    print("  🍄 Smart Shroom IoT Simulator v3.6 (Seasonal Stochastic)")
     print(f"  Device: {DEVICE_ID}")
     print(f"  Backend: {API_BASE_URL}")
     print(f"  Sensor: 3x SHT30/SHT31 IP68 (Segitiga Diagonal via TCA9548A)")
