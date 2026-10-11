@@ -17,7 +17,7 @@
 
 **Batas yang harus kamu tahu:**
 - Berbeda dengan analisis kontrol IoT (yang dijalankan di simulator), analisis ini **murni pembacaan kode**. PHP/Laravel dan browser tidak tersedia di lingkungan analisis, jadi tidak ada tes yang dijalankan. Semua snippet di §7 **belum dijalankan**; uji di lokal.
-- Temuan bertanda **[UI]** (mis. warna badge tidak muncul) sebaiknya kamu konfirmasi dengan screenshot sebelum dijadikan klaim di skripsi.
+- Temuan bertanda **[UI]** (mis. warna badge tidak muncul) sebaiknya kamu konfirmasi dengan screenshot sebelum dijadikan klaim di laporan rekayasa.
 - Angka ambang (7 flush, 110/120 hari) berasal dari kode dan dokumen kamu, **belum divalidasi** ke praktik budidaya jamur kuping.
 
 ---
@@ -520,4 +520,4 @@ Pada tabel "Status 9 temuan audit" di percakapan sebelumnya, saya menulis **#4 (
 
 ## 11. Ditunda (kesesuaian dokumen)
 
-Sesuai instruksimu, dicatat saja: PRD menyebut label tier `T-01…T-10` sedangkan kode memakai `A-01-01`; ERD menyebut `flush_number` nullable dan status batch `completed` (tidak ada di migrasi); `docs/dashboard-documentation.md` menandai FR-3.1 "Selesai" padahal form belum memuat slot/flush (W-01) — setelah W-01 selesai, dokumen menjadi benar tanpa diubah.
+Sesuai instruksimu, dicatat saja: PRD menyebut label tier `T-01…T-10` sedangkan kode memakai `A-01-01`; ERD menyebut `flush_number` nullable dan status batch `completed` (tidak ada di migrasi); `docs/ui-ux/dashboard-documentation.md` menandai FR-3.1 "Selesai" padahal form belum memuat slot/flush (W-01) — setelah W-01 selesai, dokumen menjadi benar tanpa diubah.

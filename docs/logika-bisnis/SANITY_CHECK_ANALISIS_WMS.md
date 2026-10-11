@@ -1,6 +1,6 @@
 # 🔍 Pemahaman & Sanity Check — Analisis Alur Baglog WMS
 
-**Sumber:** [`ANALISIS_ALUR_BAGLOG_WMS.md`](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/ANALISIS_ALUR_BAGLOG_WMS.md)
+**Sumber:** [`ANALISIS_ALUR_BAGLOG_WMS.md`](ANALISIS_ALUR_BAGLOG_WMS.md)
 **Cross-ref:** Kode aktual branch `develop` (post Logic Hardening F-01 s/d F-16)
 **Tanggal review:** 2 Oktober 2026
 **Update:** 2 Oktober 2026 — Keputusan desain dijawab, skill ECC/Ponytail relevan ditambahkan
@@ -110,7 +110,7 @@ Usulan (deterministik):
 | D. Koreksi & Rapikan | W-09, W-12, W-13, W-14 | Koreksi via void, sequence safety & price fallback | ✅ Selesai (`WmsPhaseDTest`: 6 tests) |
 
 > **Status Suite Pengujian Pasca-Implementasi (2 Oktober 2026):**
-> - **Total Test Suite:** 168 tests, 591 assertions, 100% Passed.
+> - **Total Test Suite (snapshot 2 Oktober 2026):** 168 tests, 591 assertions, 100% Passed. *Per 11 Oktober 2026: 198 tests, 797 assertions setelah remediasi audit WMS/SCM.*
 > - **Frontend Build:** `tsc -b && vite build` lolos tanpa error (1.19s).
 
 ---

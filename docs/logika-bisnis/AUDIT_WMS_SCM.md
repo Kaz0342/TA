@@ -7,7 +7,7 @@
 | Tanggal | 10 Oktober 2026 |
 | Metode | Pembacaan kode baris demi baris; eksekusi suite tes repositori; 26 probe perilaku observasional; simulasi logika tanggal frontend (Node) |
 | Prinsip kerja | Logika dulu, kesesuaian dokumen kemudian. Tidak ada berkas repositori yang diubah |
-| Dokumen terkait | `ANALISIS_ALUR_BAGLOG_WMS.md` (temuan W-01…W-17, basis `8187915`), `docs/SANITY_CHECK_ANALISIS_WMS.md` (lima keputusan pemilik budidaya) |
+| Dokumen terkait | `ANALISIS_ALUR_BAGLOG_WMS.md` (temuan W-01…W-17, basis `8187915`), `docs/logika-bisnis/SANITY_CHECK_ANALISIS_WMS.md` (lima keputusan pemilik budidaya) |
 
 **Daftar isi:** 0 Ringkasan Eksekutif · 1 Ruang Lingkup, Metode, Keterbatasan · 2 Gambaran Sistem (*As-Is*) · 3 Kepatuhan Keputusan Pemilik dan Kapasitas · 4 Status W-01…W-17 · 5 Temuan Baru (AUD-01…AUD-17) · 6 Kesenjangan SCM · 7 Klaim Dokumen vs Kode · 8 Rencana Perbaikan · 9 Keputusan yang Diperlukan · Lampiran A–D
 
@@ -113,7 +113,7 @@ Tabel ini adalah inti AUD-04.
 
 ## 3. Kepatuhan terhadap Keputusan Pemilik dan Batas Kapasitas
 
-Sumber keputusan: `docs/SANITY_CHECK_ANALISIS_WMS.md` §6. Kapasitas 3.000 baglog: keputusan Anda pada 8 Oktober 2026.
+Sumber keputusan: `docs/logika-bisnis/SANITY_CHECK_ANALISIS_WMS.md` §6. Kapasitas 3.000 baglog: keputusan Anda pada 8 Oktober 2026.
 
 | # | Keputusan | Status | Bukti | Keterangan |
 |---|---|---|---|---|
@@ -350,7 +350,7 @@ Prinsip kerja Anda: logika dulu, dokumen kemudian. Tabel ini adalah daftar kerja
 | 16 | `use_case.md:229` (UC-19); `erd.md:73,235` | Kolom `slots.is_active` | Tidak ada pada migrasi dan model (`Slot.php:39-45`) | Dokumen, atau tambah fitur "rak rusak" |
 | 17 | `erd.md:101-102,275-276` | `completed_at` TIMESTAMP; `completion_reason` (HABIS_PRODUKSI, KONTAMINASI_MASSAL, AFKIR_TOTAL, MANUAL) | `completed_at` bertipe date; `completed_reason` string 30 berisi EXHAUSTED / CONTAMINATED / DISPOSED / MANUAL (`2026_10_02_000001_update_wms_lifecycle_columns.php:26-27`) | Dokumen |
 | 18 | `use_case.md:269-279` (UC-22) | Contoh pengeluaran: token listrik, air misting, upah, plastik/alkohol sanitasi | Kategori `LISTRIK, AIR, NUTRISI, LABOR, PACKAGING, LAINNYA` (`OperationalExpenseController.php:58`); P21: MISTING / PLASTIK / ALKOHOL ditolak | Dokumen |
-| 19 | `docs/ANALISIS_ALUR_BAGLOG_WMS.md:37,101,236,244` (revisi 1 Oktober) | Harga kosong "diam-diam jadi `3000`"; W-13 = fallback `3000`; pecahan `age_days` dinyatakan pasti | Fallback itu sudah tidak ada (`BaglogManagement.tsx:303` mengirim `0`; `BaglogBatch.php:378` menandai `price_missing`); pecahan `age_days` belum dikonfirmasi pada tampilan nyata | Dokumen: ganti dengan revisi koreksi 2 Oktober |
+| 19 | `docs/logika-bisnis/ANALISIS_ALUR_BAGLOG_WMS.md:37,101,236,244` (revisi 1 Oktober) | Harga kosong "diam-diam jadi `3000`"; W-13 = fallback `3000`; pecahan `age_days` dinyatakan pasti | Fallback itu sudah tidak ada (`BaglogManagement.tsx:303` mengirim `0`; `BaglogBatch.php:378` menandai `price_missing`); pecahan `age_days` belum dikonfirmasi pada tampilan nyata | Dokumen: ganti dengan revisi koreksi 2 Oktober |
 
 ---
 
@@ -455,5 +455,5 @@ Eksekusi ulang pada 10 Oktober 2026 menghasilkan hasil perilaku yang identik; ha
 
 ## Lampiran D — Di Luar Ruang Lingkup
 
-- Pilar 1 (IoT dan perangkat keras) tidak diaudit ulang di sini; rujukan: `ANALISIS_SIMULATOR_DAN_AMPLOP_KUMBUNG.md` dan `docs/update/PEMAHAMAN_DAN_DAMPAK_PERUBAHAN.md`.
-- Endpoint IoT bersifat publik dengan *throttle* 20 permintaan/menit (`docs/PRD.md:157-160`). Ini keputusan desain yang terdokumentasi; autentikasi perangkat (token per perangkat) layak dipertimbangkan sebagai pekerjaan lanjutan.
+- Pilar 1 (IoT dan perangkat keras) tidak diaudit ulang di sini; rujukan: `docs/teknis-iot/EVALUASI_TERMODINAMIKA_DAN_DEADLOCK_IOT.md` dan `docs/logika-bisnis/KATALOG_LENGKAP_LOGIKA_SISTEM.md`. (Dua rujukan semula, *ANALISIS_SIMULATOR_DAN_AMPLOP_KUMBUNG.md* dan *PEMAHAMAN_DAN_DAMPAK_PERUBAHAN.md*, tidak ada di repositori.)
+- Endpoint IoT bersifat publik dengan *throttle* 20 permintaan/menit (`docs/arsitektur/PRD.md:157-160`). Ini keputusan desain yang terdokumentasi; autentikasi perangkat (token per perangkat) layak dipertimbangkan sebagai pekerjaan lanjutan.

@@ -19,7 +19,7 @@
    - [Kelompok F: Pencatatan Panen & Siklus Flush (L-41 – L-44)](#kelompok-f-pencatatan-panen--siklus-flush-l-41--l-44)
    - [Kelompok G: Inventori Penjualan & Finansial HPP (L-45 – L-47)](#kelompok-g-inventori-penjualan--finansial-hpp-l-45--l-47)
    - [Kelompok H: KPI Agrikultur & Heatmap Dashboard (L-48 – L-50)](#kelompok-h-kpi-agrikultur--heatmap-dashboard-l-48--l-50)
-4. [Tabel Matriks Referensi Cepat (Cheat Sheet Skripsi)](#tabel-matriks-referensi-cepat-cheat-sheet-skripsi)
+4. [Tabel Matriks Referensi Cepat (Cheat Sheet Sistem & Defense)](#tabel-matriks-referensi-cepat-cheat-sheet-sistem--defense)
 
 ---
 
@@ -327,7 +327,7 @@
   * **Tujuan:** Deteksi visual zona kumbung yang mandul vs zona yang subur untuk evaluasi peletakan nozzle.
 
 * **L-49: Biological Efficiency (BE % — Future Enhancement Note)**
-  * **Lokasi:** `docs/update/IMPLEMENTATION_PLAN_WMS_SCM.md`
+  * **Lokasi:** `docs/logika-bisnis/IMPLEMENTATION_PLAN_WMS_SCM.md`
   * **Aturan:** Diidentifikasi sebagai *Future Enhancement / Riset Lanjutan*: Pengukuran rasio konversi biologis ($\text{Bobot Panen} / \text{Bobot Substrat Kering}$) membutuhkan penimbangan kadar air serbuk kayu kering per baglog saat formulasi, yang saat ini belum dicatat dalam alur operasional pembelian bibit jadi.
   * **Tujuan:** Dokumentasi batasan sistem operasional riil vs teori buku teks agrikultur.
 
@@ -339,7 +339,7 @@
 
 ---
 
-## Tabel Matriks Referensi Cepat (Cheat Sheet Skripsi)
+## Tabel Matriks Referensi Cepat (Cheat Sheet Sistem & Defense)
 
 | No | ID | Nama Logika | Ranah | Komponen Utama | Parameter Kunci |
 |---|---|---|---|---|---|

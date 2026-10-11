@@ -1,6 +1,6 @@
 # Rencana Implementasi Remediasi WMS & SCM (Smart Shroom SCM)
 
-> **Basis Dokumen:** [`docs/update/AUDIT_WMS_SCM.md`](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/update/AUDIT_WMS_SCM.md)  
+> **Basis Dokumen:** [`docs/logika-bisnis/AUDIT_WMS_SCM.md`](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/logika-bisnis/AUDIT_WMS_SCM.md)  
 > **Target Branch:** `develop`  
 > **Status:** SELESAI (Sprint 1–4 100% Terverifikasi & Lulus Uji)  
 > **Prinsip:** Logika & Integritas Basis Data Dulu, Dokumen Kemudian. Zero Skripsi Bab 1-5 Fluff.
@@ -164,9 +164,9 @@ graph TD
      - Selesai: `/api/harvests` mem-pre-aggregate relasi `baglogBatch` (`withSum` & `withCount`), query terpangkas dari 62+ menjadi $\le 5$ query (AUD-16).
      - Selesai: `/api/baglogs/hpp-summary` mem-pre-load shared overhead dan meng-eager load seluruh relasi (`operationalExpenses`, `sales`, `culls`, `harvests`, `assignments`), query terpangkas dari 73+ menjadi 9 query tetap ($O(1)$) (Probe P08, AUD-08).
   5. **Penyelarasan Dokumen Arsitektur & Sidang:**
-     - Selesai: `docs/KATALOG_LENGKAP_LOGIKA_SISTEM.md` dimutakhirkan (L-38 s/d L-50, aturan limit rak 3.000, pemotongan stok 422, HPP non-retroaktif, eliminasi klaim BE% biologi substrat, dan tabel cheat sheet).
-     - Selesai: `docs/erd.md` dimutakhirkan (koreksi `voided_by` pada seluruh tabel, `completed_reason` pada alokasi slot, penambahan kolom void pada `operational_expenses`, dan pembaruan FAQ sidang).
-     - Selesai: `docs/use_case.md` dimutakhirkan (penambahan UC-30 Void Expense Audit Trail, RBAC matrix lengkap 30 UC, dan penyelarasan larangan worker).
+     - Selesai: `docs/logika-bisnis/KATALOG_LENGKAP_LOGIKA_SISTEM.md` dimutakhirkan (L-38 s/d L-50, aturan limit rak 3.000, pemotongan stok 422, HPP non-retroaktif, eliminasi klaim BE% biologi substrat, dan tabel cheat sheet).
+     - Selesai: `docs/arsitektur/erd.md` dimutakhirkan (koreksi `voided_by` pada seluruh tabel, `completed_reason` pada alokasi slot, penambahan kolom void pada `operational_expenses`, dan pembaruan FAQ sidang).
+     - Selesai: `docs/arsitektur/use_case.md` dimutakhirkan (penambahan UC-30 Void Expense Audit Trail, RBAC matrix lengkap 30 UC, dan penyelarasan larangan worker).
 - **Hasil Pengujian Otomatis:**
   - `WmsAuditRemediationTest`: 21 tests, 152 assertions **PASS** (100%).
   - Probe Audit WMS (`AuditProbeWmsTest.php`): 26 tests, 26 assertions **PASS** (100%).
