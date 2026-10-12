@@ -61,6 +61,7 @@ Panduan tampilan pengguna (*Frontend*) dan dokumentasi fitur aplikasi:
 
 ### 5. 🛡️ [Pengujian & Jaminan Mutu](riwayat-pengujian/)
 Verifikasi kualitas, pengujian otomatis, dan data telemetri empiris:
+* **[ANALISIS_SIMULATOR_DAN_AMPLOP_KUMBUNG.md](riwayat-pengujian/ANALISIS_SIMULATOR_DAN_AMPLOP_KUMBUNG.md)** — *Analisis Simulator & Amplop Kumbung*: Pemodelan komprehensif termodinamika amplop kumbung 5x7m, simulasi variasi cuaca musiman (Juli & Oktober), evaluasi bahan atap/dinding, dan bukti matematis efektivitas logika v3.6.
 * **[Matriks Pengujian & Verifikasi Mutu Sistem.md](riwayat-pengujian/Matriks%20Pengujian%20&%20Verifikasi%20Mutu%20Sistem.md)** — *Matriks Pengujian*: Rencana dan hasil pengujian fungsionalitas, skenario batas, dan penerimaan pengguna (UAT).
 * **[laporan_logic_hardening.md](riwayat-pengujian/laporan_logic_hardening.md)** — *Laporan Akhir Logic Hardening*: Pembuktian resolusi 16 temuan kritis (F-01 s.d. F-16) dengan 141 automated unit/feature tests green 100%.
 * **[RENCANA_PERBAIKAN_LOGIKA.md](riwayat-pengujian/RENCANA_PERBAIKAN_LOGIKA.md)** — *Dokumen Rencana Perbaikan Logika*: Analisis mendalam per temuan logika dan rencana mitigasi keamanan serta stabilitas aktuator.
