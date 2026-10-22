@@ -31,13 +31,15 @@ Route::get('/favicon.svg', function () {
 // ============================================================
 if (app()->environment('local')) {
 
-    // Endpoint Utility untuk Seeder Database Supabase di Cloud
-    Route::get('/seed-db', function () {
-        $secret = request()->query('secret');
-        if ($secret !== env('UTILITY_SECRET', 'ta-shroom-migrate-2026')) {
+    // Endpoint Utility untuk Seeder Database Supabase di Cloud (Local Only)
+    Route::match(['GET', 'POST'], '/seed-db', function () {
+        $secret = (string) (request()->header('X-Utility-Secret') ?: request()->input('secret', request()->query('secret', '')));
+        $validSecret = (string) config('app.utility_secret');
+
+        if (empty($validSecret) || ! hash_equals($validSecret, $secret)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Unauthorized. Secret key salah atau tidak disertakan.'
+                'message' => 'Unauthorized. Secret key tidak valid atau tidak dikonfigurasi di environment.'
             ], 403);
         }
 

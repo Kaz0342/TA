@@ -123,4 +123,11 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Utility Secret Key (Dev / Test Seeder Endpoints)
+    |--------------------------------------------------------------------------
+    */
+    'utility_secret' => env('UTILITY_SECRET'),
+
 ];

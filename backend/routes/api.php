@@ -133,9 +133,9 @@ if (app()->environment(['local', 'testing'])) {
 
     // Endpoint Utility untuk Upgrade User jadi Role Admin
     Route::get('/make-admin', function () {
-        $secret = request()->query('secret');
-        $validSecret = env('UTILITY_SECRET');
-        if (! $validSecret || $secret !== $validSecret) {
+        $secret = (string) (request()->header('X-Utility-Secret') ?: request()->query('secret', ''));
+        $validSecret = (string) (getenv('UTILITY_SECRET') !== false ? getenv('UTILITY_SECRET') : config('app.utility_secret'));
+        if (empty($validSecret) || ! hash_equals($validSecret, $secret)) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
         $email = request()->query('email', 'admin@smartshroom.com');
@@ -159,10 +159,10 @@ if (app()->environment(['local', 'testing'])) {
     });
 
     // Endpoint Utility untuk Seeder Data Awal di Supabase
-    Route::get('/seed-db', function () {
-        $secret = request()->query('secret');
-        $validSecret = env('UTILITY_SECRET');
-        if (! $validSecret || $secret !== $validSecret) {
+    Route::match(['GET', 'POST'], '/seed-db', function () {
+        $secret = (string) (request()->header('X-Utility-Secret') ?: request()->input('secret', request()->query('secret', '')));
+        $validSecret = (string) (getenv('UTILITY_SECRET') !== false ? getenv('UTILITY_SECRET') : config('app.utility_secret'));
+        if (empty($validSecret) || ! hash_equals($validSecret, $secret)) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 

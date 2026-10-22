@@ -1,0 +1,159 @@
+flowchart TD
+    %% ==========================================
+    %% 1. ACTORS
+    %% ==========================================
+    Grower(("Grower or Admin"))
+    ESP32(("<b>ESP32 Sensor &<br/>Simulator</b><br/>──────────<br/>3x SHT30 IP68<br/>Mux TCA9548A<br/>Firmware v3.6<br/>Relay Misting<br/>Relay Fan<br/>Simulator v3.6"))
+
+    %% ==========================================
+    %% 2. DASHBOARD UI (PINK CONTAINER)
+    %% ==========================================
+    subgraph UI ["Dashboard UI"]
+        direction TB
+        AuthStore["Auth State<br/>[authStore.ts]"]
+
+        DashScreen["Dashboard Screen<br/>[Dashboard.tsx]"]
+        GridScreen["Kumbung Grid WMS<br/>[KumbungGrid.tsx]"]
+        BaglogScreen["Baglog Management<br/>[BaglogManagement.tsx]"]
+        HarvestScreen["Harvest Management<br/>[HarvestManagement.tsx]"]
+        SalesScreen["Sales Management<br/>[SalesManagement.tsx]"]
+        SettingsScreen["Settings<br/>[Settings.tsx]"]
+        LoginScreen["Login<br/>[Login.tsx]"]
+
+        ApiClient["API Client<br/>[api.ts]"]
+
+        DashScreen -->|"requests stats"| ApiClient
+        GridScreen -->|"requests grid map"| ApiClient
+        BaglogScreen -->|"requests batch/culls"| ApiClient
+        HarvestScreen -->|"requests harvests"| ApiClient
+        SalesScreen -->|"requests sales/HPP"| ApiClient
+        SettingsScreen -->|"requests settings"| ApiClient
+        LoginScreen -->|"requests auth"| ApiClient
+    end
+
+    Grower -->|"views"| DashScreen
+    Grower -->|"inspects racks"| GridScreen
+    Grower -->|"manages"| BaglogScreen
+    Grower -->|"records"| HarvestScreen
+    Grower -->|"records"| SalesScreen
+    Grower -->|"configures"| SettingsScreen
+    Grower -->|"signs in"| LoginScreen
+
+    %% ==========================================
+    %% 3. API AND AUTH (TEAL CONTAINER)
+    %% ==========================================
+    subgraph Gateway ["API and Auth"]
+        AuthApi["Auth API<br/>[AuthController.php]"]
+        DashApi["Dashboard API<br/>[DashboardController.php]"]
+        SlotApi["Rack & Slot API<br/>[SlotController.php]"]
+        BaglogApi["Baglog & Cull API<br/>[BaglogBatchController.php]"]
+        HarvestApi["Harvest API<br/>[HarvestController.php]"]
+        SalesApi["Sales & Expense API<br/>[SaleController.php]"]
+        DeviceApi["Device Control API<br/>[DeviceControlController.php]"]
+        ThresholdApi["Threshold API<br/>[ThresholdSettingController.php]"]
+        SensorApi["Sensor API<br/>[SensorDataController.php]"]
+    end
+
+    ApiClient -->|"calls"| AuthApi
+    ApiClient -->|"calls"| DashApi
+    ApiClient -->|"calls"| SlotApi
+    ApiClient -->|"calls"| BaglogApi
+    ApiClient -->|"calls"| HarvestApi
+    ApiClient -->|"calls"| SalesApi
+    ApiClient -->|"calls"| DeviceApi
+    ApiClient -->|"calls"| ThresholdApi
+
+    AuthApi -.->|"returns token"| AuthStore
+    ESP32 -->|"submits readings & logs"| SensorApi
+
+    %% ==========================================
+    %% 4. FARM OPERATIONS & WMS (ORANGE CONTAINER)
+    %% ==========================================
+    subgraph FarmOps ["Farm Operations & WMS"]
+        direction TB
+        DashAggr["Dashboard Aggregation<br/>[DashboardService.php]"]
+        BaglogSrv["Baglog Service<br/>[BaglogService.php]"]
+        HarvestSrv["Harvest Service<br/>[HarvestService.php]"]
+        SalesSrv["Sales Service<br/>[SaleService.php]"]
+
+        SlotRecords["Rack & Slot<br/>[Slot.php]<br/>[BatchSlotAssignment.php]"]
+        BaglogRecords["Baglog & Cull<br/>[BaglogBatch.php]<br/>[BaglogCull.php]"]
+        HarvestRecords["Harvest Records<br/>[Harvest.php]<br/>&nbsp;"]
+        SalesRecords["Sales & Expense<br/>[Sale.php]<br/>[OperationalExpense.php]"]
+
+        BaglogSrv --> SlotRecords
+        BaglogSrv --> BaglogRecords
+        HarvestSrv --> HarvestRecords
+        SalesSrv --> SalesRecords
+    end
+
+    DashApi -->|"requests summary"| DashAggr
+    SlotApi -->|"manages slots"| BaglogSrv
+    BaglogApi -->|"manages batches"| BaglogSrv
+    HarvestApi -->|"delegates harvests"| HarvestSrv
+    SalesApi -->|"records sales & HPP"| SalesSrv
+
+    %% ==========================================
+    %% 5. CLIMATE MONITORING & CONTROL (BLUE CONTAINER)
+    %% ==========================================
+    subgraph Climate ["Climate Monitoring & Control"]
+        direction TB
+        DeviceControl["Device Controller<br/>[DeviceControlService.php]"]
+        SensorSrv["Sensor Service<br/>[SensorDataService.php]"]
+
+        SprinklerLogs["Actuator Logs<br/>[SprinklerLog.php]"]
+        ThresholdSettings["Threshold Settings<br/>[ThresholdSetting.php]"]
+        SensorRepo["Sensor Repository<br/>[SensorDataRepository.php]"]
+
+        SensorReadings["Sensor Readings<br/>[SensorData.php]"]
+
+        DeviceControl -->|"logs runs"| SprinklerLogs
+        SensorSrv -->|"checks limits"| ThresholdSettings
+        SensorSrv -->|"reads/writes"| SensorRepo
+        SensorRepo -->|"persists readings"| SensorReadings
+    end
+
+    DeviceApi -->|"pauses/overrides"| DeviceControl
+    SensorApi -->|"stores and checks"| SensorSrv
+    ThresholdApi -->|"updates configs"| ThresholdSettings
+
+    %% ==========================================
+    %% 6. DATABASE (ORANGE CYLINDER)
+    %% ==========================================
+    DB[("Application Database<br/>[PostgreSQL / SQLite Engine]")]
+
+    DashAggr -->|"aggregates records"| DB
+    SlotRecords -->|"stored in"| DB
+    BaglogRecords -->|"stored in"| DB
+    HarvestRecords -->|"stored in"| DB
+    SalesRecords -->|"stored in"| DB
+    SprinklerLogs -->|"stored in"| DB
+    ThresholdSettings -->|"stored in"| DB
+    SensorReadings -->|"stored in"| DB
+
+    %% ==========================================
+    %% STYLING
+    %% ==========================================
+    classDef actorStyle fill:#c7d2fe,stroke:#6366f1,stroke-width:2px,color:#1e1b4b;
+    classDef uiContainer fill:#fdf2f8,stroke:#f472b6,stroke-width:2px,color:#831843;
+    classDef gateContainer fill:#f0fdfa,stroke:#2dd4bf,stroke-width:2px,color:#134e4a;
+    classDef farmContainer fill:#fff7ed,stroke:#fb923c,stroke-width:2px,color:#7c2d12;
+    classDef climContainer fill:#f0f9ff,stroke:#38bdf8,stroke-width:2px,color:#0c4a6e;
+
+    classDef uiNode fill:#dbeafe,stroke:#93c5fd,stroke-width:1.5px,color:#1e3a8a;
+    classDef gateNode fill:#fef3c7,stroke:#fde047,stroke-width:1.5px,color:#713f12;
+    classDef farmNode fill:#dcfce7,stroke:#86efac,stroke-width:1.5px,color:#14532d;
+    classDef climNode fill:#ffe4e6,stroke:#fda4af,stroke-width:1.5px,color:#881337;
+    classDef dbNode fill:#fed7aa,stroke:#f97316,stroke-width:2px,color:#7c2d12;
+
+    class Grower,ESP32 actorStyle;
+    class UI uiContainer;
+    class Gateway gateContainer;
+    class FarmOps farmContainer;
+    class Climate climContainer;
+
+    class AuthStore,DashScreen,GridScreen,BaglogScreen,HarvestScreen,SalesScreen,SettingsScreen,LoginScreen,ApiClient uiNode;
+    class AuthApi,DashApi,SlotApi,BaglogApi,HarvestApi,SalesApi,DeviceApi,ThresholdApi,SensorApi gateNode;
+    class DashAggr,BaglogSrv,HarvestSrv,SalesSrv,SlotRecords,BaglogRecords,HarvestRecords,SalesRecords farmNode;
+    class DeviceControl,SprinklerLogs,SensorSrv,SensorRepo,SensorReadings,ThresholdSettings climNode;
+    class DB dbNode;
