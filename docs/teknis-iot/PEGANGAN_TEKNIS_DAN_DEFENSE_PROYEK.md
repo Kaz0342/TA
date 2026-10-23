@@ -96,10 +96,10 @@ Laju kehilangan uap air tergantung tingkat kebocoran udara ruangan (*Air Changes
   * Jika suhu panas ($T > 32^\circ\text{C}$) tapi udara sudah mendekati jenuh ($RH \ge 92\%$), menyemprotkan air terus-menerus tidak akan mendinginkan udara lagi (udara jenuh tidak bisa menguapkan air).
   * Misting yang dipaksakan hanya akan menciptakan tetesan air liar di baglog yang memicu jamur busuk. Pagar RH menahan misting saat $RH \ge RH_{\max} - 3\%$ dan mematikan saat $RH \ge RH_{\max} - 1\%$.
 
-### Q4: "Kenapa ada jeda 10 menit (P2') pada misting malam hari?"
+### Q4: "Kenapa misting dilarang keras aktif pada malam hari (Night Lockout)?"
 * **Jawaban:**
-  * Malam hari tidak ada radiasi matahari, penguapan sangat lambat, dan respirasi jamur aktif.
-  * Misting terus-menerus di malam hari membuat baglog "tidur basah kuyup" dan mengundang bakteri pembusuk. Misting malam hanya diizinkan dalam kondisi darurat ekstrem dengan jeda istirahat wajib minimal 600 detik (10 menit).
+  * Malam hari (17:00–06:00 WIB) tidak ada radiasi matahari, penguapan sangat lambat, suhu lingkungan dingin, dan respirasi jamur aktif.
+  * Misting di malam hari membuat baglog "tidur basah kuyup" dan mengundang bakteri pembusuk (*bacterial blotch* / *Pseudomonas tolaasii*). Oleh karena itu, sistem menerapkan **Night Misting Hard Lockout** mutlak sejak pukul 17:00 WIB.
 
 ### Q5: "Sensor SHT30 IP68 apakah aman dari semprotan misting?"
 * **Jawaban:**

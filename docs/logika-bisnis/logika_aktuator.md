@@ -52,7 +52,7 @@ Misting bertugas meningkatkan kelembaban udara kumbung dan memberikan efek pendi
 
 ### B. Proteksi & Interlock Misting (Termasuk P2' & P3)
 - **Interlock Kipas:** Misting DILARANG aktif jika Exhaust Fan sedang berputar (mencegah kabut mikro tersedot keluar sebelum mendarat di baglog).
-- **Night Misting Guard (P2' — Jeda Wajib 600s):** Di malam hari (17:00 – 06:00 WIB), misting DITAHAN secara ketat. Pengecualian darurat ekstrem hanya boleh aktif jika terjadi dehidrasi parah ($RH_{\text{avg}} < \text{humMin} - 15\%$ dan $\min(RH) < \text{humMin} - 20\%$). Jika aktif, wajib ada **jeda minimal 600 detik (10 menit)** sebelum boleh menyala kembali, mencegah jamur tidur basah kuyup.
+- **Night Misting Hard Lockout (17:00 – 06:00 WIB):** Di malam hari (17:00 – 06:00 WIB), misting DILARANG KERAS menyala sama sekali (`NIGHT_LOCKOUT`). Jika misting sedang aktif saat pergantian waktu menuju pukul 17:00 WIB, pompa dan solenoid langsung diputus seketika (`Transisi Malam (Lockout 17:00 WIB)`). Hal ini krusial untuk mencegah baglog basah kuyup di suhu malam yang dingin tanpa bantuan evaporasi sinar matahari, yang berisiko fatal memicu penyakit busuk basah (*bacterial blotch* / *Pseudomonas tolaasii*).
 - **Pagar RH (P3 — Anti Over-Saturation):**
   - **Hold:** Saat suhu panas ($T > \text{tempMax}$), misting DITAHAN jika kelembaban sudah mendekati jenuh ($RH \ge \text{humMax} - 3.0\%$), karena udara jenuh tidak mampu menyerap uap air lagi untuk pendinginan laten.
   - **Stop:** Misting langsung DIMATIKAN seketika jika $RH \ge \text{humMax} - 1.0\%$ untuk mencegah tetesan air liar di baglog.
@@ -99,7 +99,7 @@ Setelah misting mati, fan dilarang menyala selama 60 detik untuk memberi kesempa
 | **Misting** | Evaporation Cooldown | 150 detik (2.5 mnt) | Waktu evaporasi butiran kabut ke molekul gas RH |
 | **Misting** | Settling Delay | 60 detik | Tahan fan setelah misting agar kabut tidak terbuang |
 | **Misting** | Pulse Misting (Tier 2) | 30 detik ($\min(RH) < \text{humMin} - 10\%$) | Melembabkan rak atas kering secara proporsional |
-| **Misting** | Night Guard Interval (P2') | 600 detik (10 mnt) | Jeda wajib antar-misting darurat malam hari |
+| **Misting** | Night Hard Lockout | 17:00 – 06:00 WIB | Misting dilarang keras aktif di malam hari (anti-rot) |
 | **Misting** | Pagar RH Hold (P3) | $RH \ge \text{humMax} - 3.0\%$ saat $T > \text{tempMax}$ | Tahan semprot jika udara mendekati titik jenuh |
 | **Misting** | Pagar RH Stop (P3) | $RH \ge \text{humMax} - 1.0\%$ | Stop seketika cegah genangan air di baglog |
 | **Fan** | Probe Siang Durasi (P1) | 90 detik | Durasi uji pendinginan udara luar siang hari |

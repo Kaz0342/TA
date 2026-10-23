@@ -506,7 +506,7 @@ Jika satu sensor gagal baca (NaN), bobot dihitung ulang secara dinamis dari sens
 - **Berhenti** saat kelembapan mencapai batas bawah + sedikit margin (maks. 3 %) dan suhu aman, atau habis waktu **90 detik**.
 - **Jeda penguapan** 150 detik setelah misting.
 - **Misting denyut 30 detik** bila rak atas sangat kering (lebih dari 10 % di bawah batas).
-- **Terkunci malam (P2' Night Guard)** pukul **17:00-06:00 WIB** dengan jeda wajib minimal **10 menit (600 detik)** antar siklus darurat (mencegah jamur tidur basah kuyup).
+- **Terkunci malam (Night Hard Lockout)** pukul **17:00-06:00 WIB** misting dilarang keras aktif sama sekali, dan langsung diputus jika sedang aktif saat masuk jam 17:00 WIB (mencegah jamur tidur basah kuyup).
 - **Pagar RH (P3)**: ditahan saat suhu panas jika kelembapan $\ge$ batas atas $- 3\%$ (udara jenuh tidak bisa mendinginkan), dan langsung berhenti seketika jika kelembapan $\ge$ batas atas $- 1\%$ (mencegah becek/genangan air di baglog).
 - Ditahan jika kelembapan sudah di atas batas atas, atau suhu kritis.
 

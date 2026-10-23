@@ -116,12 +116,12 @@ const float WEIGHT_SENSOR_B = 0.40;  // Zona Tengah (referensi inti kumbung)
 const float WEIGHT_SENSOR_C = 0.25;  // Zona Bawah (paling dingin & lembab)
 
 // ============================================================
-// KONSTANTA JEDA & SAFETY TIMEOUT (Anti Short-Cycling & P1/P2'/P3 Guard)
+// KONSTANTA JEDA & SAFETY TIMEOUT (Anti Short-Cycling & P1/P2/P3 Guard)
 // ============================================================
 const unsigned long MAX_MISTING_DURATION_MS     = 90000;   // 90 detik timeout darurat misting (cegah baglog menggenang/becek) (F-12)
 const unsigned long PULSE_MISTING_DURATION_MS   = 30000;   // 30 detik pulse misting sensor kering
 const unsigned long MISTING_COOLDOWN_MS         = 150000;  // 150 detik (2.5 menit) jeda evaporasi kabut
-const unsigned long NIGHT_MISTING_INTERVAL_MS   = 600000;  // 600 detik (10 menit) jeda wajib night misting guard (P2')
+// const unsigned long NIGHT_MISTING_INTERVAL_MS = 600000;  // Deprecated: Night Misting Hard Lockout aktif (17:00-06:00 WIB)
 const unsigned long POST_MISTING_FAN_DELAY_MS   = 60000;   // 60 detik jeda kabut mengendap sebelum fan boleh ON
 const unsigned long FAN_HOMOGENIZE_DURATION_MS  = 30000;   // 30 detik durasi fan homogenisasi siang
 const unsigned long FAN_HOMOGENIZE_COOLDOWN_MS  = 900000;  // 15 menit (900 detik) jeda relaksasi sirkulasi siang
@@ -647,15 +647,11 @@ void controlMisting(float temp, float hum, float minHum) {
       }
     }
 
-    // 0. NIGHT MISTING GUARD (P2'): Jeda minimal 600s (10 menit) + dehidrasi parah
+    // 0. NIGHT MISTING HARD LOCKOUT (17:00 - 06:00 WIB):
+    // Misting DILARANG KERAS menyala setelah pukul 17:00 WIB (malam hari)
+    // guna mencegah baglog basah kuyup dan spora jamur membusuk (bacterial blotch).
     if (isNight) {
-      if (mistingLastStopTime > 0 && (now - mistingLastStopTime < NIGHT_MISTING_INTERVAL_MS)) {
-        return;
-      }
-      // Pengecualian darurat ekstrem: hanya boleh nyala jika terjadi dehidrasi parah (relatif terhadap humMin)
-      if (hum >= (humMin - 15.0f) && minHum >= (humMin - 20.0f)) {
-        return;
-      }
+      return;
     }
 
     // 1. COOLDOWN GUARD: Cegah short-cycling sebelum kabut selesai evaporasi (150 detik)
@@ -699,6 +695,12 @@ void controlMisting(float temp, float hum, float minHum) {
       startMisting(reason, false);  // Normal misting
     }
   } else {
+    // Transisi malam: matikan misting seketika saat masuk jam malam (17:00 WIB)
+    if (isNight) {
+      stopMisting("Transisi Malam (Lockout 17:00 WIB)");
+      return;
+    }
+
     // 4. CEK TARGET TERCAPAI (Histeresis Stop & P3 Pagar RH)
     if (!isPulseMisting) {
       bool targetReached = (hum >= rhTriggerHigh && temp <= tempMax) || (hum >= (humMax - 1.0f));

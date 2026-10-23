@@ -24,7 +24,7 @@ Pengujian sistem **Smart Shroom SCM** menerapkan pendekatan menyeluruh untuk men
    - Terdiri dari **198 skenario uji otomatis** dengan total **797 assertions** yang dieksekusi secara instan (`php artisan test`) dengan tingkat kelulusan **100% (Zero Failure)** dalam waktu ~5,7 detik (eksekusi 11 Oktober 2026).
 3. **Pengujian Termodinamika, Validasi Iklim, & Rule Engine IoT (`iot_simulator.py`, `validasi_simulator_vs_iklim.py`, & `simulasi_amplop_kumbung.py`):**
    - Verifikasi kurva diurnal ambient Muntilan 12 bulan (deviasi suhu rata-rata hanya 0.3°C – 0.5°C).
-   - Verifikasi arsitektur pertahanan iklim P1 (Uji Probe Kipas Siang 90s & Lockout 15m), P2' (Night Misting Guard jeda 600s), dan P3 (Pagar RH Hold/Stop).
+   - Verifikasi arsitektur pertahanan iklim P1 (Uji Probe Kipas Siang 90s & Lockout 15m), P2 (Night Misting Hard Lockout 17:00–06:00 WIB), dan P3 (Pagar RH Hold/Stop).
    - Verifikasi eliminasi *relay chatter* (turun 92%), deadband misting dinamis (timeout turun dari 97% ke 0%), mitigasi offline loop (non-blocking), dan *failsafe interupsi* mode panen.
 
 ---

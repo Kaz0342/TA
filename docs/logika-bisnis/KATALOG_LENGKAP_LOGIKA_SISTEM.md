@@ -35,7 +35,7 @@
 │ • Weighted Sensor Fusion             │ • Alokasi Rak Dinamis (Row-Bay-Tier)     │
 │ • Histeresis Closed-Loop Misting     │ • Siklus Hidup Batch & Afkir Berbasis    │
 │ • Fan Utility 90s Probe (P1)         │   Ledger (Immutable Culls)               │
-│ • Night Misting Interval Guard (P2') │ • Pelacakan Flush Multi-Siklus (1–7)     │
+│ • Night Misting Hard Lockout         │ • Pelacakan Flush Multi-Siklus (1–7)     │
 │ • Pagar RH Maksimum Misting (P3)     │ • Presisi Finansial HPP/Kg (bcmath)      │
 │ • Drainase CO2 Pasif (Plastik 30cm)  │ • Heatmap 3D Spasial Produktivitas Rak   │
 └──────────────────────────────────────┴──────────────────────────────────────────┘
@@ -95,10 +95,10 @@
   * **Aturan:** Misting DILARANG hidup jika exhaust fan sedang aktif.
   * **Tujuan:** Mencegah kabut mikro bertekanan tinggi disedot langsung keluar ruangan dan terbuang percuma.
 
-* **L-09: Night Misting Cycle Guard (P2' Reform)**
+* **L-09: Night Misting Hard Lockout (17:00 – 06:00 WIB)**
   * **Lokasi:** `esp32_firmware.ino`, `iot_simulator.py`
-  * **Aturan:** Pada pukul 17:00 – 06:00 WIB, misting diizinkan aktif sesuai histeresis normal, tetapi **wajib memiliki jeda minimal 600 detik (10 menit)** antar-siklus penyemprotan.
-  * **Tujuan:** Menjaga kelembapan malam tetap $RH \ge 85\%$ tanpa membasahi tubuh buah secara berlebihan (*anti-rot*).
+  * **Aturan:** Pada pukul 17:00 – 06:00 WIB, misting DILARANG KERAS aktif (`isNightHour()` $\to$ return), dan dipaksa cut-off jika sedang menyala saat transisi jam 17:00 WIB.
+  * **Tujuan:** Mencegah pembusukan miselium/tubuh buah akibat "tidur basah kuyup" (*bacterial blotch*) pada suhu dingin malam hari tanpa sinar matahari.
 
 * **L-10: Critical Temperature Misting Guard & Handover (F-10b)**
   * **Lokasi:** `esp32_firmware.ino`, `iot_simulator.py`
@@ -351,7 +351,7 @@
 | 6 | L-06 | Dynamic Stop Hysteresis | Misting | Firmware (F-12) | $\text{humMin} + \min(3.0, 0.5 \times \Delta RH)$ |
 | 7 | L-07 | Tier 2 Pulse Misting | Misting | Pompa Diafragma | Pulsa 30s jika $\min(RH) < \text{humMin} - 10\%$ |
 | 8 | L-08 | Fan-Misting Interlock | Misting | Firmware Guard | Misting dilarang saat Fan ON |
-| 9 | L-09 | Night Misting Guard | Misting | Firmware (P2') | Jeda wajib minimal 600s di jam 17–06 WIB |
+| 9 | L-09 | Night Misting Hard Lockout | Misting | Firmware Guard | Dilarang aktif 17:00–06:00 WIB (Anti-rot) |
 | 10 | L-10 | Critical Temp Misting Guard | Misting | Firmware (F-10b) | Tahan jika $\max(T) > \text{tempMax} + 4^\circ\text{C}$ (kecuali lockout) |
 | 11 | L-11 | RH Saturation Guard (P3) | Misting | Firmware (P3) | Tahan di $\text{humMax}-3\%$, stop di $\text{humMax}-1\%$ |
 | 12 | L-12 | Evaporation Cooldown | Misting | Pompa Guard | Kunci pompa 150s pasca-mati |

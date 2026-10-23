@@ -13,7 +13,7 @@ Prinsip simulasi:
 1. Tiap sensor punya offset suhu/kelembaban sesuai zona fisiknya
 2. ESP32 menghitung rata-rata dari 3 sensor sebelum mengambil keputusan
 3. Nilai rata-rata yang dikirim ke API (sama seperti firmware asli)
-4. Logika kontrol hysteresis IDENTIK dengan esp32_firmware.ino v3.6 (P1 Thermal Probe 90s, P2' Night Guard, P3 RH Guard)
+4. Logika kontrol hysteresis IDENTIK dengan esp32_firmware.ino v3.6 (P1 Thermal Probe 90s, P2 Night Hard Lockout, P3 RH Guard)
 
 @author Smart Shroom SCM — Tugas Akhir (Pegangan Teknis Proyek Akhir)
 @see docs/teknis-iot/penempatan_sensor.md
@@ -708,11 +708,12 @@ def control_misting(state: KumbungState):
             if is_fan_useful(state, now_ts) and not (min_hum < critical_low_rh):
                 return
 
-        # 0. NIGHT MISTING POLICY (P2' Reform - 17:00 - 06:00 WIB):
-        # Misting diizinkan di malam hari asalkan jeda minimal 600 detik (10 menit) antar-siklus (cegah becek)
+        # 0. NIGHT MISTING HARD LOCKOUT (17:00 - 06:00 WIB):
+        # Misting DILARANG KERAS menyala setelah pukul 17:00 WIB (malam hari).
+        # Jamur tiram di malam hari tidak boleh disiram agar baglog tidak basah kuyup
+        # dan membusuk karena suhu dingin tanpa sinar matahari (mencegah bacterial blotch).
         if is_night:
-            if state.misting_last_stop_time > 0 and (time.time() - state.misting_last_stop_time) < 600.0:
-                return
+            return
 
         # Cooldown guard: cegah short-cycling sebelum kabut dari siklus sebelumnya evaporasi penuh
         if state.misting_last_stop_time > 0:
@@ -759,6 +760,17 @@ def control_misting(state: KumbungState):
     else:
         elapsed = time.time() - state.misting_start_time
         is_pulse = getattr(state, 'is_pulse_misting', False)
+
+        # Transisi Malam: Jika tiba-tiba masuk waktu malam (17:00 WIB) saat misting sedang berjalan, paksa stop!
+        if is_night:
+            state.is_misting_active = False
+            state.is_pulse_misting = False
+            state.misting_last_stop_time = time.time()
+            state.misting_duration_total = int(elapsed)
+            stop_reason = "Transisi Malam (Lockout 17:00 WIB)"
+            print(f"   🛑 [MISTING OFF] {stop_reason} — Durasi: {state.misting_duration_total}s")
+            send_actuator_log(state.misting_duration_total, state.misting_trigger_reason, stop_reason, "misting")
+            return
 
         # Pulse Misting (Tier 2): Berjalan tepat 30 detik (LOCKOUT target_reached normal)
         if is_pulse:
@@ -1233,7 +1245,9 @@ def main():
                 break
 
             tick_count += 1
-            timestamp = get_wib_now().strftime("%H:%M:%S WIB")
+            now_dt = get_wib_now()
+            timestamp = now_dt.strftime("%H:%M:%S WIB")
+            is_night = (now_dt.hour >= NIGHT_START_HOUR or now_dt.hour < NIGHT_END_HOUR)
 
             # Simulasikan perubahan mikroklimat (interval 1 detik per tick)
             state.simulate_tick(dt_seconds=1.0)
@@ -1270,6 +1284,8 @@ def main():
                 if state.is_misting_active:
                     elapsed = int(now - state.misting_start_time)
                     actuators.append(f"💦 Misting: ON ({elapsed}s/{MAX_MISTING_DURATION}s)")
+                elif is_night:
+                    actuators.append("🌙 Misting: LOCKOUT (Mode Malam 17:00–06:00 WIB)")
                 elif state.misting_last_stop_time > 0:
                     cooldown_elapsed = int(now - state.misting_last_stop_time)
                     if cooldown_elapsed < MISTING_COOLDOWN:
