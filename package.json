@@ -6,8 +6,12 @@
   "scripts": {
     "dev": "npm --prefix frontend run dev",
     "dev:frontend": "npm --prefix frontend run dev",
-    "dev:backend": "npm run --prefix backend dev",
+    "dev:backend": "cd backend && php artisan serve --host=127.0.0.1 --port=8000",
+    "dev:iot": "python iot_simulator.py --local --interval 10",
+    "dev:all": "npx -y concurrently -k -n \"BACKEND,FRONTEND\" -c \"magenta,cyan\" \"cd backend && php artisan serve --host=127.0.0.1 --port=8000\" \"npm --prefix frontend run dev\"",
+    "dev:full": "npx -y concurrently -k -n \"BACKEND,FRONTEND,IOT\" -c \"magenta,cyan,green\" \"cd backend && php artisan serve --host=127.0.0.1 --port=8000\" \"npm --prefix frontend run dev\" \"python iot_simulator.py --local --interval 10\"",
     "build": "npm --prefix frontend run build",
-    "lint": "npm --prefix frontend run lint"
+    "lint": "npm --prefix frontend run lint",
+    "test:backend": "cd backend && php artisan test"
   }
 }
