@@ -34,14 +34,22 @@
 
 ## 2. Latar Belakang & Rumusan Masalah
 
-### 2.1 Latar Belakang
-Budidaya jamur kuping memerlukan pengendalian lingkungan yang ketat (suhu 24–32°C, kelembapan 85–95%) serta penataan media tanam yang terorganisir. Petani tradisional umumnya menghadapi tantangan:
-- **Kerugian akibat iklim**: Keterlambatan menyalakan misting atau kipas yang membuat baglog dehidrasi atau busuk basah.
-- **Pencatatan manual tanpa koordinat**: Kesulitan mendeteksi rak mana yang terserang hama/jamur hijau (*Trichoderma*) dan rak mana yang paling produktif.
-- **Biaya operasional siluman**: Listrik, air misting, dan tenaga kerja tidak dibebankan ke HPP, sehingga profitabilitas semu.
+### 2.1 Latar Belakang & Konteks Kemitraan Riil
+Budidaya jamur kuping (*Auricularia auricula-judae*) memerlukan pengendalian mikroklimat yang ketat (suhu optimal 24–32°C, kelembapan relatif 85–95%) serta penataan media tanam (baglog) yang sistematis. Penelitian rekayasa piranti lunak ini berpijak pada studi kasus operasional nyata pada Usaha Kumbung Jamur Kuping milik mitra eksternal (kakak penyusun) dengan spesifikasi bangunan 5m × 7m × 3.5m (volume 122.5 m³) berkapasitas 3.000 baglog yang disusun pada 3 blok rak bertingkat 10.
 
-### 2.2 Rumusan Masalah
-> *"Bagaimana merancang dan mengimplementasikan sistem informasi berbasis web dan IoT untuk mendigitalisasi proses monitoring mikroklimat, manajemen spasial rak 3D, pelacakan afkir, dan perhitungan rantai pasok budidaya jamur kuping?"*
+### 2.2 Dinamika Kebutuhan Pemangku Kepentingan (Requirements Elicitation & Scope Evolution)
+Arsitektur sistem **Smart Shroom SCM** berevolusi secara organik melalui proses *Requirements Elicitation* langsung bersama pemilik usaha (*Primary Stakeholder / Client*):
+1. **Inisiasi Awal Sistem (Engineer-Initiated):**  
+   Penyusun pada tahap awal merancang sistem yang berfokus pada otomasi lingkungan fisik dan pemantauan mikroklimat berbasis IoT (3 zona sensor SHT31, kontrol histeresis relay misting dan exhaust fan, serta web dashboard telemetri). Tujuannya adalah memitigasi risiko dehidrasi dan pembusukan basah baglog akibat keterlambatan penyiraman manual.
+2. **Kebutuhan Kritis Pemilik Usaha (Client-Driven Requirements):**  
+   Berdasarkan wawancara terstruktur dan observasi alur kerja harian bersama mitra pemilik usaha (kakak penyusun), teridentifikasi bahwa otomatisasi iklim semata tidak menyelesaikan titik kebocoran modal terbesar operasional kumbung. Mitra secara eksplisit menuntut digitalisasi pada dua pilar manajerial utama:
+   - **Manajemen Inventori Spasial (WMS Kumbung):** Kesulitan melacak kondisi fisik 3.000 baglog secara spasial. Ketiadaan pencatatan posisi koordinat rak (`Row-Bay-Tier`) menyebabkan lambatnya karantina baglog yang terkontaminasi jamur hijau (*Trichoderma*), ketidakpastian usia baglog, serta butanya pelacakan siklus panen berulang (*multi-flush* ke-1 hingga ke-7).
+   - **Transparansi Rantai Pasok & Keuangan (SCM):** Ketiadaan asosiasi antara berat hasil panen harian dengan modal awal pembelian bibit serta beban biaya operasional (listrik, air bertekanan, dan tenaga kerja). Hal ini menciptakan "profitabilitas semu" di mana pemilik usaha tidak mengetahui secara presisi Harga Pokok Produksi (HPP) riil per kilogram jamur yang dipanen.
+3. **Sintesis Arsitektur Solutif:**  
+   Penyusun mengintegrasikan inisiatif otomasi mikroklimat dengan tuntutan WMS dan SCM dari pemilik usaha. Hasilnya adalah ekosistem agritech rantai pasok tertutup (*Closed-Loop Agritech SCM*): iklim mikro dikontrol presisi oleh mikrokontroler tepi (Edge IoT) → media tanam dipantau produktivitasnya per koordinat rak 3D (WMS) → hasil panen dan efisiensi biaya dibukukan secara akuntabel (SCM).
+
+### 2.3 Rumusan Masalah
+> *"Bagaimana merancang dan mengimplementasikan sistem informasi berbasis web dan IoT yang mengintegrasikan otomasi mikroklimat kumbung dengan manajemen inventori spasial rak 3D (WMS), pelacakan mutasi afkir, dan perhitungan rantai pasok (SCM) sesuai kebutuhan operasional nyata budidaya jamur kuping?"*
 
 ---
 
@@ -60,12 +68,12 @@ Budidaya jamur kuping memerlukan pengendalian lingkungan yang ketat (suhu 24–3
 
 ## 4. Target Pengguna & Peran (Aktor)
 
-1. **Admin (Pemilik/Pengelola Kumbung)**:
-   - Mengelola batch baglog, alokasi slot WMS, transaksi penjualan, pembukuan beban operasional, dan konfigurasi ambang batas iklim.
-2. **Worker (Pekerja Lapangan / Buruh Tani)**:
-   - Memantau dashboard iklim live, mencatat panen harian per slot/batch, mencatat baglog rusak (culls), dan mengaktifkan mode jeda panen saat pintu kumbung dibuka.
-3. **Perangkat IoT (ESP32 Edge Device)**:
-   - Membaca 3 sensor SHT30/SHT31 vertikal via multiplexer TCA9548A, menghitung weighted sensor fusion, mengevaluasi interlock keselamatan lokal, mengirim telemetri via REST API, dan menyinkronkan threshold serta perintah jeda panen.
+1. **Admin (Pemilik Usaha / Mitra / Product Owner):**
+   - Memegang kendali manajerial dan kebijakan bisnis: mengelola batch pengadaan baglog, alokasi spasial rak 3D (WMS), tutup siklus kamar alokasi, otorisasi pembatalan audit (*void transaction*), transaksi penjualan hasil panen, pembukuan beban operasional, analisis finansial HPP per kilogram, dan konfigurasi ambang batas iklim mikro.
+2. **Worker (Pekerja Lapangan / Operator Kumbung):**
+   - Menjalankan aktivitas fisik harian: memantau dial gauge iklim live, mencatat penimbangan hasil panen harian per slot rak dan nomor siklus (*flush*), melaporkan mutasi baglog afkir/rusak (*culls*), dan mengaktifkan mode jeda panen (*Harvest Pause Mode*) saat pintu kumbung dibuka agar misting dan kipas tidak membasahi pekerja.
+3. **Perangkat IoT (ESP32 Edge Device):**
+   - Agen cerdas fisik di kumbung: membaca 3 zona sensor SHT30/SHT31 via multiplexer TCA9548A, mengeksekusi fusi sensor tertimbang, menjalankan kendali lokal *closed-loop* mandiri (pompa misting dan exhaust fan), mengirimkan telemetri berkala via REST API, serta mematuhi sinkronisasi perintah jeda panen dari dashboard.
 
 ---
 
