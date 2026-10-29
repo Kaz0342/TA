@@ -136,7 +136,7 @@ Jam    | Suhu Min | Suhu Avg | Suhu Max | RH Avg  | Data
 | Aspek | Rekomendasi |
 |:---|:---|
 | **Interval kirim data** | 60 detik (sudah diterapkan) — optimal untuk grafik dashboard dan hemat database |
-| **Ventilasi kumbung** | Pastikan exhaust fan cukup kuat untuk kumbung 5x7x3.5m (minimal 300 CFM) |
+| **Ventilasi kumbung** | Pastikan exhaust fan cukup kuat untuk kumbung 7x5x3m (minimal 300 CFM = 510 m³/jam ≈ 3.9–4.9 ACH) |
 | **Drainase** | Pasang saluran air di lantai kumbung karena misting sering aktif saat siang |
 | **Kabel sensor** | Sensor A (atas, 2.5m) butuh kabel terpanjang — gunakan kabel min. 4m untuk antisipasi |
 | **UPS/Battery** | Pertimbangkan UPS kecil (5V) agar ESP32 tidak mati saat listrik padam |

@@ -1,7 +1,7 @@
 # Strategi Penempatan Sensor SHT30 / SHT31 (Multi-Sensor)
 **Smart Shroom SCM — Panduan Penempatan Multi-Sensor & Arsitektur Fusi**
 
-Dokumen ini menjelaskan strategi penempatan 3 sensor suhu & kelembapan presisi tinggi **SHT30 / SHT31 Probe IP68 Waterproof** di kumbung jamur kuping berukuran **5m × 7m × 3.5m** (Volume: 122.5 m³) dan alasan teknis di balik keputusan desain.
+Dokumen ini menjelaskan strategi penempatan 3 sensor suhu & kelembapan presisi tinggi **SHT30 / SHT31 Probe IP68 Waterproof** di kumbung jamur kuping berukuran **7m × 5m** (tinggi dinding 3m, atap pelana; volume nominal udara ±122.5 m³ tanpa plafon) dan alasan teknis di balik keputusan desain.
 
 ---
 
@@ -30,42 +30,38 @@ Strategi penempatan menggunakan formasi **segitiga diagonal** yang menangkap var
 suhu/kelembaban secara **vertikal (atas-bawah)** dan **horizontal (depan-belakang)** sekaligus.
 
 ```
-Denah Kumbung (Tampak Atas) — 5m x 7m
-┌──────────────────────────────────┐
-│                                  │
-│          [Sensor A]              │  ← Dekat pintu, TINGGI (2.5m)
-│           ↗ Zona paling fluktuatif
-│                                  │
-│                                  │
-│              [Sensor B]          │  ← Tengah kumbung, SEDANG (1.5m)
-│               ↗ Zona referensi utama
-│                                  │
-│                                  │
-│                     [Sensor C]   │  ← Pojok belakang, RENDAH (0.5m)
-│                      ↗ Zona paling stagnan
-│                                  │
-└──────────────────────────────────┘
-  PINTU
+Denah Kumbung (Tampak Atas) — 7m x 5m
+┌─────────────────────────────────────────────────────────────[FAN]┐ ← Dinding belakang (y=5)
+│                                                                  │
+│                                                  [Sensor C]      │ ← Pojok belakang, RENDAH (0.5m)
+│                                                   ↗ Zona stagnan │
+│                                                                  │
+│                       [Sensor B]                                 │ ← Tengah (lorong rak A-B), SEDANG (1.5m)
+│                        ↗ Zona referensi utama                    │
+│                                                                  │
+│        [Sensor A]                                                │ ← Dekat pintu masuk, TINGGI (2.5m)
+│         ↗ Zona fluktuatif                                        │
+└[PINTU]────────────[INTAKE]───────────────────────────────────────┘ ← Dinding depan (y=0)
 ```
 
 ### Detail Penempatan Per Sensor
 
 | ID | Label | Posisi Horizontal (x, y) | Ketinggian (z) | Kanal Bus I2C (TCA9548A) | Apa yang Dideteksi |
 |:---|:---|:---|:---|:---|:---|
-| **A** | Zona Atas (Dekat Pintu) | x=2.5m, y=1.5m | 2.5m | **Channel 0** (Addr `0x44` via TCA `0x70`) | Udara panas atas + gangguan dari pintu terbuka |
-| **B** | Zona Tengah (Pusat) | x=2.5m, y=3.5m | 1.5m | **Channel 1** (Addr `0x44` via TCA `0x70`) | Kondisi rata-rata, zona rak produksi utama |
-| **C** | Zona Bawah (Pojok Belakang) | x=4.4m, y=6.5m | 0.5m | **Channel 2** (Addr `0x44` via TCA `0x70`) | Udara dingin bawah + deteksi dead zone |
+| **A** | Zona Atas (Dekat Pintu) | x=1.7m, y=0.35m | 2.5m | **Channel 0** (Addr `0x44` via TCA `0x70`) | Udara panas atas + gangguan dari pintu terbuka |
+| **B** | Zona Tengah (Pusat) | x=3.9m, y=2.15m | 1.5m | **Channel 1** (Addr `0x44` via TCA `0x70`) | Kondisi rata-rata, zona rak produksi utama |
+| **C** | Zona Bawah (Pojok Belakang) | x=6.2m, y=4.6m | 0.5m | **Channel 2** (Addr `0x44` via TCA `0x70`) | Udara dingin bawah + deteksi dead zone |
 
 > *Catatan Bus I2C:* Seluruh sensor SHT30/31 memiliki alamat pabrik yang sama (`0x44`). Modul **TCA9548A I2C Multiplexer** terhubung ke ESP32 pada pin hardware I2C (**GPIO 21 = SDA, GPIO 22 = SCL**) untuk memilih kanal pembacaan sensor A, B, dan C secara bergantian.
 
 ### Jarak & Topologi Kabel
 
 Kabel sensor ditarik mengikuti dinding dan plafon (*Manhattan wiring path*) dari Box Panel di luar dinding belakang menuju tiap titik sensor:
-- **Sensor A (Atas):** Jarak kabel ±8.3 meter (ekstensi Cat5e ±7.8 m + kabel probe 0.5 m).
-- **Sensor B (Tengah):** Jarak kabel ±7.1 meter (ekstensi Cat5e ±6.6 m + kabel probe 0.5 m).
-- **Sensor C (Bawah):** Jarak kabel ±7.0 meter (ekstensi Cat5e ±6.5 m + kabel probe 0.5 m).
+- **Sensor A (Atas):** Jarak kabel ±9.6 meter (ekstensi Cat5e ±9.1 m + kabel probe 0.5 m).
+- **Sensor B (Tengah):** Jarak kabel ±6.6 meter (ekstensi Cat5e ±6.1 m + kabel probe 0.5 m).
+- **Sensor C (Bawah):** Jarak kabel ±7.2 meter (ekstensi Cat5e ±6.7 m + kabel probe 0.5 m).
 
-Karena kabel I2C mencapai 7–8 meter, firmware mengonfigurasi clock I2C ke **50 kHz** (rendah dan stabil), dipasangkan resistor *pull-up* **2.2 kΩ** per kanal pada modul TCA9548A, serta menggunakan kabel **Cat5e FTP/UTP twisted-pair** di mana pasangan SDA dan SCL masing-masing di-*twist* dengan ground (GND) untuk mengeliminasi *capacitive crosstalk*. Detail teknis lengkap ada di [`rancangan_hardware_kumbung.md`](rancangan_hardware_kumbung.md).
+Karena kabel I2C mencapai ±9.6 meter, firmware mengonfigurasi clock I2C ke **50 kHz** (rendah dan stabil), dipasangkan resistor *pull-up* **2.2 kΩ** per kanal pada modul TCA9548A, serta menggunakan kabel **Cat5e FTP/UTP twisted-pair** di mana pasangan SDA dan SCL masing-masing di-*twist* dengan ground (GND) untuk mengeliminasi *capacitive crosstalk*. Detail teknis lengkap ada di [`rancangan_hardware_kumbung.md`](rancangan_hardware_kumbung.md).
 
 ---
 
@@ -142,5 +138,5 @@ Dengan 1 sensor di bawah (28.8°C), sistem **tidak akan mendeteksi** bahwa rak a
 
 ---
 
-*Dokumen ini didasarkan pada analisis ukuran kumbung 5m × 7m × 3.5m dan spesifikasi sensor SHT30 / SHT31 Probe IP68 Waterproof.*
+*Dokumen ini didasarkan pada analisis ukuran kumbung 7m × 5m (tinggi dinding 3m) dan spesifikasi sensor SHT30 / SHT31 Probe IP68 Waterproof.*
 *Referensi Hardware & Wiring: `rancangan_hardware_kumbung.md` | Referensi Firmware: `esp32_firmware.ino` | Referensi Simulasi: `iot_simulator.py`*

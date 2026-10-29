@@ -745,7 +745,7 @@ Pola: **monolit terpisah frontend/backend**, REST JSON, logika bisnis (perhitung
 | Kabel sensor | Cat5e FTP/UTP twisted-pair (jalur dinding ±7–8 m) |
 | Tampilan | LCD I2C 16x2 (opsional, alamat 0x27) |
 
-Ruang kumbung: **5 x 7 x 3,5 m (122,5 m3)**.
+Ruang kumbung: **7 x 5 x 3 m (volume udara nominal ±122,5 m3 tanpa plafon)**.
 
 ### Pemetaan Pin & Kanal
 

@@ -12,10 +12,10 @@ Sistem IoT ini berpusat pada mikrokontroler yang terhubung ke jaringan internet 
 
 ### 1.2 Sensor Suhu & Kelembapan (3 Unit — Segitiga Diagonal)
 *   **Komponen:** 3x SHT30 / SHT31 Probe IP68 Waterproof + 1x Modul I2C Multiplexer TCA9548A
-*   **Penempatan:** Formasi Segitiga Diagonal di kumbung 5m × 7m × 3.5m:
-    *   **Sensor A** (TCA Channel 0, I2C `0x44`): Zona Atas, dekat pintu, ketinggian 2.5m — mendeteksi udara panas dan gangguan pintu (Bobot 35%).
-    *   **Sensor B** (TCA Channel 1, I2C `0x44`): Zona Tengah, pusat kumbung, ketinggian 1.5m — referensi inti rak produksi (Bobot 40%).
-    *   **Sensor C** (TCA Channel 2, I2C `0x44`): Zona Bawah, pojok belakang, ketinggian 0.5m — mendeteksi dead zone & udara dingin (Bobot 25%).
+*   **Penempatan:** Formasi Segitiga Diagonal di kumbung 7m × 5m (tinggi dinding 3m, atap pelana tanpa plafon hingga 4.38m; volume udara nominal ±122.5 m³):
+    *   **Sensor A** (TCA Channel 0, I2C `0x44`): Zona Atas, dekat pintu masuk (x=1.7m, y=0.35m, z=2.5m) — mendeteksi udara panas dan gangguan pintu (Bobot 35%).
+    *   **Sensor B** (TCA Channel 1, I2C `0x44`): Zona Tengah, lorong antara rak A & B (x=3.9m, y=2.15m, z=1.5m) — referensi inti rak produksi (Bobot 40%).
+    *   **Sensor C** (TCA Channel 2, I2C `0x44`): Zona Bawah, pojok belakang-kanan (x=6.2m, y=4.6m, z=0.5m) — mendeteksi dead zone & udara dingin (Bobot 25%).
 *   **Logika:** ESP32 membaca ketiga sensor secara sekuensial melalui seleksi kanal TCA9548A dan menghitung **Weighted Sensor Fusion**:
     $$T_{\text{avg}} = 0.35 \cdot T_A + 0.40 \cdot T_B + 0.25 \cdot T_C$$
     $$RH_{\text{avg}} = 0.35 \cdot RH_A + 0.40 \cdot RH_B + 0.25 \cdot RH_C$$

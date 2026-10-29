@@ -34,7 +34,7 @@ Berkas perancangan rekayasa perangkat lunak dan arsitektur data:
 ### 2. ⚡ [Perangkat Keras & IoT](teknis-iot/)
 Spesifikasi teknis instalasi fisik, elektronika, dan termodinamika kumbung:
 * **[hardware-shopping-list.md](teknis-iot/hardware-shopping-list.md)** — *Master Belanja Hardware IoT*: **Single Source of Truth** daftar pengadaan komponen, koreksi anggaran, integrasi item instalasi (T1–T10), dan strategi belanja bertahap 3 gelombang.
-* **[rancangan_hardware_kumbung.md](teknis-iot/rancangan_hardware_kumbung.md)** — *Rancangan Fisik As-Built*: Layout fisik kumbung 122,5 m³, denah perpipaan misting 14 nozzle, jalur kabel FTP Cat5e, dan skema daya SMPS/RCBO.
+* **[rancangan_hardware_kumbung.md](teknis-iot/rancangan_hardware_kumbung.md)** — *Rancangan Fisik As-Built*: Layout fisik kumbung 7×5m (122,5 m³ tanpa plafon), denah perpipaan misting 14 nozzle, jalur kabel FTP Cat5e, dan skema daya SMPS/RCBO.
 * **[penempatan_sensor.md](teknis-iot/penempatan_sensor.md)** — *Penempatan Sensor 3-Zona*: Formasi segitiga diagonal sensor SHT30 IP68, eliminasi bias termal vertikal (*stack effect*), dan formula *Weighted Sensor Fusion*.
 * **[EVALUASI_TERMODINAMIKA_DAN_DEADLOCK_IOT.md](teknis-iot/EVALUASI_TERMODINAMIKA_DAN_DEADLOCK_IOT.md)** — *Evaluasi Fisika Lingkungan*: Analisis termodinamika amplop kumbung, safety override Tier-2, pencegahan deadlock algoritma probe kipas siang, dan kalkulasi pertukaran udara (ACH).
 * **[PEGANGAN_TEKNIS_DAN_DEFENSE_PROYEK.md](teknis-iot/PEGANGAN_TEKNIS_DAN_DEFENSE_PROYEK.md)** — *Pedoman Teknis & Defense Proyek*: Rujukan ilmiah pendinginan pasif (bubble foil celah udara), biologi jamur kuping (*Trichoderma*, lalat jamur), dan drainase $\text{CO}_2$ gravitasi.
@@ -61,7 +61,7 @@ Panduan tampilan pengguna (*Frontend*) dan dokumentasi fitur aplikasi:
 
 ### 5. 🛡️ [Pengujian & Jaminan Mutu](riwayat-pengujian/)
 Verifikasi kualitas, pengujian otomatis, dan data telemetri empiris:
-* **[ANALISIS_SIMULATOR_DAN_AMPLOP_KUMBUNG.md](riwayat-pengujian/ANALISIS_SIMULATOR_DAN_AMPLOP_KUMBUNG.md)** — *Analisis Simulator & Amplop Kumbung*: Pemodelan komprehensif termodinamika amplop kumbung 5x7m, simulasi variasi cuaca musiman (Juli & Oktober), evaluasi bahan atap/dinding, dan bukti matematis efektivitas logika v3.6.
+* **[ANALISIS_SIMULATOR_DAN_AMPLOP_KUMBUNG.md](riwayat-pengujian/ANALISIS_SIMULATOR_DAN_AMPLOP_KUMBUNG.md)** — *Analisis Simulator & Amplop Kumbung*: Pemodelan komprehensif termodinamika amplop kumbung 7x5m, simulasi variasi cuaca musiman (Juli & Oktober), evaluasi bahan atap/dinding, dan bukti matematis efektivitas logika v3.6.
 * **[Matriks Pengujian & Verifikasi Mutu Sistem.md](riwayat-pengujian/Matriks%20Pengujian%20&%20Verifikasi%20Mutu%20Sistem.md)** — *Matriks Pengujian*: Rencana dan hasil pengujian fungsionalitas, skenario batas, dan penerimaan pengguna (UAT).
 * **[laporan_logic_hardening.md](riwayat-pengujian/laporan_logic_hardening.md)** — *Laporan Akhir Logic Hardening*: Pembuktian resolusi 16 temuan kritis (F-01 s.d. F-16) dengan 141 automated unit/feature tests green 100%.
 * **[RENCANA_PERBAIKAN_LOGIKA.md](riwayat-pengujian/RENCANA_PERBAIKAN_LOGIKA.md)** — *Dokumen Rencana Perbaikan Logika*: Analisis mendalam per temuan logika dan rencana mitigasi keamanan serta stabilitas aktuator.

@@ -380,7 +380,7 @@ Karena simulator tidak punya amplop (S-05), pertanyaan bahan dijawab dengan mode
 
 ### 5.1 Struktur
 
-- **Geometri:** 5 × 7 m, dinding 3 m, bubungan 4 m (atap pelana ±22°); V = 122,5 m³ (sama dengan angka di simulator), A_atap = 37,7 m², A_dinding = 77 m².
+- **Geometri:** 7 × 5 m, dinding 3 m, bubungan 4,38 m (atap pelana ±28°); V = 122,5 m³ nominal tanpa plafon, A_atap = 39,6 m², A_dinding = 72 m².
 - **Dua simpul termal:** udara (C = 1.207 × V ≈ 148 kJ/K) dan massa (baglog 3.000 × 1,2 kg × 3.100 J/kgK ≈ 11,2 MJ/K + rak/lantai/lapisan dalam dinding 3 MJ/K).
 - **Atap dan dinding:** suhu sol-air kuasi-statis (radiasi surya terserap, pelepasan gelombang panjang ke langit, film luar), konduksi lewat lapisan, lalu fluks ke udara (konveksi) dan ke massa (radiasi permukaan dalam). Foil diwakili emisivitas permukaan dalam yang rendah dan tahanan celah udara; paranet diwakili fraksi radiasi yang diblok.
 - **Ventilasi:** kebocoran dinding (ACH tetap per jenis dinding) + kipas 510 m³/jam saat ON (300 CFM, [DOC]).

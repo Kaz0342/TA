@@ -2,7 +2,7 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Proyek | Smart Shroom SCM (Kumbung Jamur Kuping 5 × 7 × 3,5 m / 122,5 m³) |
+| Proyek | Smart Shroom SCM (Kumbung Jamur Kuping 7 × 5 × 3 m / ±122,5 m³ tanpa plafon) |
 | Status Dokumen | **Single Source of Truth (As-Built & Final Audit)** |
 | Basis Firmware | `esp32_firmware/esp32_firmware.ino` (v3.6) |
 | Diverifikasi terhadap | `docs/teknis-iot/rancangan_hardware_kumbung.md`, `docs/arsitektur/iot-architecture.md`, dan audit belanja final |
@@ -46,7 +46,7 @@
 | T5 | Proteksi Utama | **RCBO 1P+N 30 mA (Arus Pengenal 4–6 A)** | Proteksi Arus Lebih + Kebocoran Arus Bumi (ELCB) | 1 Unit | Rp 180.000 | **Sangat Disarankan (Pengganti MCB 2A).** Melindungi pekerja dari sengatan listrik fatal di kumbung lembap RH 90% dan mencegah jeglek akibat arus inrush SMPS. |
 | 15 | Jaringan | **Wi-Fi Range Extender 300 Mbps** | Colokan PLN, Frekuensi 2.4 GHz | 1 Unit | Rp 140.000 | **Opsional (Tunda Beli).** Ukur RSSI Wi-Fi di titik box panel terlebih dahulu; beli hanya jika sinyal di bawah -75 dBm. |
 | **E** | **PERINTILAN KABEL & KONEKTOR ELEKTRONIK** | | | | | |
-| 16 | Kabel Sinyal | **Kabel FTP Cat5e Twisted-Pair (Shielded)** | 4-Pair AWG24 Tembaga Murni (Foil + Drain Wire) | 25 Meter | Rp 100.000 | Jalur data I2C 3 sensor SHT30. Wajib FTP berpelindung aluminium foil untuk meredam noise I2C jarak 8 meter. |
+| 16 | Kabel Sinyal | **Kabel FTP Cat5e Twisted-Pair (Shielded)** | 4-Pair AWG24 Tembaga Murni (Foil + Drain Wire) | 25 Meter | Rp 100.000 | Jalur data I2C 3 sensor SHT30. Kebutuhan 21,83 m (beli 25 m sisa 3,17 m, atau 30 m sisa 8,17 m lebih aman). Wajib FTP berpelindung aluminium foil untuk meredam noise I2C jarak sampai 9,6 meter. |
 | 17 | Kabel Jumper | **Kabel Jumper Dupont Female-to-Female (20 cm)** | 1 Ribbon (Isi 40 Pin) | 1 Set | Rp 15.000 | Menghubungkan TCA9548A, LCD, dan modul kendali. Ujung terminal sekrup diberi ferrule. |
 | 18 | Kabel Jumper | **Kabel Jumper Dupont Male-to-Female (20 cm)** | 1 Ribbon (Isi 40 Pin) | 1 Set | Rp 15.000 | **Boleh dilewati (Hemat Rp 15.000)** karena shield memakai terminal sekrup. |
 | 19 | Kabel Daya DC | **Kabel Serabut 2 × 1.5 mm² (Merah-Hitam)** | Tembaga lentur untuk beban arus 12V DC | 6 Meter | Rp 50.000 | Jalur daya 12V dari SMPS/Relay ke Pompa Diafragma dan Solenoid Valve. |
@@ -60,7 +60,7 @@
 | 24 | Adaptor Solenoid | **Fitting Adaptor Drat Luar 1/2" Male ke Quick 6mm** | Kuningan / Pneumatic Drat 1/2" to 6mm Tube | 2 Pcs | Rp 30.000 | Menyambungkan selang PU 6mm ke inlet dan outlet solenoid valve 1/2". |
 | 25 | Adaptor Pompa | **Fitting Nepel Pompa Diafragma ke Quick 6mm** | Ulir drat outlet pompa (18mm / 1/2") to 6mm Tube | 2 Pcs | Rp 30.000 | Menyambungkan outlet pompa diafragma ke selang PU 6mm. |
 | 26 | Selang Isap | **Selang Spiral Kawat Anyaman Transparan 1/2"** | Diameter dalam 1/2", kawat baja anti-kempot | 1.5 Meter + 4 Klem | Rp 35.000 | Jalur hisap air dari Tandon → Housing Filter Sedimen → Inlet Pompa. |
-| 27 | Splitter Misting | **Fitting Tee 6mm Polos + End Plug 6mm** | Quick Fitting Slip-Lock 6mm | 1 Pcs Tee + 2 Pcs Plug | Rp 15.000 | Tee untuk memecah 1 jalur induk jadi 2 baris rak; Plug untuk menutup ujung baris. |
+| 27 | Splitter Misting | **Fitting Tee 6mm Polos + End Plug 6mm** | Quick Fitting Slip-Lock 6mm | 3 Pcs Tee + 4 Pcs Plug + 1 Pcs Siku | Rp 35.000 | Fitting Tee polos untuk trunk & cabang 2 baris tengah (x 3,1 m); Plug untuk 4 ujung baris; Siku untuk belokan trunk. |
 | 28 | Sealtape | **Seal Tape Kran Putih (Teflon Tape)** | Tebal rapat, panjang 10 meter | 2 Gulung | Rp 5.000 | Melapisi drat pompa, filter, dan solenoid agar 100% anti-rembes di tekanan 130 PSI. |
 | 29 | Klip Gantung | **Klip Klem Selang 6mm / Cable Clamp R-Type** | Klem paku/sekrup selang PU ke bambu/kayu | 40 Pcs | Rp 20.000 | Menjaga selang PU tetap lurus dan tidak melendut di ketinggian 3 meter. |
 | **G** | **KOMPONEN PROTEKSI ELEKTRONIK & COMMISSIONING** | | | | | |

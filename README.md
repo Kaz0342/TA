@@ -99,7 +99,7 @@
  ┃ ┣ 📁 ui-ux          # Dashboard Documentation, Frontend Sage Green Guidelines
  ┃ ┣ 📁 riwayat-pengujian # Matriks Pengujian 198 Tes Lolos, Rekam Jejak Hardening, Telemetri Empiris
  ┃ ┗ 📁 manual         # Buku Manual Pengguna (Markdown & HTML Siap Cetak A4)
- ┣ 📜 iot_simulator.py # Python IoT Simulator v3.6 (Termodinamika Kumbung 122.5 m³)
+ ┣ 📜 iot_simulator.py # Python IoT Simulator v3.6 (Kumbung 7x5m / 122.5 m³)
  ┣ 📜 DESIGN.md        # Master Design System Specification & Token Manifest
  ┗ 📜 README.md        # Ringkasan Proyek & Panduan Memulai
 ```

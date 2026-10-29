@@ -1,11 +1,11 @@
 # Rancangan Hardware Kumbung — ESP32 → Misting & Exhaust Fan
 **Smart Shroom SCM — Spesifikasi Fisik & As-Built Hardware**
 
-Dokumen ini adalah **rancangan fisik (as-built plan)** untuk kumbung **5 m × 7 m × 3,5 m (122,5 m³)**
+Dokumen ini adalah **rancangan fisik (as-built plan)** untuk kumbung **7 m × 5 m (tinggi dinding 3 m, atap pelana; volume nominal udara ±122,5 m³ tanpa plafon, 105 m³ bila berplafon)**
 dengan BoM terbaru (3× SHT30 I2C + TCA9548A). Daftar belanja ada di `docs/teknis-iot/hardware-shopping-list.md`.
 Logika kendali tetap mengacu `docs/logika-bisnis/logika_aktuator.md` (firmware v3.6).
 
-> **Status asumsi.** Semua koordinat di bawah adalah **asumsi desain** (posisi pintu, box, fan, tandon).
+> **Status asumsi & acuan gambar.** Tata letak mengikuti sketsa 25-10-2026; acuan koordinat adalah gambar kerja G-01 … G-05.
 > Kalau kondisi lapangan beda, hitung ulang tabel di bagian 3 & 4 dengan rumus yang sama.
 > Harga & angka debit adalah **perkiraan**; verifikasi di lapangan (lihat bagian 8).
 
@@ -13,48 +13,67 @@ Logika kendali tetap mengacu `docs/logika-bisnis/logika_aktuator.md` (firmware v
 
 ## 1. Asumsi Geometri
 
-Sistem koordinat: **x** = lebar (0–5 m), **y** = panjang dari pintu (0–7 m), **z** = tinggi (0–3,5 m).
+Sistem koordinat: **x** = panjang (0–7 m), **y** = lebar dari dinding pintu (0–5 m), **z** = tinggi dari lantai (0–3 m dinding; puncak atap 4,38 m). Titik 0,0,0 = sudut kiri-depan bagian dalam.
 
-| Elemen | Posisi (asumsi) | Alasan |
+| Elemen | Posisi (as-built) | Alasan |
 |:---|:---|:---|
-| Pintu | Dinding depan (y = 0) | Sesuai `penempatan_sensor.md` |
-| Exhaust fan | Dinding belakang (y = 7), x = 2,5, z ≈ 2,8 | Udara panas naik; tarik udara menyapu seluruh lorong |
-| Lubang udara masuk (intake) + kasa | Dinding depan, rendah (z ≈ 0,4) | Aliran silang depan→belakang; kasa anti-serangga |
-| Box panel IP65 | **Luar** dinding belakang, x ≈ 0,8, z ≈ 1,5 | Jarak kabel sensor terpendek & kabel fan pendek |
-| Pompa + solenoid + filter | Luar dinding belakang, di samping box | Selang tekanan tinggi & kabel 12V pendek |
-| Tandon air | Luar, di sisi pompa, lebih tinggi/sejajar pompa | Suction pompa maks ±1–2 m |
-| Jalur misting | 2 baris di z ≈ 3,0 m, x = 1,25 dan x = 3,75 | Membagi lebar 5 m menjadi 2 × 2,5 m |
+| Pintu | Dinding depan (y = 0), x 0,10–1,20 m, tinggi 2,1 m | Sketsa 25-10-2026: pintu di dinding panjang; sejajar ruang putar gerobak di ujung rak kiri |
+| Exhaust fan | Dinding belakang (y = 5), x = 6,5 m, z = 2,6 m (bukaan 0,34 × 0,34 m) | Berseberangan diagonal dengan pintu; udara menyapu seluruh ruang |
+| Lubang udara masuk (intake) + kasa | Dinding depan, x 2,5–3,3 m, z 0,15–0,45 m (0,24 m²) | Aliran silang depan→belakang; kasa anti-serangga |
+| Box panel IP65 | Luar dinding belakang, x = 4,0 m (pusat), z 1,3–1,8 m | Titik tengah rute kabel sensor dan fan |
+| Filter, pompa, solenoid | Luar dinding belakang: filter x 2,05–2,30 · pompa x 2,9 (garis hisap z 0,62) · solenoid x 3,1, y 5,4, z 1,40 | Hisap pendek (0,80 m), solenoid sebelum tembus dinding |
+| Tandon air | Luar, pusat (x 1,6; y 5,85), Ø 0,60 × 0,95 m, alas z 0,5 m | Lebih tinggi dari pompa (isap tergenang) |
+| Jalur misting | 2 baris sepanjang x di y = 1,8 dan 3,2 m (lorong antar rak); pipa baris z 2,70; ujung nozel z 2,62; trunk z 2,74 masuk dinding di x 3,1 m; 7 nozel per baris di x = 1,1; 1,9; 2,7; 3,5; 4,3; 5,1; 5,9 m | Lorong tengah dilayani dari dua sisi rak |
+| Rak A, B, C | y = 0,8–1,4 · 2,2–2,8 · 3,6–4,2; x = 1,0–6,0; 10 bay × 10 tingkat; jarak tingkat 0,24 m | 3 blok rak sejajar sumbu panjang 7 m |
+| Plafon | z = 3,0 m, **tidak dibangun** (rongga atap menyatu dengan ruang) | Volume udara total ±122,5–130 m³ |
 
 ### Denah (tampak atas, skala kasar)
 
 ```
- LUAR  [Tandon]─[Filter]─[Pompa]─[Solenoid]   [BOX PANEL]
- ═════╪═══════════════════════════╪═══════════════[ FAN z=2.8 ]══  ← dinding belakang y=7
-      │ trunk PU masuk dinding    │                  ▲ buang udara
-      │      ┌────────────┬───────┘                  │
-      │      │ Tee 6mm    │                          │
-      │   x=1.25       x=3.75     (jalur misting z=3.0, 7 nozzle/baris)
-      │      ●  y=6.2     ●                    [C] 4.5,6.5,z0.5
-      │      ●  y=5.3     ●
-      │      ●  y=4.4     ●
-      │      ●  y=3.5     ●      [B] 2.5,3.5,z1.5
-      │      ●  y=2.6     ●
-      │      ●  y=1.7     ●      [A] 2.5,1.5,z2.5
-      │      ●  y=0.8     ●
- ═════╧════[ INTAKE rendah + kasa ]═══[ PINTU ]═══════════════  ← dinding depan y=0
+               ╭──────╮
+               │TANDON│
+               ╰──────╯
+                       FLT────PMP S
+                                  ║      [BOX]
+   ###############################║###############################FFFFF###  ← dinding belakang y=5
+   #                              ║                                      #
+   #                              ║                              C       #  ← fan buang udara
+   #                              ║                                      #
+   #                              ║                                      #
+   #         ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒║▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒         #
+   #         ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒║RAK C▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒         #
+   #         ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒║▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒         #
+   #                              ║                                      #
+   #         ─●───────●───────●───╬───●───────●───────●───────●─         #  (baris nozel 2, y=3.2)
+   #                              ║                                      #
+   #                              ║                                      #
+   #         ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒║▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒         #
+   #         ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒║RAK B▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒         #
+   #         ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒║▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒         #
+   #                              ║       B                              #
+   #         ─●───────●───────●───╩───●───────●───────●───────●─         #  (baris nozel 1, y=1.8)
+   #                                                                     #
+   #                                                                     #
+   #         ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒         #
+   #         ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒RAK A▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒         #
+   #         ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒         #
+   #                                                                     #
+   #                A                                                    #
+   #                                                                     #
+   #DDDDDDDDDDDD############vvvvvvvvv#####################################  ← dinding depan y=0
 ```
-`●` = nozzle (Tee slip-lock). 2 baris × 7 = **14 nozzle** (jarak 0,9 m, mulai y = 0,8 m).
-Cakupan ≈ 0,9 m × 2,5 m ≈ 2,25 m² per nozzle → 14 × 2,25 ≈ **31,5 m²** dari lantai 35 m².
+`●` = nozzle (Tee slip-lock). 2 baris × 7 = **14 nozzle** (jarak antar-nozel 0,8 m di tiap baris).
+Cakupan ≈ 2,0 m² per nozel (0,8 m × 2,5 m) → 14 × 2,0 = **28 m²** dari luas lantai 35 m² (80%).
 
 ---
 
 ## 2. Penempatan Sensor (SHT30 I2C ×3)
 
-| ID | Posisi (x, y, z) | Catatan pasang |
+| ID | Posisi (x · y · z) | Catatan pasang |
 |:---|:---|:---|
-| A (Atas) | 2,5 · 1,5 · 2,5 m | Tengah lorong, ≥ 1,2 m dari baris nozzle; beri pelindung percikan |
-| B (Tengah) | 2,5 · 3,5 · 1,5 m | Tengah lorong |
-| C (Bawah) | 4,4 · 6,5 · 0,5 m | Pojok belakang, ≥ 0,7 m dari baris nozzle |
+| A (Atas) | 1,7 · 0,35 · 2,5 m | Lorong depan dekat pintu; ≥ 1,2 m dari baris nozzle (1,47 m); moncong ke bawah; pelindung percikan |
+| B (Tengah) | 3,9 · 2,15 · 1,5 m | Lorong antara rak A dan B; 50 mm dari tiang rak B; 1,17 m ke garis baris nozzle (jauhkan dari lintasan gerobak) |
+| C (Bawah) | 6,2 · 4,6 · 0,5 m | Pojok belakang-kanan, di bawah kipas / zona mati; ≥ 0,7 m dari baris nozzle (2,56 m) |
 
 Aturan pasang (berlaku semua): **moncong menghadap bawah**, jauhkan dari semburan langsung nozzle,
 beri label A/B/C pada kabel, sambungan kabel disolder + selongsong bakar **berlem (dual-wall)**.
@@ -63,42 +82,43 @@ beri label A/B/C pada kabel, sambungan kabel disolder + selongsong bakar **berle
 
 ## 3. Panjang Kabel & Selang (Dihitung, Bukan Ditebak)
 
-> **Koreksi penting.** `penempatan_sensor.md` memakai jarak diagonal garis lurus (9,3 m). Kabel nyata
-> mengikuti dinding/langit-langit (jarak Manhattan), jadi **lebih panjang dari diagonal**.
+> **Koreksi as-built.** Titik masuk kabel E = (4,0 · 4,95 · 2,88) di z 2,88. Jalur menyusuri x, lalu y, lalu turun.
+> Box berada di luar dinding (x 4,0; z 1,3–1,8) naik 1,28 m ke E.
 
 ### 3.1 Kabel sensor (per kanal TCA9548A)
-Titik masuk kabel: dinding belakang (0,8 · 7 · 2,4). Rumus: `|Δx| + |Δy| + |Δz| + slack 1 m`
-(slack = drip-loop & ujung).
+Rumus: `box→E (1,28 m) + |Δx| + |Δy| + |Δz| + slack 1,0 m` (slack = drip-loop & ujung).
 
-| Sensor | Δx | Δy | Δz | + slack | Total | Kabel ekstensi (−0,5 m kabel probe) |
-|:---|---:|---:|---:|---:|---:|---:|
-| A | 1,7 | 5,5 | 0,1 | 1,0 | **8,3 m** | 7,8 m |
-| B | 1,7 | 3,5 | 0,9 | 1,0 | **7,1 m** | 6,6 m |
-| C | 3,6 | 0,5 | 1,9 | 1,0 | **7,0 m** | 6,5 m |
-| **Jumlah** | | | | | | **20,9 m → beli 25 m** |
+| Sensor | box → E | Δx | Δy | turun (Δz) | slack | **Total** | Ekstensi (−0,5 m probe) |
+|:---|---:|---:|---:|---:|---:|---:|---:|
+| A | 1,28 | 2,30 | 4,60 | 0,38 | 1,00 | **9,56 m** | 9,06 m |
+| B | 1,28 | 0,10 | 2,80 | 1,38 | 1,00 | **6,56 m** | 6,06 m |
+| C | 1,28 | 2,20 | 0,35 | 2,38 | 1,00 | **7,21 m** | 6,71 m |
+| **Jumlah** | | | | | | **23,33 m** | **21,83 m** |
 
-Kabel jenis **Cat5e FTP/UTP (twisted pair)**, bukan kabel 4-core lurus (lihat 5.3).
+Rekomendasi pembelian Cat5e FTP/UTP: beli roll **25 m cukup (sisa 3,17 m)**, atau beli **30 m lebih aman (sisa 8,17 m)** bila selisih harga kecil.
 
 ### 3.2 Kabel daya
 | Jalur | Panjang | Spesifikasi |
 |:---|---:|:---|
-| Box → pompa + solenoid (12 V) | ±3 m | 2 × 1,5 mm² serabut (pompa ±5–6 A) |
-| Box → fan (220 V AC) | ±5 m | 3 × 1,0–1,5 mm² (fase, netral, **PE**) |
+| Box → pompa + solenoid (12 V) | ±1,9 m / ±0,9 m (beli 3 m) | 2 × 1,5 mm² serabut (pompa ±5–6 A) |
+| Box → fan (220 V AC) | ±3,1 m (beli 5 m) | 3 × 1,0–1,5 mm² (fase, netral, **PE**) |
 
 Kabel 220 V dan kabel sensor **wajib beda konduit** (gangguan & keselamatan).
 
 ### 3.3 Selang PU 6 mm
 | Segmen | Panjang |
 |:---|---:|
-| Pompa → solenoid → tembus dinding → naik ke z = 3,0 | ±4,0 m |
-| Trunk melintang ke Tee splitter | ±1,5 m |
-| 2 lengan ke x = 1,25 & x = 3,75 | 2 × 1,25 = 2,5 m |
-| 2 baris sepanjang y (0,3 + 6,2) | 2 × 6,5 = 13,0 m |
-| **Subtotal** | **±21 m** |
-| Cadangan 20 % (salah potong, pemasangan) | +4 m |
-| **Beli** | **25 m** ✅ (cukup, tanpa sisa banyak) |
+| Pompa keluar → solenoid (naik/turun) | 0,91 m |
+| Atas solenoid → z trunk | 1,29 m |
+| Menuju dinding dan tembus (y 5,4 → 5,0) | 0,40 m |
+| Trunk di dalam (y 5,0 → 1,8) | 3,20 m |
+| Stub trunk → baris (2 × 40 mm) | 0,08 m |
+| Dua baris nozel (2 × 5,0 m: x 1,1 … 5,9 + 0,2) | 10,00 m |
+| **Subtotal** | **15,88 m** |
+| Cadangan 20 % (salah potong, tekukan) | +3,18 m (Total: 19,06 m) |
+| **Beli** | **25 m** ✅ (cukup, sisa ±6 m) |
 
-Pasang klip selang tiap ±0,6 m → **±40 klip** (selang PU melendut kalau tidak dijepit).
+Pasang klip selang tiap ±0,4–0,6 m → **±30–40 klip** (selang PU melendut kalau tidak dijepit).
 
 ### 3.4 Konsumsi air (perkiraan)
 Nozzle 0,3 mm @ 5–7 bar ≈ 0,07–0,10 L/menit → 14 nozzle ≈ **1,0–1,4 L/menit**.
@@ -171,9 +191,9 @@ flowchart LR
 
 | Kanal TCA | Sensor | Kabel |
 |:---|:---|:---|
-| SD0/SC0 | A (Atas) | Cat5e ±7,8 m |
-| SD1/SC1 | B (Tengah) | Cat5e ±6,6 m |
-| SD2/SC2 | C (Bawah) | Cat5e ±6,5 m |
+| SD0/SC0 | A (Atas) | Cat5e ±9,1 m |
+| SD1/SC1 | B (Tengah) | Cat5e ±6,1 m |
+| SD2/SC2 | C (Bawah) | Cat5e ±6,7 m |
 | Pull-up | **2,2 kΩ** SDA→3V3 dan SCL→3V3 **per kanal**, dipasang di sisi TCA | Modul TCA biasanya tanpa pull-up di sisi kanal |
 
 Alamat I2C: TCA = `0x70`, SHT30 = `0x44` (aman karena terpisah kanal), LCD (opsional) = `0x27` di bus utama.
@@ -239,7 +259,7 @@ Firmware v3.6 kini telah mengadopsi arsitektur **Dual-Mode** via flag `#define U
 |:---|:---|:---|
 | **Library** | `Adafruit_SHT31.h` (support SHT30 & SHT31) | `DHT.h` |
 | **Wiring Sensor** | I2C SDA (GPIO 21) & SCL (GPIO 22) via TCA9548A | GPIO 4, 15, 2 (Direct 1-Wire) |
-| **I2C Clock** | `Wire.setClock(50000);` (50 kHz untuk kabel Cat5e >7m) | N/A |
+| **I2C Clock** | `Wire.setClock(50000);` (50 kHz untuk kabel Cat5e sensor A mencapai ±9,6 m) | N/A |
 | **Kanal TCA** | CH0 (Atas 2.5m), CH1 (Tengah 1.5m), CH2 (Bawah 0.5m) | N/A |
 | **Relay Aktuator** | GPIO 26 (Pompa), GPIO 25 (Valve), GPIO 33 (Fan) | Tetap sama |
 
@@ -259,7 +279,7 @@ Bobot fusion (35/40/25), deteksi NaN, dan interlock **tidak berubah**.
 ## 7. Checklist Commissioning (urut, jangan loncat)
 
 1. **Sebelum dirakit:** setel LM2596 ke 5,0 V (multimeter). Cek polaritas SMPS 12 V.
-2. **Bench I2C:** rakit ESP32 + TCA + 3 sensor dengan **kabel panjang final** (±8 m) di meja. Tes `Wire.setClock(50000)`. Kalau sering NaN → turunkan ke 10 kHz atau lihat bagian 9.
+2. **Bench I2C:** rakit ESP32 + TCA + 3 sensor dengan **kabel panjang final** (±9,6 m sensor A) di meja. Tes `Wire.setClock(50000)`. Kalau sering NaN → turunkan ke 10 kHz atau lihat bagian 9.
 3. **Relay tanpa beban:** jumper JD-VCC sudah dilepas. Set GPIO HIGH → LED relay **harus mati**; LOW → nyala. Ulangi 20× (cek tidak bergetar).
 4. **Beban 220 V uji:** pakai lampu pijar/bohlam di CH3 dulu, **bukan** langsung fan. Pasang snubber.
 5. **12 V:** sambung solenoid, lalu pompa. Pastikan dioda terpasang searah. Fuse 10 A terpasang.
@@ -274,7 +294,7 @@ Bobot fusion (35/40/25), deteksi NaN, dan interlock **tidak berubah**.
 
 | Risiko | Dampak | Mitigasi |
 |:---|:---|:---|
-| Kabel I2C 7–8 m tidak stabil | Sensor NaN / hang | Per-kanal TCA (segmen terpisah), 50 kHz, pull-up 2,2 kΩ, twisted-pair, bench test |
+| Kabel I2C 6–9,6 m tidak stabil | Sensor NaN / hang | Per-kanal TCA (segmen terpisah), 50 kHz, pull-up 2,2 kΩ, twisted-pair, bench test |
 | Rating solenoid < tekanan pompa | Bocor/pecah | Solenoid kuningan ≥ 10 bar, atau turunkan cut-off |
 | Cartridge filter buntu | Pompa kavitasi, debit turun | Jadwal ganti, cartridge cadangan, manometer |
 | Percikan nozzle ke sensor A | Sensor basah | Moncong ke bawah, jarak ≥ 1,2 m, pelindung |

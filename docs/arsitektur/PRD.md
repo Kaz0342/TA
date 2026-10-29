@@ -35,7 +35,7 @@
 ## 2. Latar Belakang & Rumusan Masalah
 
 ### 2.1 Latar Belakang & Konteks Kemitraan Riil
-Budidaya jamur kuping (*Auricularia auricula-judae*) memerlukan pengendalian mikroklimat yang ketat (suhu optimal 24–32°C, kelembapan relatif 85–95%) serta penataan media tanam (baglog) yang sistematis. Penelitian rekayasa piranti lunak ini berpijak pada studi kasus operasional nyata pada Usaha Kumbung Jamur Kuping milik mitra eksternal (kakak penyusun) dengan spesifikasi bangunan 5m × 7m × 3.5m (volume 122.5 m³) berkapasitas 3.000 baglog yang disusun pada 3 blok rak bertingkat 10.
+Budidaya jamur kuping (*Auricularia auricula-judae*) memerlukan pengendalian mikroklimat yang ketat (suhu optimal 24–32°C, kelembapan relatif 85–95%) serta penataan media tanam (baglog) yang sistematis. Penelitian rekayasa piranti lunak ini berpijak pada studi kasus operasional nyata pada Usaha Kumbung Jamur Kuping milik mitra eksternal (kakak penyusun) dengan spesifikasi bangunan 7m × 5m (tinggi dinding 3m, atap pelana tanpa plafon; volume udara nominal ±122.5 m³) berkapasitas 3.000 baglog yang disusun pada 3 blok rak bertingkat 10.
 
 ### 2.2 Dinamika Kebutuhan Pemangku Kepentingan (Requirements Elicitation & Scope Evolution)
 Arsitektur sistem **Smart Shroom SCM** berevolusi secara organik melalui proses *Requirements Elicitation* langsung bersama pemilik usaha (*Primary Stakeholder / Client*):

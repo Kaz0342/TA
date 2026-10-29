@@ -33,7 +33,7 @@ Telah secara sah dan resmi menjalin kemitraan dengan usaha kumbung jamur kami se
    Mahasiswa yang bersangkutan benar-benar telah melakukan observasi langsung, wawancara perumusan kebutuhan sistem, serta kolaborasi rekayasa teknologi dengan pihak kami untuk memecahkan masalah operasional nyata di kumbung jamur kuping kami.
 
 2. **Implementasi Fisik & Otomasi Iklim (IoT):**  
-   Perangkat kontroler mikroklimat cerdas berbasis ESP32, sensor suhu-kelembapan SHT31, display LCD 16×2 box panel, serta instalasi aktuator pompa misting tekanan tinggi dan exhaust fan benar-benar telah terpasang, terintegrasi, dan diuji coba pada bangunan fisik kumbung kami (*kapasitas 3.000 baglog, dimensi 5m × 7m × 3.5m*) di Salam, Magelang.
+   Perangkat kontroler mikroklimat cerdas berbasis ESP32, sensor suhu-kelembapan SHT31, display LCD 16×2 box panel, serta instalasi aktuator pompa misting tekanan tinggi dan exhaust fan benar-benar telah terpasang, terintegrasi, dan diuji coba pada bangunan fisik kumbung kami (*kapasitas 3.000 baglog, dimensi 7m × 5m × 3m dinding, atap pelana tanpa plafon*) di Salam, Magelang.
 
 3. **Penerapan Sistem Informasi (WMS & SCM):**  
    Aplikasi web dashboard *Smart Shroom SCM* telah diuji coba secara langsung oleh pihak kami (*Role: Admin*) untuk pengelolaan denah fisik rak 3D 300 slot, pencatatan mutasi afkir baglog (*culls ledger*), dan perhitungan Harga Pokok Produksi (HPP) dinamis per kilogram; serta oleh pekerja lapangan (*Role: Worker*) untuk pemantauan mikroklimat ramah mobile dan pengoperasian *Mode Jeda Panen (2 Jam)*.

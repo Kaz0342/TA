@@ -1,7 +1,7 @@
 # 🍄 PEDOMAN TEKNIS & PEGANGAN DEFENSE SISTEM
 **Sistem Otomasi Mikroklimat & Smart SCM/WMS Kumbung Jamur Kuping**
 *Lokasi Studi: Muntilan (Salam / Jumoyo, Magelang, Jawa Tengah — ±400 mdpl)*
-*Dimensi Kumbung: 5m × 7m × 3.5m (Volume: 122.5 m³, Kapasitas: 3.000 Baglog)*
+*Dimensi Kumbung: 7m × 5m (Tinggi Dinding 3m, Volume Udara Nominal: ±122.5 m³ tanpa plafon, Kapasitas: 3.000 Baglog)*
 
 ---
 
@@ -61,11 +61,11 @@ Laju kehilangan uap air tergantung tingkat kebocoran udara ruangan (*Air Changes
 
 ### B. Konsumsi Air Riil Controller & Rekomendasi Hardware
 * Simulator menggunakan nozzle kabut mikro dengan debit $\approx 0.2\text{ Liter/menit}$ per nozzle.
-* Pada instalasi nyata dengan **4–6 titik nozzle kabut (0.15–0.2mm)**:
-  * Debit total nozzle: $\sim 0.8 – 1.2\text{ Liter/menit}$.
+* Pada instalasi nyata dengan **14 titik nozzle kabut (0.3mm)**:
+  * Debit total nozzle: $\sim 1.0 – 1.4\text{ Liter/menit}$.
   * Pompa beroperasi rata-rata 30–60 menit total per hari (terbagi dalam puluhan siklus pendek 30–60 detik).
   * **Konsumsi air harian di lapangan: 30 – 70 Liter/hari.**
-* **Rekomendasi Toren:** Siapkan toren air berkapasitas **minimal 300 – 500 Liter**. Kapasitas ini cukup untuk menopang kebutuhan misting selama 5–7 hari operasional tanpa risiko pompa kering (*dry-running*).
+* **Rekomendasi Toren:** Siapkan tandon air berkapasitas **minimal 200 – 500 Liter** (idealnya 500 L). Kapasitas ini cukup untuk menopang kebutuhan misting selama 5–7 hari operasional tanpa risiko pompa kering (*dry-running*).
 
 ---
 

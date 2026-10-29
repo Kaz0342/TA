@@ -6,7 +6,7 @@
 ### 📌 INFORMASI PELAKSANAAN PENGUJIAN
 
 * **Nama Produk / Sistem:** Smart Shroom SCM (v2.0 Web Dashboard + Firmware ESP32 v3.6)
-* **Objek / Lokasi Pengujian:** Usaha Kumbung Jamur Kuping Mitra (*Kapasitas 3.000 Baglog, Dimensi 5m × 7m × 3.5m*)
+* **Objek / Lokasi Pengujian:** Usaha Kumbung Jamur Kuping Mitra (*Kapasitas 3.000 Baglog, Dimensi 7m × 5m × 3m dinding, atap pelana tanpa plafon*)
 * **Alamat Kumbung:** Dusun Kemiren, Desa Jumoyo, Kec. Salam, Kab. Magelang, Jawa Tengah (±400 mdpl)
 * **Hari / Tanggal Pengujian:** ............................................................
 * **Waktu Pengujian:** ..................... s/d ..................... WIB
