@@ -188,3 +188,14 @@ Berdasarkan pengujian simulasi fisik stokastik (`sim_harness.py`) dan pengujian 
 2. **Kestabilan Termodinamika & Umur Hardware:** Implementasi histeresis adaptif dan deadband proporsional berhasil meredam osilasi relay hingga 92% dan menghapus 97% kegagalan timeout misting, memperpanjang estimasi umur pakai aktuator mekanik kumbung.
 3. **Integritas Finansial, Spasial, & Keamanan Cloud:** Sistem menjamin presisi moneter dengan `DECIMAL(10,2)` dan `bcmul()`, mencegah tabrakan batch di grid WMS 3D, serta mengamankan hak akses administrasi dan persistensi state kendali pada infrastruktur serverless.
 
+
+
+
+### Verifikasi Firmware v3.6.1-HARDENED (Edge & Actuator Safety)
+
+| ID Uji | Skenario Pengujian | Prosedur Uji | Ekspektasi Hasil | Status |
+|:---|:---|:---|:---|:---:|
+| **TC-IOT-FS01** | Total Sensor Disconnect Fail-Safe | Cabut kabel I2C / simulasikan 3 sensor NaN saat Fan Override aktif | Pompa & Solenoid OFF, Kipas Exhaust OFF seketika, flag `isCriticalOverride` di-reset, LCD menampilkan `ALL SENSOR ERR!` | **PASS** |
+| **TC-IOT-TLS01** | Non-blocking TLS saat Misting Aktif | Simulasikan misting ON dan putuskan gateway cloud | Panggilan HTTP ditangguhkan (`!isMistingActive`), timing misting 30s/90s presisi tanpa lag, TWDT FreeRTOS stabil | **PASS** |
+| **TC-IOT-MEM01** | Heap Fragmentation & Memory Stability | Pengujian operasional continuous cycling dengan pembentukan pesan log | Alokasi heap stabil tanpa churn berulang berkat migrasi C-string `snprintf` dan `client.setBufferSizes(1024, 512)` | **PASS** |
+| **TC-IOT-NTP01** | NTP Offline Safe Fallback | Boot ESP32 tanpa akses internet NTP saat RH > 88% | `currentHour == -1`, misting ditahan demi kehati-hatian mencegah over-wetting malam hari | **PASS** |

@@ -138,10 +138,12 @@ ESP32 melakukan polling cepat ke endpoint `GET /api/device/command` setiap **8 d
    Loop utama ESP32 tidak lagi tertahan (*freeze*) saat WiFi terputus. Jika sambungan putus, ESP32 mencoba reconnect tiap 15 detik secara asinkron tanpa menahan eksekusi logika kontrol suhu, kelembaban, dan watchdog.
 2. **Antrean Log RAM Circular Buffer (F-08):**
    Log aktuator disimpan ke antrean RAM 10 slot (`PendingLog logQ[10]`) saat offline dan dikirim secara bertahap (1 log per 3 detik) begitu internet pulih.
-3. **Penyaringan Data Sensor Basi (F-08):**
-   Data telemetri hanya dikirim ke server jika sensor berhasil dibaca dalam 15 detik terakhir (`lastValidReadMs < 15000`). Jika semua sensor mati, misting dimatikan demi biosekuriti.
-4. **Penanganan Jam NTP Dinamis (F-09):**
-   Fungsi `getCurrentHourWIB()` mengembalikan nilai `-1` jika jam NTP belum sinkron, dan aturan malam hanya aktif jika jam valid (`isNightHour(h)`).
+3. **Penyaringan Data Sensor Basi & Total Fail-Safe Shutoff (F-08 / Hardened):**
+   Data telemetri hanya dikirim ke server jika sensor berhasil dibaca dalam 15 detik terakhir (`lastValidReadMs < 15000`). Jika seluruh sensor mati/terputus (`totalWeight <= 0.0`), sistem seketika mematikan pompa misting, menutup solenoid valve, mematikan exhaust fan, membatalkan flag `isCriticalOverride = false`, dan memaksa pin relay hardware ke status `RELAY_OFF` (Active-LOW `HIGH`) untuk mencegah *runaway fan* yang menguras kelembaban baglog jamur kuping.
+4. **Penanganan Jam NTP Dinamis & Offline Fallback (F-09 / Hardened):**
+   Fungsi `getCurrentHourWIB()` mengembalikan nilai `-1` jika jam NTP belum sinkron, dan aturan malam hanya aktif jika jam valid (`isNightHour(h)`). Sebagai proteksi ekstra, jika `h == -1` (NTP offline) dan kelembaban rata-rata tinggi (`RH >= 88%`), misting ditahan demi kehati-hatian (*conservative hold*) untuk mencegah risiko pembusukan spora di malam hari.
+5. **Non-blocking TLS & Memory Hardening:**
+   Pemanggilan HTTP cloud ditangguhkan selama misting aktif (`!isMistingActive`), timeout dipangkas ke 2000 ms untuk mencegah *Task Watchdog Timer (TWDT) panic*, dan seluruh alokasi memori menggunakan fixed C-string buffer (`snprintf`) untuk mencegah fragmentasi heap jangka panjang.
 5. **Precharge Relay Safe Latch (F-15d):**
    Semua pin kontrol relay di-set `digitalWrite(pin, RELAY_OFF)` **sebelum** `pinMode(pin, OUTPUT)` pada inisialisasi boot untuk mencegah letupan sinyal (*relay glitch pulse*) saat mikrokontroler pertama kali dinyalakan.
 

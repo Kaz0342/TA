@@ -258,7 +258,7 @@ Firmware v3.6 kini telah mengadopsi arsitektur **Dual-Mode** via flag `#define U
 | Item | Implementasi As-Built (SHT30) | Fallback Wokwi (DHT22) |
 |:---|:---|:---|
 | **Library** | `Adafruit_SHT31.h` (support SHT30 & SHT31) | `DHT.h` |
-| **Wiring Sensor** | I2C SDA (GPIO 21) & SCL (GPIO 22) via TCA9548A | GPIO 4, 15, 2 (Direct 1-Wire) |
+| **Wiring Sensor** | I2C SDA (GPIO 21) & SCL (GPIO 22) via TCA9548A | GPIO 4, 16, 17 (Direct 1-Wire non-strapping pins) |
 | **I2C Clock** | `Wire.setClock(50000);` (50 kHz untuk kabel Cat5e sensor A mencapai ±9,6 m) | N/A |
 | **Kanal TCA** | CH0 (Atas 2.5m), CH1 (Tengah 1.5m), CH2 (Bawah 0.5m) | N/A |
 | **Relay Aktuator** | GPIO 26 (Pompa), GPIO 25 (Valve), GPIO 33 (Fan) | Tetap sama |
@@ -273,6 +273,13 @@ void tcaSelect(uint8_t ch) {
 // Contoh: tcaSelect(0); sht.begin(0x44); float t = sht.readTemperature();
 ```
 Bobot fusion (35/40/25), deteksi NaN, dan interlock **tidak berubah**.
+
+### Fitur Tambahan Firmware v3.6.1-HARDENED:
+1. **Total Fail-Safe Actuator Shutoff:** Saat seluruh sensor I2C/DHT mengalami galat (NaN / `totalWeight <= 0.0`), sistem secara otomatis mematikan pompa misting, menutup solenoid valve, dan mematikan exhaust fan (termasuk membatalkan status `isCriticalOverride`), serta memaksa sinyal pin relay hardware ke Active-LOW `HIGH` (OFF) untuk mencegah *runaway exhaust fan* menguras kelembaban baglog.
+2. **Non-blocking TLS & Watchdog Guard:** Semua pemanggilan cloud (threshold, command, telemetri, log) ditahan saat misting aktif (`!isMistingActive`), timeout HTTP dipangkas ke 2000 ms guna melindungi kestabilan FreeRTOS Task Watchdog Timer (TWDT).
+3. **Memory Safety & MbedTLS Buffer:** Migrasi seluruh formatting pesan dari class `String` ke C-string buffer statis (`snprintf`) dan pembatasan buffer SSL (`client.setBufferSizes(1024, 512)`) guna mengeliminasi fragmentasi heap.
+4. **Conservative NTP Offline Fallback:** Tahan misting jika jam NTP offline (`currentHour < 0`) dan kelembaban `RH >= 88%` guna mencegah pembusukan jamur akibat semprotan malam hari.
+5. **Exponential Backoff Log Queue:** Pengiriman antrian log aktivasi menerapkan *exponential backoff* (3s, 6s, 12s, s.d. 60s) saat server backend cloud tidak dapat dihubungi.
 
 ---
 

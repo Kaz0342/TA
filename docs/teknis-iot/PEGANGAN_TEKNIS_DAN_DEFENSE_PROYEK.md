@@ -106,6 +106,19 @@ Laju kehilangan uap air tergantung tingkat kebocoran udara ruangan (*Air Changes
   * Casing sinter logam SHT30 memang tahan debu/cipratan, tetapi jika terkena semprotan langsung butiran air nozzle, membran filternya akan tertutup air dan sensor akan membaca $99.9\%\text{ RH}$ secara konstan selama 1–2 jam sampai kering.
   * Solusi pemasangan: setiap sensor dilengkapi pelindung payung mini (*radiation/droplet shield*) agar terlindung dari semprotan vertikal langsung namun tetap mendapatkan sirkulasi udara horizontal secara presisi.
 
+### Q6: "Bagaimana sistem menjamin ESP32 tidak freeze atau watchdog panic saat koneksi internet kumbung putus?"
+* **Jawaban:**
+  * **Non-blocking TLS Interlock:** Saat misting aktif, semua pemanggilan HTTP/TLS cloud ditahan (`!isMistingActive`), sehingga loop mikrokontroler tidak pernah terhambat latensi jaringan saat mengevaluasi cutoff darurat 90s/30s.
+  * **Timeout Agresif (2000 ms):** Timeout HTTP dipangkas menjadi 2 detik (jauh di bawah batas default FreeRTOS Task Watchdog Timer ~5 detik), mencegah crash reboot `TWDT Panic`.
+  * **SSL Heap Optimization:** Buffer MbedTLS dibatasi dengan `client.setBufferSizes(1024, 512)` menghemat ~30 KB heap per koneksi, dipadukan alokasi statis C-string buffer (`snprintf`) yang mengeliminasi fragmentasi heap class `String`.
+  * **Exponential Backoff:** Pengiriman antrian log aktuator mundur secara eksponensial (3s, 6s, 12s, hingga 60s) saat server cloud tidak dapat dihubungi.
+
+### Q7: "Bagaimana jika kabel sensor I2C putus mendadak saat kumbung sedang panas dan exhaust fan menyala (Safety Override)?"
+* **Jawaban:** Firmware v3.6.1-HARDENED menerapkan **Total Fail-Safe Actuator Shutoff**. Begitu pembacaan ketiga sensor bernilai NaN (`totalWeight <= 0`), sistem seketika mematikan pompa, menutup solenoid, mematikan exhaust fan, me-reset flag `isCriticalOverride = false`, dan memaksa pin relay hardware ke posisi non-aktif (Active-LOW `HIGH`). Hal ini mencegah *runaway exhaust fan* 220V yang dapat menguras habis kelembaban kumbung hingga baglog mati dehidrasi dan motor fan terbakar.
+
+### Q8: "Bagaimana jika jam NTP gagal sinkron akibat router kebun mati?"
+* **Jawaban:** Firmware menerapkan **Conservative Offline Fallback**. Jika jam NTP belum sinkron (`currentHour < 0`) dan kelembaban rata-rata tinggi ($RH \ge 88\%$), misting otomatis ditahan demi kehati-hatian guna mencegah pembusukan basah (*bacterial blotch*) akibat misting liar di malam hari.
+
 ---
 
 ## 4. BUKTI EMPIRIS: LOG AKTUATOR DATABASE (`sprinkler_logs`)
