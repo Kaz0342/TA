@@ -2,12 +2,12 @@
 Smart Shroom IoT Simulator v3.6 — Multi-Sensor (3x SHT30/SHT31 IP68)
 =====================================================================
 Script ini mensimulasikan perilaku 3 sensor SHT30/SHT31 IP68 (TCA9548A) + aktuator (Misting & Fan)
-di kumbung jamur kuping (Auricularia auricula-judae) berukuran 5m x 7m x 3.5m.
+di kumbung jamur kuping (Auricularia auricula-judae) berukuran 7m x 5m, tinggi dinding 3m (volume udara ±122.5 m³ tanpa plafon).
 
 Penempatan sensor: Segitiga Diagonal
-  Sensor A: Zona Atas (dekat pintu, 2.5m) — paling panas & kering
-  Sensor B: Zona Tengah (pusat kumbung, 1.5m) — zona referensi
-  Sensor C: Zona Bawah (pojok belakang, 0.5m) — paling dingin & lembab
+  Sensor A: Zona Atas (dekat pintu masuk x=1.7 y=0.35, 2.5m) — paling panas & kering
+  Sensor B: Zona Tengah (lorong antara rak A & B x=3.9 y=2.15, 1.5m) — zona referensi
+  Sensor C: Zona Bawah (pojok belakang-kanan x=6.2 y=4.6, 0.5m) — paling dingin & lembab
 
 Prinsip simulasi:
 1. Tiap sensor punya offset suhu/kelembaban sesuai zona fisiknya
