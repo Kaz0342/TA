@@ -5,7 +5,7 @@
  * 
  * Firmware ESP32 untuk monitoring & kontrol otomatis 
  * mikroklimat kumbung budidaya JAMUR KUPING (Auricularia auricula-judae).
- * Kumbung: 5m x 7m x 3.5m (Volume: 122.5 m³)
+ * Kumbung: 7m x 5m, tinggi dinding 3m (Volume udara ±122.5 m³ tanpa plafon)
  * 
  * FITUR UTAMA:
  * [IoT]       WiFi + HTTP POST data sensor ke Laravel API
@@ -31,8 +31,8 @@
  * 
  * PIN ASSIGNMENT (Legacy / Simulasi Wokwi — 3x DHT22):
  *   GPIO 4   → DHT22-A (Zona Atas, 2.5m)
- *   GPIO 15  → DHT22-B (Zona Tengah, 1.5m)
- *   GPIO 2   → DHT22-C (Zona Bawah, 0.5m)
+ *   GPIO 16  → DHT22-B (Zona Tengah, 1.5m - Non-strapping pin)
+ *   GPIO 17  → DHT22-C (Zona Bawah, 0.5m - Non-strapping pin)
  * 
  * API CONTRACT (Laravel Backend):
  *   POST /api/sensor-data      → { device_id, temperature, humidity, co2_level }
@@ -42,7 +42,7 @@
  * @see docs/teknis-iot/rancangan_hardware_kumbung.md untuk detail skema wiring
  * @see docs/teknis-iot/penempatan_sensor.md untuk detail strategi penempatan
  * @see iot_simulator.py untuk verifikasi model termodinamika
- * @version 3.6.0 (SHT30 TCA9548A Support + Weighted Fusion + Dual Cooldown)
+ * @version 3.6.1-HARDENED (Memory Safe C-String + Fail-Safe All Actuators + Non-blocking TLS Guard)
  */
 
 #include <WiFi.h>
@@ -72,9 +72,10 @@
   }
 #else
   #include "DHT.h"
+  // Gunakan GPIO non-strapping aman (hindari GPIO 2 & 15 agar tidak mengganggu boot SPI/UART)
   const int PIN_DHT_A = 4;   // GPIO 4  → DHT22-A
-  const int PIN_DHT_B = 15;  // GPIO 15 → DHT22-B
-  const int PIN_DHT_C = 2;   // GPIO 2  → DHT22-C
+  const int PIN_DHT_B = 16;  // GPIO 16 → DHT22-B (Ganti dari GPIO 15)
+  const int PIN_DHT_C = 17;  // GPIO 17 → DHT22-C (Ganti dari GPIO 2)
   DHT dhtA(PIN_DHT_A, DHT22);
   DHT dhtB(PIN_DHT_B, DHT22);
   DHT dhtC(PIN_DHT_C, DHT22);
@@ -186,7 +187,7 @@ bool isCriticalOverride = false; // Flag apakah fan sedang running mode Safety O
 bool isPausedMode               = false;   // Mode jeda manual (Panen / pintu terbuka)
 unsigned long pauseStartTime    = 0;
 unsigned long pauseDurationMs   = 0;       // Durasi jeda dalam milidetik (non-blocking millis)
-String pauseReason              = "Mode Panen";
+char pauseReason[64]            = "Mode Panen";
 
 unsigned long mistingStartTime           = 0;
 unsigned long mistingLastStopTime        = 0;
@@ -210,8 +211,8 @@ inline bool isFanUseful(unsigned long now) {
   return true;
 }
 
-String mistingTriggerReason = "";
-String fanTriggerReason     = "";
+char mistingTriggerReason[96] = "";
+char fanTriggerReason[96]     = "";
 
 // Cache pembacaan sensor terakhir
 float lastTemp       = 27.5;
@@ -236,7 +237,7 @@ PendingLog logQ[LOGQ_N];
 uint8_t qHead  = 0;
 uint8_t qCount = 0;
 
-void enqueueLog(unsigned long dur, const String& trig, const String& stop, const char* act) {
+void enqueueLog(unsigned long dur, const char* trig, const char* stop, const char* act) {
   if (qCount == LOGQ_N) {
     qHead = (qHead + 1) % LOGQ_N; // Jika antrian penuh, geser head & buang yang tertua
     qCount--;
@@ -245,21 +246,33 @@ void enqueueLog(unsigned long dur, const String& trig, const String& stop, const
   time_t nowT = time(nullptr);
   e.dur = dur;
   e.startEpoch = (nowT > 1600000000) ? (nowT - dur) : 0; // 0 jika jam belum tersinkronisasi NTP
-  strlcpy(e.act, act, sizeof(e.act));
-  strlcpy(e.trig, trig.c_str(), sizeof(e.trig));
-  strlcpy(e.stop, stop.c_str(), sizeof(e.stop));
+  strlcpy(e.act, act ? act : "", sizeof(e.act));
+  strlcpy(e.trig, trig ? trig : "", sizeof(e.trig));
+  strlcpy(e.stop, stop ? stop : "", sizeof(e.stop));
   qCount++;
+}
+
+inline void enqueueLog(unsigned long dur, const String& trig, const String& stop, const char* act) {
+  enqueueLog(dur, trig.c_str(), stop.c_str(), act);
 }
 
 // ============================================================
 // FORWARD DECLARATIONS & TIME HELPER
 // ============================================================
-void startMisting(String reason, bool isPulse);
-void stopMisting(String stopReason);
-void startFan(String reason, bool homogenize, bool nightMode, bool criticalOverride = false);
-void stopFan(String stopReason);
-void startPauseMode(unsigned long durationSec, String reason = "Mode Panen");
-void endPauseMode(String reason);
+void startMisting(const char* reason, bool isPulse);
+void stopMisting(const char* stopReason);
+void startFan(const char* reason, bool homogenize, bool nightMode, bool criticalOverride = false);
+void stopFan(const char* stopReason);
+void startPauseMode(unsigned long durationSec, const char* reason = "Mode Panen");
+void endPauseMode(const char* reason);
+
+// Inline backward-compatibility wrappers
+inline void startMisting(const String& reason, bool isPulse) { startMisting(reason.c_str(), isPulse); }
+inline void stopMisting(const String& stopReason) { stopMisting(stopReason.c_str()); }
+inline void startFan(const String& reason, bool homogenize, bool nightMode, bool criticalOverride = false) { startFan(reason.c_str(), homogenize, nightMode, criticalOverride); }
+inline void stopFan(const String& stopReason) { stopFan(stopReason.c_str()); }
+inline void startPauseMode(unsigned long durationSec, const String& reason) { startPauseMode(durationSec, reason.c_str()); }
+inline void endPauseMode(const String& reason) { endPauseMode(reason.c_str()); }
 void controlMisting(float temp, float hum, float minHum);
 void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum);
 void updateLCD(float temp, float hum, bool misting, bool fan);
@@ -496,10 +509,18 @@ void loop() {
       controlFan(lastTemp, maxSensorTemp, humDisparity, lastHum);
       updateLCD(lastTemp, lastHum, isMistingActive, isFanActive);
     } else {
-      Serial.println("[FATAL] SEMUA sensor mikroklimat gagal membaca! Matikan misting cegah kebanjiran.");
+      Serial.println("[FATAL] SEMUA sensor mikroklimat gagal membaca! Fail-safe shutoff SEMUA aktuator.");
       if (isMistingActive) {
         stopMisting("Safety: Semua sensor mikroklimat gagal membaca");
       }
+      if (isFanActive) {
+        stopFan("Safety: Semua sensor mikroklimat gagal membaca");
+      }
+      isCriticalOverride = false;
+      // Paksa pin relay hardware ke posisi non-aktif (Active-LOW safe: RELAY_OFF = HIGH)
+      digitalWrite(PIN_RELAY_PUMP, RELAY_OFF);
+      digitalWrite(PIN_RELAY_SOLENOID, RELAY_OFF);
+      digitalWrite(PIN_RELAY_FAN, RELAY_OFF);
       lcd.setCursor(0, 0);
       lcd.print("ALL SENSOR ERR! ");
       lcd.setCursor(0, 1);
@@ -508,7 +529,8 @@ void loop() {
   }
 
   // ── B. KIRIM DATA KE LARAVEL API (Tiap 60 Detik, Cegah Data Basi) ────────────
-  if (wifiUp() && (now - lastApiSendTime >= apiSendInterval)) {
+  // Tahan komunikasi HTTP jika misting sedang aktif agar timing pompa & safety shutoff tidak terganggu latensi TLS
+  if (wifiUp() && !isMistingActive && (now - lastApiSendTime >= apiSendInterval)) {
     lastApiSendTime = now;
     if (lastValidReadMs > 0 && (now - lastValidReadMs < 15000)) {
       sendSensorData(lastTemp, lastHum);
@@ -518,20 +540,21 @@ void loop() {
   }
 
   // ── C. FETCH THRESHOLD DARI WEB (Tiap 30 Detik) ────────────
-  if (wifiUp() && (now - lastThresholdFetch >= thresholdInterval)) {
+  if (wifiUp() && !isMistingActive && (now - lastThresholdFetch >= thresholdInterval)) {
     lastThresholdFetch = now;
     fetchThresholds();
   }
 
   // ── C2. FETCH PERINTAH CEPAT (Tiap 8 Detik, Reduksi Latensi PAUSE) ────
-  if (wifiUp() && (now - lastCommandFetch >= commandInterval)) {
+  if (wifiUp() && !isMistingActive && (now - lastCommandFetch >= commandInterval)) {
     lastCommandFetch = now;
     fetchCommand();
   }
 
-  // ── KONSUMEN ANTRIAN LOG AKTUATOR (Kirim 1 log tiap 3 detik saat online) ──
+  // ── KONSUMEN ANTRIAN LOG AKTUATOR (Kirim 1 log dengan Exponential Backoff) ──
   static unsigned long lastLogTry = 0;
-  if (wifiUp() && qCount > 0 && (now - lastLogTry >= 3000)) {
+  static unsigned long logRetryInterval = 3000;
+  if (wifiUp() && !isMistingActive && qCount > 0 && (now - lastLogTry >= logRetryInterval)) {
     lastLogTry = now;
     PendingLog& e = logQ[qHead];
     int code = postSprinklerLog(e);
@@ -539,6 +562,11 @@ void loop() {
     if (code == 201 || permanentReject) {
       qHead = (qHead + 1) % LOGQ_N;
       qCount--;
+      logRetryInterval = 3000; // Reset ke normal saat berhasil
+    } else {
+      // Galat jaringan / server down: terapkan exponential backoff hingga batas maks 60 detik
+      logRetryInterval = min(logRetryInterval * 2, 60000UL);
+      Serial.printf("[LOG] ⚠️ Server sibuk/gagal (HTTP %d). Retry diundur ke %lu ms\n", code, logRetryInterval);
     }
   }
 
@@ -559,7 +587,9 @@ void loop() {
     unsigned long elapsed = now - fanStartTime;
     if (elapsed >= FAN_HOMOGENIZE_DURATION_MS) {
       Serial.println("[HOMO] 🌀 Siklus sirkulasi homogenisasi (30s) selesai.");
-      stopFan("Homogenisasi selesai 30s (Disparitas: " + String(humDisparity, 1) + "%)");
+      char reasonBuf[96];
+      snprintf(reasonBuf, sizeof(reasonBuf), "Homogenisasi selesai 30s (Disparitas: %.1f%%)", humDisparity);
+      stopFan(reasonBuf);
     }
   }
 
@@ -569,11 +599,14 @@ void loop() {
     unsigned long elapsed = now - fanStartTime;
     bool isStillNight = isNightHour(getCurrentHourWIB());
     if (elapsed >= NIGHT_FAN_DURATION_MS || !isStillNight) {
-      String reason = (!isStillNight && elapsed < NIGHT_FAN_DURATION_MS)
-        ? "Transisi ke Pagi Hari (06:00 WIB)"
-        : "Night ventilation selesai " + String(NIGHT_FAN_DURATION_MS / 1000) + "s (RH: " + String(lastHum, 1) + "%)";
-      Serial.println("[NIGHT] 🌙 " + reason);
-      stopFan(reason);
+      char reasonBuf[96];
+      if (!isStillNight && elapsed < NIGHT_FAN_DURATION_MS) {
+        snprintf(reasonBuf, sizeof(reasonBuf), "Transisi ke Pagi Hari (06:00 WIB)");
+      } else {
+        snprintf(reasonBuf, sizeof(reasonBuf), "Night ventilation selesai %lus (RH: %.1f%%)", NIGHT_FAN_DURATION_MS / 1000, lastHum);
+      }
+      Serial.printf("[NIGHT] 🌙 %s\n", reasonBuf);
+      stopFan(reasonBuf);
     }
   }
 
@@ -597,9 +630,11 @@ void loop() {
       if (tempDrop < FAN_PROBE_MIN_TEMP_DROP) {
         fanIneffective = true;
         fanLockoutUntilMs = now + FAN_LOCKOUT_DURATION_MS; // Lockout 15 menit
-        String stopReason = "Uji probe " + String(FAN_PROBE_DURATION_MS / 1000) + "s gagal (Suhu turun " + String(tempDrop, 2) + "C < " + String(FAN_PROBE_MIN_TEMP_DROP, 1) + "C). Kipas dikunci 15 mnt";
-        Serial.println("[FAN PROBE] ⚠️ " + stopReason);
-        stopFan(stopReason);
+        char stopReasonBuf[128];
+        snprintf(stopReasonBuf, sizeof(stopReasonBuf), "Uji probe %lus gagal (Suhu turun %.2fC < %.1fC). Kipas dikunci 15 mnt",
+                 FAN_PROBE_DURATION_MS / 1000, tempDrop, FAN_PROBE_MIN_TEMP_DROP);
+        Serial.printf("[FAN PROBE] ⚠️ %s\n", stopReasonBuf);
+        stopFan(stopReasonBuf);
       } else {
         Serial.printf("[FAN PROBE] ✅ Kipas efektif mendinginkan (Suhu turun %.2f°C >= %.2f°C). Melanjutkan pendinginan.\n", tempDrop, FAN_PROBE_MIN_TEMP_DROP);
       }
@@ -629,7 +664,16 @@ void controlMisting(float temp, float hum, float minHum) {
 
   unsigned long now = millis();
   float criticalLowRh = humMin - 10.0f; // Batas darurat dehidrasi rak tunggal proporsional terhadap humMin (F-11)
-  bool isNight = isNightHour(getCurrentHourWIB());
+  int currentHour = getCurrentHourWIB();
+  bool isNight = isNightHour(currentHour);
+
+  // [Failsafe NTP Offline]: Jika jam NTP belum sinkron (currentHour == -1)
+  // dan kelembaban sudah tinggi (hum >= 88%), tahan misting demi kehati-hatian
+  // untuk mencegah over-wetting di malam hari saat koneksi internet terputus.
+  if (currentHour < 0 && hum >= 88.0f) {
+    Serial.printf("   ⏳ [HOLD NTP] Jam belum sinkron & RH tinggi (%.1f%% >= 88%%). Misting ditahan!\n", hum);
+    return;
+  }
 
   if (!isMistingActive) {
     // MUTUAL EXCLUSION (INTERLOCK):
@@ -669,8 +713,9 @@ void controlMisting(float temp, float hum, float minHum) {
         Serial.printf("   ⚠️  [HOLD] Sensor kritis (%.1f%%) TAPI rata-rata kumbung jenuh (%.1f%%). Pompa DITAHAN!\n", minHum, hum);
         return;
       }
-      String reason = "Safety Override: Sensor Terkering (" + String(minHum, 1) + "% < " + String(criticalLowRh, 1) + "%)";
-      startMisting(reason, true);  // Pulse misting 30 detik
+      char reasonBuf[96];
+      snprintf(reasonBuf, sizeof(reasonBuf), "Safety Override: Sensor Terkering (%.1f%% < %.1f%%)", minHum, criticalLowRh);
+      startMisting(reasonBuf, true);  // Pulse misting 30 detik
       return;
     }
 
@@ -683,16 +728,16 @@ void controlMisting(float temp, float hum, float minHum) {
         return;
       }
 
-      String reason = "";
+      char reasonBuf[128];
       if (hum < rhTriggerLow && temp > tempMax) {
-        reason = "RH Rendah (" + String(hum, 1) + "% < " + String(rhTriggerLow, 1) + "%) & Suhu Panas (" + String(temp, 1) + "C > " + String(tempMax, 1) + "C)";
+        snprintf(reasonBuf, sizeof(reasonBuf), "RH Rendah (%.1f%% < %.1f%%) & Suhu Panas (%.1fC > %.1fC)", hum, rhTriggerLow, temp, tempMax);
       } else if (hum < rhTriggerLow) {
-        reason = "Kelembaban Rendah (" + String(hum, 1) + "% < " + String(rhTriggerLow, 1) + "%)";
+        snprintf(reasonBuf, sizeof(reasonBuf), "Kelembaban Rendah (%.1f%% < %.1f%%)", hum, rhTriggerLow);
       } else {
-        reason = "Suhu Panas (" + String(temp, 1) + "C > " + String(tempMax, 1) + "C)";
+        snprintf(reasonBuf, sizeof(reasonBuf), "Suhu Panas (%.1fC > %.1fC)", temp, tempMax);
       }
 
-      startMisting(reason, false);  // Normal misting
+      startMisting(reasonBuf, false);  // Normal misting
     }
   } else {
     // Transisi malam: matikan misting seketika saat masuk jam malam (17:00 WIB)
@@ -705,22 +750,25 @@ void controlMisting(float temp, float hum, float minHum) {
     if (!isPulseMisting) {
       bool targetReached = (hum >= rhTriggerHigh && temp <= tempMax) || (hum >= (humMax - 1.0f));
       if (targetReached) {
-        String stopReason = (hum >= (humMax - 1.0f))
-          ? "Pagar RH tercapai (RH:" + String(hum, 1) + "% >= " + String(humMax - 1.0f, 1) + "%)"
-          : "Target tercapai (RH:" + String(hum, 1) + "% T:" + String(temp, 1) + "C)";
-        stopMisting(stopReason);
+        char stopReasonBuf[96];
+        if (hum >= (humMax - 1.0f)) {
+          snprintf(stopReasonBuf, sizeof(stopReasonBuf), "Pagar RH tercapai (RH:%.1f%% >= %.1f%%)", hum, humMax - 1.0f);
+        } else {
+          snprintf(stopReasonBuf, sizeof(stopReasonBuf), "Target tercapai (RH:%.1f%% T:%.1fC)", hum, temp);
+        }
+        stopMisting(stopReasonBuf);
       }
     }
   }
 }
 
-void startMisting(String reason, bool isPulse) {
-  mistingTriggerReason = reason;
+void startMisting(const char* reason, bool isPulse) {
+  strlcpy(mistingTriggerReason, reason ? reason : "", sizeof(mistingTriggerReason));
   isPulseMisting = isPulse;
 
   Serial.print("   💦 [MISTING ON] ");
   if (isPulse) Serial.print("[PULSE 30s] ");
-  Serial.println("Pemicu: " + reason);
+  Serial.printf("Pemicu: %s\n", mistingTriggerReason);
 
   digitalWrite(PIN_RELAY_SOLENOID, RELAY_ON);  // Buka solenoid valve air
   delay(200);                                   // Stabilisasi tekanan
@@ -730,7 +778,7 @@ void startMisting(String reason, bool isPulse) {
   mistingStartTime = millis();
 }
 
-void stopMisting(String stopReason) {
+void stopMisting(const char* stopReason) {
   digitalWrite(PIN_RELAY_PUMP, RELAY_OFF);      // Matikan pompa dulu
   delay(200);
   digitalWrite(PIN_RELAY_SOLENOID, RELAY_OFF);   // Tutup solenoid valve
@@ -740,10 +788,10 @@ void stopMisting(String stopReason) {
   isPulseMisting      = false;
   mistingLastStopTime = millis();  // Mulai masa cooldown 150 detik
 
-  Serial.printf("   🛑 [MISTING OFF] Durasi: %lu detik — %s\n", duration, stopReason.c_str());
+  Serial.printf("   🛑 [MISTING OFF] Durasi: %lu detik — %s\n", duration, stopReason ? stopReason : "");
 
   // Enqueue riwayat aktivasi ke antrian log aktuator
-  enqueueLog(duration, mistingTriggerReason, stopReason, "misting");
+  enqueueLog(duration, mistingTriggerReason, stopReason ? stopReason : "", "misting");
 }
 
 // ============================================================
@@ -785,8 +833,9 @@ void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum)
       stopMisting("Dipotong Safety Override Kipas (Suhu Kritis)");
     }
     if (!isFanActive || isHomogenizing || isNightFan) {
-      String reason = "Safety Override (Sensor Max " + String(maxTemp, 1) + "C > " + String(criticalThreshold, 1) + "C)";
-      startFan(reason, false, false, true);
+      char reasonBuf[96];
+      snprintf(reasonBuf, sizeof(reasonBuf), "Safety Override (Sensor Max %.1fC > %.1fC)", maxTemp, criticalThreshold);
+      startFan(reasonBuf, false, false, true);
       Serial.printf("   🚨 [SAFETY OVERRIDE] Fan PAKSA ON! Sensor tertinggi %.1f°C > batas kritis %.1f°C\n", 
                     maxTemp, criticalThreshold);
     }
@@ -796,7 +845,9 @@ void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum)
   // [F-10a] Histeresis stop Safety Override berlaku 24 jam (siang DAN malam)
   if (isFanActive && isCriticalOverride) {
     if (maxTemp <= (criticalThreshold - 1.0) && avgTemp <= tempMax) {
-      stopFan("Suhu kritis teratasi (Max " + String(maxTemp, 1) + "C <= " + String(criticalThreshold - 1.0, 1) + "C)");
+      char stopReasonBuf[96];
+      snprintf(stopReasonBuf, sizeof(stopReasonBuf), "Suhu kritis teratasi (Max %.1fC <= %.1fC)", maxTemp, criticalThreshold - 1.0);
+      stopFan(stopReasonBuf);
     }
     return;  // Belum teratasi: jangan biarkan logika siang/malam mematikan fan ini
   }
@@ -838,8 +889,9 @@ void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum)
           // Sinkronisasi Timer: Purge sudah membuang uap jenuh & akumulasi gas CO2 di lantai secara total.
           // Tunda jadwal CO2 flush 60 menit ke depan agar fan tidak nyala tumpang tindih dalam 1 jam!
           lastNightPeriodicFanTime = now;
-          String reason = "Night Over-Humidity Purge (RH " + String(currentHum, 1) + "% >= " + String(NIGHT_OVER_HUMIDITY_THRESHOLD, 1) + "%)";
-          startFan(reason, false, true);
+          char reasonBuf[96];
+          snprintf(reasonBuf, sizeof(reasonBuf), "Night Over-Humidity Purge (RH %.1f%% >= %.1f%%)", currentHum, NIGHT_OVER_HUMIDITY_THRESHOLD);
+          startFan(reasonBuf, false, true);
           return;
         }
       }
@@ -849,8 +901,7 @@ void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum)
         lastNightPeriodicFanTime = now;
         // Sinkronisasi Timer: CO2 flush sudah menyegarkan udara kumbung, beri cooldown purge 30 menit
         lastNightPurgeFanTime = now;
-        String reason = "Night Periodic CO2 Flush (Siklus 60 Menit)";
-        startFan(reason, false, true);
+        startFan("Night Periodic CO2 Flush (Siklus 60 Menit)", false, true);
         return;
       }
     }
@@ -871,8 +922,9 @@ void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum)
     }
 
     if (canHomogenize) {
-      String reason = "Homogenisasi Sirkulasi (Disparitas RH " + String(disparity, 1) + "% > " + String(HUM_DISPARITY_THRESHOLD, 1) + "%)";
-      startFan(reason, true, false);
+      char reasonBuf[96];
+      snprintf(reasonBuf, sizeof(reasonBuf), "Homogenisasi Sirkulasi (Disparitas RH %.1f%% > %.1f%%)", disparity, HUM_DISPARITY_THRESHOLD);
+      startFan(reasonBuf, true, false);
       return;
     }
   }
@@ -881,8 +933,9 @@ void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum)
   // Cek jika Safety Override aktif dan suhu sudah kembali normal
   if (isFanActive && !isHomogenizing && !isNightFan && isCriticalOverride) {
     if (maxTemp <= (criticalThreshold - 1.0) && avgTemp <= tempMax) {
-      String stopReason = "Suhu kritis teratasi (Max " + String(maxTemp, 1) + "C <= " + String(criticalThreshold - 1.0, 1) + "C)";
-      stopFan(stopReason);
+      char stopReasonBuf[96];
+      snprintf(stopReasonBuf, sizeof(stopReasonBuf), "Suhu kritis teratasi (Max %.1fC <= %.1fC)", maxTemp, criticalThreshold - 1.0);
+      stopFan(stopReasonBuf);
       return;
     }
   }
@@ -898,21 +951,25 @@ void controlFan(float avgTemp, float maxTemp, float disparity, float currentHum)
         }
         return;
       }
-      String reason = "Suhu Tinggi (Avg " + String(avgTemp, 1) + "C > " + String(tempMax, 1) + "C)";
-      startFan(reason, false, false);
+      char reasonBuf[96];
+      snprintf(reasonBuf, sizeof(reasonBuf), "Suhu Tinggi (Avg %.1fC > %.1fC)", avgTemp, tempMax);
+      startFan(reasonBuf, false, false);
     }
   } else if (avgTemp <= tempStopThreshold || !isFanUseful(now)) {
     if (isFanActive && !isHomogenizing && !isNightFan) {
-      String stopReason = (avgTemp <= tempStopThreshold)
-        ? "Suhu normal (Avg " + String(avgTemp, 1) + "C <= " + String(tempStopThreshold, 1) + "C)"
-        : "Kipas dikunci (Tidak efektif)";
-      stopFan(stopReason);
+      char stopReasonBuf[96];
+      if (avgTemp <= tempStopThreshold) {
+        snprintf(stopReasonBuf, sizeof(stopReasonBuf), "Suhu normal (Avg %.1fC <= %.1fC)", avgTemp, tempStopThreshold);
+      } else {
+        snprintf(stopReasonBuf, sizeof(stopReasonBuf), "Kipas dikunci (Tidak efektif)");
+      }
+      stopFan(stopReasonBuf);
     }
   }
 }
 
-void startFan(String reason, bool homogenize, bool nightMode, bool criticalOverride) {
-  fanTriggerReason   = reason;
+void startFan(const char* reason, bool homogenize, bool nightMode, bool criticalOverride) {
+  strlcpy(fanTriggerReason, reason ? reason : "", sizeof(fanTriggerReason));
   isHomogenizing     = homogenize;
   isNightFan         = nightMode;
   isCriticalOverride = criticalOverride;
@@ -931,12 +988,12 @@ void startFan(String reason, bool homogenize, bool nightMode, bool criticalOverr
 
   Serial.print("   🌀 [FAN ON] ");
   if (criticalOverride) Serial.print("[SAFETY OVERRIDE] ");
-  else if (nightMode) Serial.print("[NIGHT PURGE " + String(NIGHT_FAN_DURATION_MS / 1000) + "s] ");
+  else if (nightMode) Serial.printf("[NIGHT PURGE %lus] ", NIGHT_FAN_DURATION_MS / 1000);
   else if (homogenize) Serial.print("[HOMOGENISASI 30s] ");
-  Serial.println("Pemicu: " + reason);
+  Serial.printf("Pemicu: %s\n", fanTriggerReason);
 }
 
-void stopFan(String stopReason) {
+void stopFan(const char* stopReason) {
   digitalWrite(PIN_RELAY_FAN, RELAY_OFF);
 
   unsigned long duration = (millis() - fanStartTime) / 1000;
@@ -953,18 +1010,22 @@ void stopFan(String stopReason) {
   isNightFan         = false;
   isCriticalOverride = false;          // Centralized reset flag Safety Override
 
-  Serial.printf("   🌀 [FAN OFF] Durasi: %lu detik — %s\n", duration, stopReason.c_str());
+  Serial.printf("   🌀 [FAN OFF] Durasi: %lu detik — %s\n", duration, stopReason ? stopReason : "");
 
   // Enqueue riwayat aktivasi ke antrian log aktuator
-  enqueueLog(max((unsigned long)1, duration), fanTriggerReason, stopReason, "fan");
+  enqueueLog(max((unsigned long)1, duration), fanTriggerReason, stopReason ? stopReason : "", "fan");
 }
 
 // ============================================================
 // LOGIKA JEDA PANEN (PAUSE & RESUME) — PRD SECTION 3
 // ============================================================
 
-void startPauseMode(unsigned long durationSec, String reason) {
-  if (isMistingActive) stopMisting("Mode Panen Dimulai (" + reason + ")");
+void startPauseMode(unsigned long durationSec, const char* reason) {
+  if (isMistingActive) {
+    char stopBuf[96];
+    snprintf(stopBuf, sizeof(stopBuf), "Mode Panen Dimulai (%s)", reason ? reason : "Mode Panen");
+    stopMisting(stopBuf);
+  }
   if (isFanActive) stopFan("Mode Panen Dimulai (Fluid Dynamic Guard)");
 
   digitalWrite(PIN_RELAY_PUMP, RELAY_OFF);
@@ -974,7 +1035,7 @@ void startPauseMode(unsigned long durationSec, String reason) {
   isPausedMode = true;
   pauseStartTime = millis();
   pauseDurationMs = durationSec * 1000UL;
-  pauseReason = reason;
+  strlcpy(pauseReason, reason ? reason : "Mode Panen", sizeof(pauseReason));
 
   Serial.printf("\n============================================================\n");
   Serial.printf("   ⏸️  [MODE PANEN DIAKTIFKAN]\n");
@@ -990,13 +1051,13 @@ void startPauseMode(unsigned long durationSec, String reason) {
   lcd.printf("PAUSE %02luh %02lum  ", durationSec / 3600, (durationSec % 3600) / 60);
 }
 
-void endPauseMode(String reason) {
+void endPauseMode(const char* reason) {
   isPausedMode = false;
   pauseDurationMs = 0;
   pauseStartTime = 0;
 
   Serial.printf("\n============================================================\n");
-  Serial.println("   ▶️  [RESUME -> MODE AUTO] " + reason);
+  Serial.printf("   ▶️  [RESUME -> MODE AUTO] %s\n", reason ? reason : "");
   Serial.println("   ⚡  [INSTANT-READ] Segera membaca sensor mikroklimat untuk stabilisasi...");
   Serial.printf("============================================================\n\n");
 
@@ -1052,12 +1113,13 @@ void fetchThresholds() {
 
   WiFiClientSecure client;
   client.setInsecure(); // Bypass SSL verification untuk testing
+  client.setBufferSizes(1024, 512); // Optimasi heap: hemat ~30KB RAM SSL cegah fragmentasi heap
 
   HTTPClient http;
   http.begin(client, apiBaseUrl + "/thresholds/active");
   http.addHeader("ngrok-skip-browser-warning", "true");
   http.addHeader("User-Agent", "ESP32-SmartShroom");
-  http.setTimeout(4000);
+  http.setTimeout(2000); // 2000ms timeout cegah TWDT panic
   int httpCode = http.GET();
 
   if (httpCode == 200) {
@@ -1096,16 +1158,19 @@ void fetchThresholds() {
  * Eksekusi perintah kontrol aktuator dari Web Dashboard (PAUSE / AUTO / RESUME).
  */
 void applyDeviceCommand(JsonObject cmdObj) {
-  String cmd = cmdObj["command"].as<String>();
-  if (cmd == "PAUSE") {
+  const char* cmd = cmdObj["command"];
+  if (!cmd) return;
+  if (strcmp(cmd, "PAUSE") == 0) {
     unsigned long remSec = cmdObj["remaining_seconds"].as<unsigned long>();
     if (remSec > 0 && !isPausedMode) {
-      String rsn = cmdObj.containsKey("reason") ? cmdObj["reason"].as<String>() : "Mode Panen (Dashboard)";
+      const char* rsn = cmdObj.containsKey("reason") ? cmdObj["reason"].as<const char*>() : "Mode Panen (Dashboard)";
       startPauseMode(remSec, rsn);
     }
-  } else if (cmd == "AUTO" || cmd == "RESUME") {
+  } else if (strcmp(cmd, "AUTO") == 0 || strcmp(cmd, "RESUME") == 0) {
     if (isPausedMode) {
-      endPauseMode("Command " + cmd + " diterima dari Dashboard");
+      char rsnBuf[64];
+      snprintf(rsnBuf, sizeof(rsnBuf), "Command %s diterima dari Dashboard", cmd);
+      endPauseMode(rsnBuf);
     }
   }
 }
@@ -1119,12 +1184,13 @@ void fetchCommand() {
 
   WiFiClientSecure client;
   client.setInsecure();
+  client.setBufferSizes(512, 512);
 
   HTTPClient http;
   http.begin(client, apiBaseUrl + "/device/command");
   http.addHeader("ngrok-skip-browser-warning", "true");
   http.addHeader("User-Agent", "ESP32-SmartShroom");
-  http.setTimeout(4000);
+  http.setTimeout(2000);
   int httpCode = http.GET();
 
   if (httpCode == 200) {
@@ -1148,19 +1214,20 @@ void sendSensorData(float temp, float hum) {
 
   WiFiClientSecure client;
   client.setInsecure();
+  client.setBufferSizes(512, 512);
 
   HTTPClient http;
   http.begin(client, apiBaseUrl + "/sensor-data");
   http.addHeader("Content-Type", "application/json");
   http.addHeader("ngrok-skip-browser-warning", "true");
   http.addHeader("User-Agent", "ESP32-SmartShroom");
-  http.setTimeout(4000);
+  http.setTimeout(2000);
 
   StaticJsonDocument<256> doc;
   doc["device_id"]    = deviceId;
-  doc["temperature"]  = serialized(String(temp, 2));
-  doc["humidity"]     = serialized(String(hum, 2));
-  doc["co2_level"]    = 480; // Baseline ambient CO2 ~480 ppm
+  doc["temperature"]  = round(temp * 10.0) / 10.0;
+  doc["humidity"]     = round(hum * 10.0) / 10.0;
+  doc["co2_level"]    = 480; // Baseline ambient CO2 ~480 ppm (estimasi)
 
   String requestBody;
   serializeJson(doc, requestBody);
@@ -1183,13 +1250,14 @@ int postSprinklerLog(const PendingLog& e) {
 
   WiFiClientSecure client;
   client.setInsecure();
+  client.setBufferSizes(512, 512);
 
   HTTPClient http;
   http.begin(client, apiBaseUrl + "/sprinkler-logs");
   http.addHeader("Content-Type", "application/json");
   http.addHeader("ngrok-skip-browser-warning", "true");
   http.addHeader("User-Agent", "ESP32-SmartShroom");
-  http.setTimeout(4000);
+  http.setTimeout(2000);
 
   StaticJsonDocument<512> doc;
   doc["device_id"]         = deviceId;
