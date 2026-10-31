@@ -3,7 +3,7 @@
 
 **Versi Dokumen:** 2.0 (Updated: Spatial Grid WMS, Ledger Afkir, HPP Dinamis, & IoT Rule Engine)  
 **Tanggal:** 27 September 2026  
-**Penyusun:** Benedictus Vio  
+**Penyusun:** Benedict Saviola Pradana  
 **Konteks:** Tugas Akhir — Program Studi Sistem Informasi  
 
 ---
