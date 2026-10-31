@@ -3,10 +3,12 @@
 namespace Database\Seeders;
 
 use App\Models\BaglogBatch;
+use App\Models\Customer;
 use App\Models\Harvest;
 use App\Models\Sale;
 use App\Models\SensorData;
 use App\Models\SprinklerLog;
+use App\Models\Supplier;
 use App\Models\ThresholdSetting;
 use App\Models\User;
 use Carbon\Carbon;
@@ -122,13 +124,55 @@ class DatabaseSeeder extends Seeder
 
         $this->command->info('✅ Sensor data seeded: 288 readings (24 jam)');
 
+        // ─── 3.5 MASTER SUPPLIERS (SCM Hulu) ───────────────────
+        $supplierSejahtera = Supplier::create([
+            'name' => 'UD Baglog Sejahtera',
+            'contact_person' => 'Pak Budi',
+            'phone' => '081234567890',
+            'address' => 'Jl. Raya Cisarua No. 12, Bogor',
+            'lead_time_days' => 5,
+            'is_active' => true,
+        ]);
+
+        $supplierMakmur = Supplier::create([
+            'name' => 'CV Jamur Makmur',
+            'contact_person' => 'Bu Sinta',
+            'phone' => '081298765432',
+            'address' => 'Jl. Pertanian No. 45, Lembang',
+            'lead_time_days' => 7,
+            'is_active' => true,
+        ]);
+
+        $supplierHaji = Supplier::create([
+            'name' => 'Pak Haji Baglog',
+            'contact_person' => 'Haji Ahmad',
+            'phone' => '081311223344',
+            'address' => 'Kp. Babakan No. 8, Sukabumi',
+            'lead_time_days' => 4,
+            'is_active' => true,
+        ]);
+
+        $supplierMaju = Supplier::create([
+            'name' => 'Toko Tani Maju',
+            'contact_person' => 'Pak Eko',
+            'phone' => '081555667788',
+            'address' => 'Jl. Agrobisnis No. 3, Cianjur',
+            'lead_time_days' => 10,
+            'is_active' => true,
+        ]);
+
+        $this->command->info('✅ Suppliers seeded: 4 master pemasok');
+
         // ─── 4. BAGLOG BATCHES ──────────────────────────────────
         // 3 batch aktif (berbeda umur)
         $batch1 = BaglogBatch::factory()->create([
             'user_id' => $admin->id,
+            'supplier_id' => $supplierSejahtera->id,
             'batch_code' => 'BL-20260710-001',
+            'po_number' => 'PO-202607-001',
             'entry_date' => '2026-07-10',
             'quantity' => 200,
+            'rejected_at_arrival' => 2,
             'supplier' => 'UD Baglog Sejahtera',
             'status' => BaglogBatch::STATUS_ACTIVE,
             'notes' => 'Batch pertama bulan Juli, kualitas bagus',
@@ -136,18 +180,24 @@ class DatabaseSeeder extends Seeder
 
         $batch2 = BaglogBatch::factory()->create([
             'user_id' => $admin->id,
+            'supplier_id' => $supplierMakmur->id,
             'batch_code' => 'BL-20260720-001',
+            'po_number' => 'PO-202607-002',
             'entry_date' => '2026-07-20',
             'quantity' => 150,
+            'rejected_at_arrival' => 1,
             'supplier' => 'CV Jamur Makmur',
             'status' => BaglogBatch::STATUS_ACTIVE,
         ]);
 
         $batch3 = BaglogBatch::factory()->create([
             'user_id' => $admin->id,
+            'supplier_id' => $supplierHaji->id,
             'batch_code' => 'BL-20260801-001',
+            'po_number' => 'PO-202608-001',
             'entry_date' => '2026-08-01',
             'quantity' => 300,
+            'rejected_at_arrival' => 5,
             'supplier' => 'Pak Haji Baglog',
             'status' => BaglogBatch::STATUS_ACTIVE,
             'notes' => 'Batch besar, supplier baru',
@@ -156,18 +206,24 @@ class DatabaseSeeder extends Seeder
         // 1 batch terkontaminasi
         BaglogBatch::factory()->contaminated()->create([
             'user_id' => $admin->id,
+            'supplier_id' => $supplierMaju->id,
             'batch_code' => 'BL-20260625-001',
+            'po_number' => 'PO-202606-003',
             'entry_date' => '2026-06-25',
             'quantity' => 100,
+            'rejected_at_arrival' => 8,
             'supplier' => 'Toko Tani Maju',
         ]);
 
         // 1 batch sudah dibuang
         BaglogBatch::factory()->disposed()->create([
             'user_id' => $admin->id,
+            'supplier_id' => $supplierSejahtera->id,
             'batch_code' => 'BL-20260601-001',
+            'po_number' => 'PO-202606-001',
             'entry_date' => '2026-06-01',
             'quantity' => 80,
+            'rejected_at_arrival' => 0,
             'supplier' => 'UD Baglog Sejahtera',
         ]);
 
@@ -192,13 +248,40 @@ class DatabaseSeeder extends Seeder
 
         $this->command->info('✅ Harvests seeded: 28 records (2 minggu)');
 
-        // ─── 6. SALES (2 minggu data) ───────────────────────────
-        $buyers = [
-            'Pak Joko (Pasar Induk)',
-            'Bu Sari (Resto Jamur)',
-            'Mas Adi (Tengkulak)',
-            'Ibu Dewi (Toko Sayur)',
-        ];
+        // ─── 6. CUSTOMERS & SALES (SCM Hilir) ───────────────────
+        $custPasar = Customer::create([
+            'name' => 'Pak Joko (Pasar Induk)',
+            'category' => Customer::CATEGORY_PASAR_INDUK,
+            'phone' => '081122334455',
+            'address' => 'Pasar Induk Kramat Jati Kios B-12',
+            'is_active' => true,
+        ]);
+
+        $custResto = Customer::create([
+            'name' => 'Bu Sari (Resto Jamur)',
+            'category' => Customer::CATEGORY_RESTO,
+            'phone' => '081233445566',
+            'address' => 'Jl. Boulevard Raya Blok Q No. 5',
+            'is_active' => true,
+        ]);
+
+        $custTengkulak = Customer::create([
+            'name' => 'Mas Adi (Tengkulak)',
+            'category' => Customer::CATEGORY_TENGKULAK,
+            'phone' => '081344556677',
+            'address' => 'Desa Sukamaju RT 02/05',
+            'is_active' => true,
+        ]);
+
+        $custToko = Customer::create([
+            'name' => 'Ibu Dewi (Toko Sayur)',
+            'category' => Customer::CATEGORY_ECERAN,
+            'phone' => '081455667788',
+            'address' => 'Perumahan Griya Indah No. 18',
+            'is_active' => true,
+        ]);
+
+        $customersList = [$custPasar, $custResto, $custTengkulak, $custToko];
         $prices = [20000, 22000, 25000, 28000, 30000, 35000];
 
         for ($day = 13; $day >= 0; $day--) {
@@ -206,18 +289,22 @@ class DatabaseSeeder extends Seeder
             $qty = round(mt_rand(300, 2000) / 100, 2); // 3.00 - 20.00 Kg
             $price = $prices[array_rand($prices)];
             $revenue = bcmul((string) $qty, (string) $price, 2);
+            $selectedCust = $customersList[array_rand($customersList)];
+            $sourceBatch = $activeBatches[array_rand($activeBatches)];
 
             Sale::factory()->create([
                 'user_id' => $admin->id,
+                'customer_id' => $selectedCust->id,
+                'baglog_batch_id' => $sourceBatch->id,
                 'sale_date' => $saleDate,
                 'quantity_kg' => $qty,
                 'price_per_kg' => $price,
                 'total_revenue' => $revenue,
-                'buyer_name' => $buyers[array_rand($buyers)],
+                'buyer_name' => $selectedCust->name,
             ]);
         }
 
-        $this->command->info('✅ Sales seeded: 14 records (2 minggu)');
+        $this->command->info('✅ Customers & Sales seeded: 4 customers, 14 sales terhubung batch');
 
         // ─── 7. ACTUATOR LOGS (Misting & Fan) ───────────────────
         $actuatorLogs = [

@@ -4,14 +4,17 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BaglogBatchController;
 use App\Http\Controllers\Api\BaglogCullController;
 use App\Http\Controllers\Api\BatchSlotAssignmentController;
+use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DeviceControlController;
 use App\Http\Controllers\Api\HarvestController;
 use App\Http\Controllers\Api\OperationalExpenseController;
 use App\Http\Controllers\Api\SaleController;
+use App\Http\Controllers\Api\ScmAdvisorController;
 use App\Http\Controllers\Api\SensorDataController;
 use App\Http\Controllers\Api\SlotController;
 use App\Http\Controllers\Api\SprinklerLogController;
+use App\Http\Controllers\Api\SupplierController;
 use App\Http\Controllers\Api\ThresholdSettingController;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
@@ -117,6 +120,32 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/operational-expenses', [OperationalExpenseController::class, 'store']);
         Route::post('/operational-expenses/{id}/void', [OperationalExpenseController::class, 'void']);
         Route::delete('/operational-expenses/{id}', [OperationalExpenseController::class, 'destroy']);
+
+        // SCM Hulu: Master Pemasok & Supplier Scorecard (Admin Only)
+        Route::get('/suppliers', [SupplierController::class, 'index']);
+        Route::post('/suppliers', [SupplierController::class, 'store']);
+        Route::get('/suppliers/comparison', [SupplierController::class, 'comparison']);
+        Route::get('/suppliers/{id}', [SupplierController::class, 'show']);
+        Route::put('/suppliers/{id}', [SupplierController::class, 'update']);
+        Route::delete('/suppliers/{id}', [SupplierController::class, 'destroy']);
+        Route::get('/suppliers/{id}/scorecard', [SupplierController::class, 'scorecard']);
+
+        // SCM Tengah: Perencanaan Kapasitas & Smart Restock Advisor (Admin Only)
+        Route::get('/scm/capacity-snapshot', [ScmAdvisorController::class, 'capacitySnapshot']);
+        Route::get('/scm/capacity-forecast', [ScmAdvisorController::class, 'capacityForecast']);
+        Route::get('/scm/restock-recommendations', [ScmAdvisorController::class, 'restockRecommendations']);
+
+        // SCM Hilir: Master Pelanggan & Segmentasi Pasar (Admin Only)
+        Route::get('/customers', [CustomerController::class, 'index']);
+        Route::post('/customers', [CustomerController::class, 'store']);
+        Route::get('/customers/analytics', [CustomerController::class, 'analytics']);
+        Route::get('/customers/{id}', [CustomerController::class, 'show']);
+        Route::put('/customers/{id}', [CustomerController::class, 'update']);
+        Route::delete('/customers/{id}', [CustomerController::class, 'destroy']);
+
+        // SCM Ketertelusuran: End-to-End Traceability (Admin Only)
+        Route::get('/scm/traceability/batch/{batch_code}', [ScmAdvisorController::class, 'batchTraceability']);
+        Route::get('/scm/traceability/sale/{id}', [ScmAdvisorController::class, 'saleTraceability']);
 
         // Rack Management (Admin only)
         Route::post('/racks', [SlotController::class, 'storeRack']);

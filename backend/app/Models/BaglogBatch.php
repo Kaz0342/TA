@@ -58,9 +58,12 @@ class BaglogBatch extends Model
      */
     protected $fillable = [
         'user_id',
+        'supplier_id',
         'batch_code',
+        'po_number',
         'entry_date',
         'quantity',
+        'rejected_at_arrival',
         'supplier',
         'price_per_baglog',
         'status',
@@ -73,8 +76,10 @@ class BaglogBatch extends Model
     protected function casts(): array
     {
         return [
+            'supplier_id' => 'integer',
             'entry_date' => 'date:Y-m-d',
             'quantity' => 'integer',
+            'rejected_at_arrival' => 'integer',
             'price_per_baglog' => 'decimal:2',
         ];
     }
@@ -134,7 +139,29 @@ class BaglogBatch extends Model
         return (int) $this->assignments()->count();
     }
 
+    protected static function booted(): void
+    {
+        static::creating(function (BaglogBatch $batch) {
+            if (! empty($batch->supplier_id)) {
+                $supplier = Supplier::find($batch->supplier_id);
+                if ($supplier) {
+                    $batch->supplier = $supplier->name;
+                }
+            }
+        });
+    }
+
     // ─── Relationships ──────────────────────────────────────────
+
+    /**
+     * Relasi ke master pemasok terverifikasi.
+     *
+     * @return BelongsTo<Supplier, $this>
+     */
+    public function supplierRelation(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class, 'supplier_id');
+    }
 
     /**
      * Batch dimiliki oleh user (admin yang menginput).

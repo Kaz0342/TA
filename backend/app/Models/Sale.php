@@ -49,6 +49,7 @@ class Sale extends Model
      */
     protected $fillable = [
         'user_id',
+        'customer_id',
         'baglog_batch_id',
         'sale_date',
         'quantity_kg',
@@ -67,6 +68,7 @@ class Sale extends Model
     protected function casts(): array
     {
         return [
+            'customer_id' => 'integer',
             'sale_date' => 'date:Y-m-d',
             'quantity_kg' => 'decimal:2',
             'price_per_kg' => 'decimal:2',
@@ -75,7 +77,29 @@ class Sale extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::creating(function (Sale $sale) {
+            if (! empty($sale->customer_id)) {
+                $customer = Customer::find($sale->customer_id);
+                if ($customer) {
+                    $sale->buyer_name = $customer->name;
+                }
+            }
+        });
+    }
+
     // ─── Relationships ──────────────────────────────────────────
+
+    /**
+     * Relasi ke master pelanggan / pembeli terdaftar.
+     *
+     * @return BelongsTo<Customer, $this>
+     */
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class, 'customer_id');
+    }
 
     /**
      * Penjualan dicatat oleh user (admin).

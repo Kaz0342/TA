@@ -19,9 +19,10 @@ class StoreSaleRequest extends FormRequest
         return [
             'sale_date' => 'required|date|before_or_equal:today',
             'baglog_batch_id' => 'nullable|exists:baglog_batches,id',
+            'customer_id' => 'required_without:buyer_name|nullable|exists:customers,id',
             'quantity_kg' => 'required|numeric|min:0.01',
             'price_per_kg' => 'required|numeric|min:1000',
-            'buyer_name' => 'required|string|max:100',
+            'buyer_name' => 'required_without:customer_id|nullable|string|max:100',
             'notes' => 'nullable|string',
             'force' => 'nullable|boolean',
             'force_reason' => 'required_if:force,true|nullable|string|min:10',

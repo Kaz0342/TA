@@ -32,6 +32,7 @@ class BaglogCull extends Model
     public const REASON_BUSUK_BASAH = 'BUSUK_BASAH';
     public const REASON_HAMA = 'HAMA';
     public const REASON_KERING = 'KERING';
+    public const REASON_HABIS_PRODUKSI = 'HABIS_PRODUKSI';
     public const REASON_LAINNYA = 'LAINNYA';
 
     /**
