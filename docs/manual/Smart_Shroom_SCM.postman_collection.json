@@ -1,0 +1,519 @@
+{
+  "info": {
+    "_postman_id": "smart-shroom-scm-collection-2026",
+    "name": "Smart Shroom SCM — Official API Demo Collection",
+    "description": "Koleksi API resmi demonstrasi sidang Tugas Akhir untuk sistem Smart Shroom SCM (Backend Laravel 13). Mencakup autentikasi Sanctum, SCM Hulu (Supplier Scorecard), SCM Tengah (Restock DSS), dan SCM Hilir (Dual-Direction Traceability).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Auth & Security",
+      "item": [
+        {
+          "name": "0.1 Login Admin (Auto-Save Token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.token) {",
+                  "    pm.collectionVariables.set('token', response.token);",
+                  "    console.log('Sanctum Token saved successfully!');",
+                  "}",
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@smartshroom.test\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "description": "Login sebagai akun Admin untuk mendapatkan token akses Laravel Sanctum."
+          }
+        },
+        {
+          "name": "0.2 Verifikasi Proteksi RBAC (Tanpa Token -> 401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "suppliers"
+              ]
+            },
+            "description": "Membuktikan endpoint SCM diproteksi otorisasi server-side. Tanpa token akan menghasilkan 401 Unauthorized."
+          }
+        },
+        {
+          "name": "0.3 Profil Pengguna Terautentikasi",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/user",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - SCM Hulu (Supplier Scorecard)",
+      "item": [
+        {
+          "name": "1.1 Daftar Seluruh Pemasok Bibit Aktif",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers?active_only=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "suppliers"
+              ],
+              "query": [
+                {
+                  "key": "active_only",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "1.2 Pendaftaran Pemasok Baru",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"CV Jamur Sejahtera Sleman\",\n  \"contact_person\": \"Haji Slamet\",\n  \"phone\": \"081298765432\",\n  \"address\": \"Jl. Kaliurang KM 14, Sleman, D.I. Yogyakarta\",\n  \"lead_time_days\": 5,\n  \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/suppliers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "suppliers"
+              ]
+            }
+          }
+        },
+        {
+          "name": "1.3 Matriks Komparasi Supplier (Scorecard Matrix A/B/C/D)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/comparison",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "suppliers",
+                "comparison"
+              ]
+            },
+            "description": "Menampilkan ranking performa supplier berbobot: defect tiba (35%), mortalitas (25%), produktivitas (25%), HPP (15%)."
+          }
+        },
+        {
+          "name": "1.4 Detail Scorecard Individual Supplier ID 1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/1/scorecard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "suppliers",
+                "1",
+                "scorecard"
+              ]
+            }
+          }
+        },
+        {
+          "name": "1.5 Pengadaan Batch Baru dengan Cacat Kedatangan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"supplier_id\": 1,\n  \"entry_date\": \"2026-10-31\",\n  \"initial_quantity\": 500,\n  \"price_per_baglog\": 2800,\n  \"rejected_at_arrival\": 15,\n  \"notes\": \"Pengadaan bibit batch uji coba demo sidang - 15 bibit cacat dipisahkan saat tiba\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/baglogs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "baglogs"
+              ]
+            },
+            "description": "Menguji isolasi bibit rusak saat tiba (15 cacat masuk culls CACAT_KEDATANGAN, kuota siap rak = 485)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - SCM Tengah (Capacity & Restock DSS)",
+      "item": [
+        {
+          "name": "2.1 Snapshot Kapasitas Fisik Kumbung (Limit 3.000)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/scm/capacity-snapshot",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scm",
+                "capacity-snapshot"
+              ]
+            },
+            "description": "Menampilkan okupansi rak spasial, slot kosong, dan sisa baglog aktif di kumbung."
+          }
+        },
+        {
+          "name": "2.2 Proyeksi Kapasitas Bergulir (Forecast 7-30 Hari)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/scm/capacity-forecast",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scm",
+                "capacity-forecast"
+              ]
+            },
+            "description": "Menghitung proyeksi slot bebas pada 7, 14, 21, dan 30 hari ke depan."
+          }
+        },
+        {
+          "name": "2.3 Rekomendasi Restock / PO Advisor Cerdas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/scm/restock-recommendations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scm",
+                "restock-recommendations"
+              ]
+            },
+            "description": "DSS menghitung tanggal order mundur berdasarkan lead time, kuantitas optimal terbatas 3.000 baglog, dan supplier Grade A."
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - SCM Hilir (Customers & Traceability)",
+      "item": [
+        {
+          "name": "3.1 Daftar Pelanggan (Filter Segmen: RESTO)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers?category=RESTO",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "RESTO"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "3.2 Pendaftaran Pelanggan Baru",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Warung Jamur Crispy Pak Kumis\",\n  \"category\": \"RESTO\",\n  \"phone\": \"081345678901\",\n  \"address\": \"Jl. Magelang KM 8, Mlati, Sleman\",\n  \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3.3 Analisis Segmentasi Pasar Pelanggan",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/analytics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "analytics"
+              ]
+            },
+            "description": "Mengelompokkan serapan volume panen (kg) dan kontribusi pendapatan (Rp) per segmen pasar."
+          }
+        },
+        {
+          "name": "3.4 Traceability Maju: Batch ke Pelanggan",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/scm/traceability/batch/BL-20261002-001",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scm",
+                "traceability",
+                "batch",
+                "BL-20261002-001"
+              ]
+            },
+            "description": "Melacak mata rantai: Supplier bibit -> Kedatangan -> Slot rak spasial -> Panen -> Pelanggan pembeli."
+          }
+        },
+        {
+          "name": "3.5 Traceability Mundur: Nota Penjualan ke Supplier",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/scm/traceability/sale/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scm",
+                "traceability",
+                "sale",
+                "1"
+              ]
+            },
+            "description": "Melacak asal-usul invoice penjualan ke batch sumber dan supplier bibit awal."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -351,7 +351,7 @@ npm run dev -- --host 0.0.0.0 --port 5173
 <tbody><tr>
 <td>Tanggal masuk</td>
 <td>Ya</td>
-<td>Tanggal pembelian</td>
+<td>Tanggal pembelian bibit</td>
 </tr>
 <tr>
 <td>Jumlah</td>
@@ -361,7 +361,12 @@ npm run dev -- --host 0.0.0.0 --port 5173
 <tr>
 <td>Pemasok</td>
 <td>Ya</td>
-<td>Maks. 100 karakter</td>
+<td>Pilih master supplier atau ketik nama rekanan</td>
+</tr>
+<tr>
+<td>Cacat Kedatangan</td>
+<td>Tidak</td>
+<td>Bibit rusak/busuk saat tiba (diisolasi ke ledger afkir)</td>
 </tr>
 <tr>
 <td>Harga per baglog</td>
@@ -411,6 +416,34 @@ npm run dev -- --host 0.0.0.0 --port 5173
 </ul>
 <h2>5.5 Ringkasan HPP</h2>
 <p>Lihat Bab 8.4. Ringkasan HPP per batch juga tersedia dari halaman ini.</p>
+<h2>5.6 Evaluasi Pemasok &amp; Rekomendasi Restock (SCM Hulu &amp; DSS)</h2>
+<p>Sistem dilengkapi modul analisis rantai pasok untuk menilai kualitas rekanan penyedia bibit dan memproyeksikan kebutuhan pemesanan ulang:</p>
+<h3>5.6.1 Supplier Performance Scorecard</h3>
+<p>Sistem secara otomatis mengkalkulasi skor performa supplier berdasarkan 4 parameter berbobot:</p>
+<ol>
+<li><strong>Defect Rate Kedatangan (35%):</strong> Persentase bibit yang rusak/terkontaminasi saat pertama kali tiba di kumbung.</li>
+<li><strong>Tingkat Mortalitas Inkubasi (25%):</strong> Persentase baglog yang mati selama masa inkubasi (sebelum panen pertama).</li>
+<li><strong>Produktivitas Panen / Yield (25%):</strong> Rata-rata berat panen jamur yang dihasilkan per baglog.</li>
+<li><strong>Efisiensi Harga Beli / HPP (15%):</strong> Perbandingan harga pengadaan bibit per baglog.</li>
+</ol>
+<p>Hasil kalkulasi menghasilkan indeks skor 0–100 dan pemeringkatan mutu:</p>
+<ul>
+<li><strong>Grade A (Skor ≥ 85):</strong> Pemasok Sangat Direkomendasikan.</li>
+<li><strong>Grade B (Skor 70–84):</strong> Pemasok Memenuhi Standar.</li>
+<li><strong>Grade C (Skor 50–69):</strong> Pemasok Perlu Evaluasi / Catatan Khusus.</li>
+<li><strong>Grade D (Skor &lt; 50):</strong> Pemasok Tidak Direkomendasikan (Tingkat cacat tinggi).</li>
+</ul>
+<h3>5.6.2 Rolling Capacity Forecast &amp; Smart Restock Advisor</h3>
+<p>Untuk mencegah kumbung kehabisan stok jamur produktif sekaligus memastikan kapasitas tidak melebihi <strong>3.000 baglog</strong>:</p>
+<ol>
+<li>Sistem memproyeksikan pelepasan kamar rak pada horizon <strong>7, 14, 21, dan 30 hari ke depan</strong> berdasarkan kohort baglog yang mendekati <em>flush</em> ke-7 dan umur &gt; 110 hari.</li>
+<li>Algoritma <strong>Smart Restock Advisor</strong> secara otomatis merekomendasikan:<ul>
+<li><strong>Tanggal Pemesanan Optimal (<em>Recommended Order Date</em>):</strong> Dihitung mundur berdasarkan <em>lead time</em> hari tunggu supplier.</li>
+<li><strong>Kuantitas Pemesanan (<em>Recommended Quantity</em>):</strong> Disesuaikan dengan proyeksi slot rak yang akan kosong tanpa melanggar batas kapasitas fisik 3.000 baglog.</li>
+<li><strong>Supplier Prioritas (<em>Recommended Supplier</em>):</strong> Dipilih otomatis berdasarkan supplier berperingkat Grade A tertinggi yang berstatus aktif.</li>
+</ul>
+</li>
+</ol>
 <div class="pagebreak"></div><h1>6. Rak Kumbung (WMS Spasial)</h1>
 <p>Halaman <code>/kumbung</code> menampilkan denah fisik rak.</p>
 <h2>6.1 Struktur Rak</h2>
@@ -655,6 +688,21 @@ BEP (kg)                = total biaya / harga rata-rata jual
 Mortalitas              = jumlah afkir / jumlah baglog
 </code></pre>
 <p>Jika belum ada penjualan, BEP memakai harga acuan <strong>Rp 25.000/kg</strong>.</p>
+<h2>8.5 Master Pelanggan &amp; Analisis Segmentasi Pasar</h2>
+<p>Sistem mengelompokkan pembeli ke dalam 4 segmen pasar:</p>
+<ul>
+<li><code>TENGKULAK</code>: Penebas partai besar, frekuensi tinggi, harga grosir.</li>
+<li><code>RESTO</code>: Restoran dan pelaku kuliner, harga stabil, mutu Grade A.</li>
+<li><code>PASAR_INDUK</code>: Pedagang lapak pasar sayur tradisional.</li>
+<li><code>ECERAN</code>: Konsumen langsung dan warga sekitar.</li>
+</ul>
+<p>Sistem menyajikan laporan analitik serapan volume (kg), kontribusi pendapatan (omzet kotor), dan rata-rata harga jual per segmen pembeli untuk membantu penentuan strategi distribusi harian.</p>
+<h2>8.6 Ketertelusuran Rantai Pasok Dua Arah (Dual-Direction Traceability)</h2>
+<p>Fitur penjamin mutu dan biosekuriti pangan untuk melacak riwayat komoditas jamur secara transparan:</p>
+<ol>
+<li><strong>Penelusuran Maju (<em>Batch to Customer</em>):</strong> Dari kode batch baglog (<code>BL-YYYYMMDD-XXX</code>), sistem menelusuri rantai perjalanan: <em>Asal Supplier Pemasok → Tanggal Masuk &amp; Cacat Tiba → Penempatan Kamar Rak (A/B/C) → Riwayat Petikan Panen (Flush 1–7) → Pelanggan/Tengkulak Pembeli Jamur</em>.</li>
+<li><strong>Penelusuran Mundur (<em>Sale to Batch &amp; Supplier</em>):</strong> Dari nomor nota penjualan, sistem menelusuri balik ke batch sumber panen dan mengidentifikasi dari bibit pemasok mana jamur tersebut berasal.</li>
+</ol>
 <div class="pagebreak"></div><h1>9. Pengaturan</h1>
 <p>Halaman <code>/settings</code>.</p>
 <h2>9.1 Preset Fase</h2>
@@ -739,7 +787,7 @@ Mortalitas              = jumlah afkir / jumlah baglog
 <li><strong>Berhenti</strong> saat kelembapan mencapai batas bawah + sedikit margin (maks. 3 %) dan suhu aman, atau habis waktu <strong>90 detik</strong>.</li>
 <li><strong>Jeda penguapan</strong> 150 detik setelah misting.</li>
 <li><strong>Misting denyut 30 detik</strong> bila rak atas sangat kering (lebih dari 10 % di bawah batas).</li>
-<li><strong>Terkunci malam (P2&#39; Night Guard)</strong> pukul <strong>17:00-06:00 WIB</strong> dengan jeda wajib minimal <strong>10 menit (600 detik)</strong> antar siklus darurat (mencegah jamur tidur basah kuyup).</li>
+<li><strong>Terkunci malam (Night Hard Lockout)</strong> pukul <strong>17:00-06:00 WIB</strong> misting dilarang keras aktif sama sekali, dan langsung diputus jika sedang aktif saat masuk jam 17:00 WIB (mencegah jamur tidur basah kuyup).</li>
 <li><strong>Pagar RH (P3)</strong>: ditahan saat suhu panas jika kelembapan $\ge$ batas atas $- 3%$ (udara jenuh tidak bisa mendinginkan), dan langsung berhenti seketika jika kelembapan $\ge$ batas atas $- 1%$ (mencegah becek/genangan air di baglog).</li>
 <li>Ditahan jika kelembapan sudah di atas batas atas, atau suhu kritis.</li>
 </ul>
@@ -1861,7 +1909,7 @@ Mortalitas              = jumlah afkir / jumlah baglog
 <li>Validasi input di backend untuk seluruh form.</li>
 </ul>
 <h2>A.9 Pengujian</h2>
-<p>Backend: <code>php artisan test</code> menghasilkan <strong>198 tes dan 797 assertion lulus (100% Zero Failure)</strong>. Frontend: lint dengan <code>npm run lint</code> dan build dengan <code>npm run build</code> (lulus tanpa galat tipe atau kompilasi).</p>
+<p>Backend: <code>php artisan test</code> menghasilkan <strong>204 tes dan 866 assertion lulus (100% Zero Failure)</strong>. Frontend: lint dengan <code>npm run lint</code> dan build dengan <code>npm run build</code> (lulus tanpa galat tipe atau kompilasi).</p>
 <h2>A.10 Data Demo (Seeder)</h2>
 <p>288 pembacaan sensor, 5 batch (3 aktif, 1 terkontaminasi, 1 dibuang), data panen dan penjualan 14 hari, 5 log aktuator.</p>
 <!-- /AUTO-GENERATED --><div class="pagebreak"></div><h1>16. Lampiran B: Catatan Ketidaksesuaian Dokumen</h1>

@@ -235,9 +235,10 @@ Daftar batch menampilkan kode, tanggal masuk, jumlah, pemasok, umur (hari), stat
 
 | Kolom | Wajib | Aturan |
 |-------|-------|--------|
-| Tanggal masuk | Ya | Tanggal pembelian |
+| Tanggal masuk | Ya | Tanggal pembelian bibit |
 | Jumlah | Ya | Bilangan bulat, minimal 1 |
-| Pemasok | Ya | Maks. 100 karakter |
+| Pemasok | Ya | Pilih master supplier atau ketik nama rekanan |
+| Cacat Kedatangan | Tidak | Bibit rusak/busuk saat tiba (diisolasi ke ledger afkir) |
 | Harga per baglog | Tidak | Minimal 0 |
 | Catatan | Tidak | Bebas |
 
@@ -263,6 +264,31 @@ Ubah status lewat aksi di baris batch.
 ## 5.5 Ringkasan HPP
 
 Lihat Bab 8.4. Ringkasan HPP per batch juga tersedia dari halaman ini.
+## 5.6 Evaluasi Pemasok & Rekomendasi Restock (SCM Hulu & DSS)
+
+Sistem dilengkapi modul analisis rantai pasok untuk menilai kualitas rekanan penyedia bibit dan memproyeksikan kebutuhan pemesanan ulang:
+
+### 5.6.1 Supplier Performance Scorecard
+Sistem secara otomatis mengkalkulasi skor performa supplier berdasarkan 4 parameter berbobot:
+1. **Defect Rate Kedatangan (35%):** Persentase bibit yang rusak/terkontaminasi saat pertama kali tiba di kumbung.
+2. **Tingkat Mortalitas Inkubasi (25%):** Persentase baglog yang mati selama masa inkubasi (sebelum panen pertama).
+3. **Produktivitas Panen / Yield (25%):** Rata-rata berat panen jamur yang dihasilkan per baglog.
+4. **Efisiensi Harga Beli / HPP (15%):** Perbandingan harga pengadaan bibit per baglog.
+
+Hasil kalkulasi menghasilkan indeks skor 0–100 dan pemeringkatan mutu:
+- **Grade A (Skor ≥ 85):** Pemasok Sangat Direkomendasikan.
+- **Grade B (Skor 70–84):** Pemasok Memenuhi Standar.
+- **Grade C (Skor 50–69):** Pemasok Perlu Evaluasi / Catatan Khusus.
+- **Grade D (Skor < 50):** Pemasok Tidak Direkomendasikan (Tingkat cacat tinggi).
+
+### 5.6.2 Rolling Capacity Forecast & Smart Restock Advisor
+Untuk mencegah kumbung kehabisan stok jamur produktif sekaligus memastikan kapasitas tidak melebihi **3.000 baglog**:
+1. Sistem memproyeksikan pelepasan kamar rak pada horizon **7, 14, 21, dan 30 hari ke depan** berdasarkan kohort baglog yang mendekati *flush* ke-7 dan umur > 110 hari.
+2. Algoritma **Smart Restock Advisor** secara otomatis merekomendasikan:
+   - **Tanggal Pemesanan Optimal (*Recommended Order Date*):** Dihitung mundur berdasarkan *lead time* hari tunggu supplier.
+   - **Kuantitas Pemesanan (*Recommended Quantity*):** Disesuaikan dengan proyeksi slot rak yang akan kosong tanpa melanggar batas kapasitas fisik 3.000 baglog.
+   - **Supplier Prioritas (*Recommended Supplier*):** Dipilih otomatis berdasarkan supplier berperingkat Grade A tertinggi yang berstatus aktif.
+
 
 <div class="pagebreak"></div>
 
@@ -445,6 +471,22 @@ Mortalitas              = jumlah afkir / jumlah baglog
 ```
 
 Jika belum ada penjualan, BEP memakai harga acuan **Rp 25.000/kg**.
+## 8.5 Master Pelanggan & Analisis Segmentasi Pasar
+
+Sistem mengelompokkan pembeli ke dalam 4 segmen pasar:
+- `TENGKULAK`: Penebas partai besar, frekuensi tinggi, harga grosir.
+- `RESTO`: Restoran dan pelaku kuliner, harga stabil, mutu Grade A.
+- `PASAR_INDUK`: Pedagang lapak pasar sayur tradisional.
+- `ECERAN`: Konsumen langsung dan warga sekitar.
+
+Sistem menyajikan laporan analitik serapan volume (kg), kontribusi pendapatan (omzet kotor), dan rata-rata harga jual per segmen pembeli untuk membantu penentuan strategi distribusi harian.
+
+## 8.6 Ketertelusuran Rantai Pasok Dua Arah (Dual-Direction Traceability)
+
+Fitur penjamin mutu dan biosekuriti pangan untuk melacak riwayat komoditas jamur secara transparan:
+1. **Penelusuran Maju (*Batch to Customer*):** Dari kode batch baglog (`BL-YYYYMMDD-XXX`), sistem menelusuri rantai perjalanan: *Asal Supplier Pemasok → Tanggal Masuk & Cacat Tiba → Penempatan Kamar Rak (A/B/C) → Riwayat Petikan Panen (Flush 1–7) → Pelanggan/Tengkulak Pembeli Jamur*.
+2. **Penelusuran Mundur (*Sale to Batch & Supplier*):** Dari nomor nota penjualan, sistem menelusuri balik ke batch sumber panen dan mengidentifikasi dari bibit pemasok mana jamur tersebut berasal.
+
 
 <div class="pagebreak"></div>
 
@@ -885,7 +927,7 @@ Dasar: `{VITE_API_URL}` (contoh `http://localhost:8000/api`). Autentikasi: heade
 
 ## A.9 Pengujian
 
-Backend: `php artisan test` menghasilkan **198 tes dan 797 assertion lulus (100% Zero Failure)**. Frontend: lint dengan `npm run lint` dan build dengan `npm run build` (lulus tanpa galat tipe atau kompilasi).
+Backend: `php artisan test` menghasilkan **204 tes dan 866 assertion lulus (100% Zero Failure)**. Frontend: lint dengan `npm run lint` dan build dengan `npm run build` (lulus tanpa galat tipe atau kompilasi).
 
 ## A.10 Data Demo (Seeder)
 
