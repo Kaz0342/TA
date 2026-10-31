@@ -5,10 +5,10 @@
 **Penyusun:** Benedictus Vio  
 **Topik:** Pengujian Fungsional (*Black-Box Testing*), Pengujian Otomatis (*Automated Feature/Unit Testing*), dan Pengujian Logika IoT  
 **Target:** Dokumen Verifikasi Mutu & Pegangan Uji Sistem Proyek Akhir  
-**Terakhir Diperbarui:** 11 Oktober 2026 (Sinkronisasi Firmware v3.6 & Validasi Iklim Muntilan)  
+**Terakhir Diperbarui:** 31 Oktober 2026 (Sinkronisasi Modul SCM Hulu-Hilir, Scorecard, Restock DSS, & Traceability)  
 
-> 📅 **Status Berkas: Baseline Mutu Sistem Terkini — Fase 4 (11 Oktober 2026)**  
-> *Single Source of Truth (SSOT)* verifikasi mutu sistem produksi saat ini: mencakup 30 Use Cases fungsional, 198 automated unit/feature tests (100% Zero Failure), dan validasi termodinamika iklim mikro Muntilan.
+> 📅 **Status Berkas: Baseline Mutu Sistem Terkini — Fase 5 (31 Oktober 2026)**  
+> *Single Source of Truth (SSOT)* verifikasi mutu sistem produksi saat ini: mencakup 34 Use Cases fungsional, 204 automated unit/feature tests (100% Zero Failure, 866 assertions), dan validasi termodinamika iklim mikro Muntilan.
 
 ---
 
@@ -18,10 +18,10 @@ Pengujian sistem **Smart Shroom SCM** menerapkan pendekatan menyeluruh untuk men
 1. **Black-Box Testing (Pengujian Kotak Hitam):**
    - Berfokus pada pengujian fungsionalitas sistem berdasarkan spesifikasi kebutuhan perangkat lunak (*Software Requirement Specification* / Use Case).
    - Menguji interaksi antarmuka pengguna (UI/UX) pada sisi web dashboard dan integrasi pertukaran data mikrokontroler ESP32 tanpa melihat alur internal baris kode.
-   - Melibatkan **30 Use Cases** (`UC-01` s/d `UC-30`) yang mencakup seluruh siklus operasional kumbung jamur, manajemen spasial WMS, pembatalan audit trail non-destruktif, dan kontrol mikroklimat IoT.
+   - Melibatkan **34 Use Cases** (`UC-01` s/d `UC-34`) yang mencakup seluruh siklus operasional kumbung jamur, manajemen spasial WMS, pembatalan audit trail non-destruktif, dan kontrol mikroklimat IoT.
 2. **Automated Testing (Pengujian Otomatis PHPUnit):**
    - Menerapkan metodologi *Test-Driven Development (TDD) & Logic Hardening* pada backend Laravel 13.
-   - Terdiri dari **198 skenario uji otomatis** dengan total **797 assertions** yang dieksekusi secara instan (`php artisan test`) dengan tingkat kelulusan **100% (Zero Failure)** dalam waktu ~5,7 detik (eksekusi 11 Oktober 2026).
+   - Terdiri dari **204 skenario uji otomatis** dengan total **866 assertions** yang dieksekusi secara instan (`php artisan test`) dengan tingkat kelulusan **100% (Zero Failure)** dalam waktu ~5,6 detik (eksekusi 31 Oktober 2026).
 3. **Pengujian Termodinamika, Validasi Iklim, & Rule Engine IoT (`iot_simulator.py`, `validasi_simulator_vs_iklim.py`, & `simulasi_amplop_kumbung.py`):**
    - Verifikasi kurva diurnal ambient Muntilan 12 bulan (deviasi suhu rata-rata hanya 0.3°C – 0.5°C).
    - Verifikasi arsitektur pertahanan iklim P1 (Uji Probe Kipas Siang 90s & Lockout 15m), P2 (Night Misting Hard Lockout 17:00–06:00 WIB), dan P3 (Pagar RH Hold/Stop).
@@ -29,7 +29,7 @@ Pengujian sistem **Smart Shroom SCM** menerapkan pendekatan menyeluruh untuk men
 
 ---
 
-## 2. Matriks Pengujian Black-Box (30 Use Cases)
+## 2. Matriks Pengujian Black-Box (34 Use Cases)
 
 Pengujian fungsional kotak hitam dilakukan pada peramban web (*Google Chrome & Mobile Safari*) serta simulasi transmisi HTTP REST API dari perangkat IoT:
 
@@ -111,15 +111,28 @@ Pengujian fungsional kotak hitam dilakukan pada peramban web (*Google Chrome & M
 
 ---
 
+### Modul I: Supply Chain Management (SCM Hulu-Hilir) & DSS Ketertelusuran
+
+| No. | Kode UC | Skenario Pengujian | Data Uji / Tindakan | Hasil yang Diharapkan | Hasil Pengujian Aktual | Kesimpulan |
+|---|---|---|---|---|---|:---:|
+| 37 | **UC-31** | Evaluasi Skor Pemasok (Supplier Performance Scorecard) | Admin mengakses `GET /api/suppliers/scorecard` | Sistem menghitung bobot multi-kriteria (defect rate kedatangan 35%, mortalitas inkubasi 25%, produktivitas panen 25%, HPP 15%) dan menampilkan ranking supplier. | Matriks skor pemasok terhitung presisi dengan grading (A/B/C/D), status HTTP 200 OK. | **Valid** |
+| 38 | **UC-31** | Rekomendasi Pengadaan & Restock Advisor (PO Decision Support) | Admin mengakses `GET /api/scm/restock-recommendations` dengan horizon 14–30 hari | Sistem memproyeksikan pelepasan rak berdasarkan flush panen dan umur baglog, merekomendasikan tanggal reorder, kuantitas optimal (maks 3.000 baglog), dan supplier prioritas. | Rekomendasi restock terhitung otomatis, kuantitas order tidak melebihi kuota kamar rak kosong, status HTTP 200 OK. | **Valid** |
+| 39 | **UC-32** | Analisis Segmentasi Pasar Pelanggan (Customer Market Segmentation) | Admin mengakses `GET /api/customers/analytics` | Sistem mengelompokkan pelanggan berdasarkan segmen (`TENGKULAK`, `RESTO`, `PASAR_INDUK`, `ECERAN`) beserta serapan volume (Kg) dan kontribusi omzet. | Agregasi volume panen terserap dan rata-rata harga jual per segmen pembeli tampil akurat, status HTTP 200 OK. | **Valid** |
+| 40 | **UC-33** | Ketertelusuran Rantai Pasok Dua Arah (Dual-Direction Traceability) | Admin menelusuri batch via `GET /api/scm/traceability/batch/{code}` dan penjualan via `GET /api/scm/traceability/sale/{id}` | Dari kode batch terlacak asal supplier → kedatangan → slot rak A/B/C → histori panen → daftar pelanggan. Dari invoice penjualan terlacak balik ke batch & supplier asal. | Pohon ketertelusuran hulu-hilir terbentuk lengkap tanpa data terputus, status HTTP 200 OK. | **Valid** |
+| 41 | **UC-34** | Registrasi & Isolasi Cacat Bibit Kedatangan (Batch Arrival Defect Isolation) | Input batch baru `POST /baglogs` dengan `initial_quantity = 500` dan `rejected_at_arrival = 15` | Baglog cacat kedatangan dicatat dan diisolasi ke `baglog_culls` dengan alasan `CACAT_KEDATANGAN`, tidak masuk ke kapasitas rak (`available_for_rack = 485`), dan menaikkan defect rate supplier. | Batch tersimpan dengan 485 baglog siap rak, 15 bibit cacat tercatat di culls, status HTTP 201 Created. | **Valid** |
+
+---
+
 ## 3. Rekapitulasi Automated Testing (PHPUnit)
 
-Pengujian unit dan integrasi otomatis dieksekusi menggunakan test runner PHPUnit pada backend Laravel 13. Seluruh suite pengujian mencakup **198 skenario** dengan **797 assertions** (angka per berkas diambil dari `php artisan test --log-junit` pada 11 Oktober 2026):
+Pengujian unit dan integrasi otomatis dieksekusi menggunakan test runner PHPUnit pada backend Laravel 13. Seluruh suite pengujian mencakup **204 skenario** dengan **866 assertions** (eksekusi pengujian 31 Oktober 2026):
 
 ### A. Tabel Rekapitulasi Test Suite
 
 | Test Suite / Berkas Pengujian | Kategori | Jumlah Test | Assertions | Status |
 |---|---|:---:|:---:|:---:|
 | `WmsAuditRemediationTest.php` | Feature / Remediasi Audit WMS & SCM (AUD-01 s.d. AUD-17) | 21 | 152 | ✅ Lulus 100% |
+| `ScmSupplyChainTest.php` | Feature / SCM Scorecard, Restock DSS & End-to-End Traceability (UC-31 s.d. UC-34) | 6 | 69 | ✅ Lulus 100% |
 | `EccComprehensiveTestSuiteTest.php` | Feature / End-to-End Regression | 28 | 109 | ✅ Lulus 100% |
 | `SecurityInjectionTest.php` | Feature / Security & RH Spread (F-15) | 23 | 69 | ✅ Lulus 100% |
 | `SecurityAuthTest.php` | Feature / RBAC & Admin Register (F-02) | 18 | 25 | ✅ Lulus 100% |
@@ -138,11 +151,11 @@ Pengujian unit dan integrasi otomatis dieksekusi menggunakan test runner PHPUnit
 | `SecurityRateLimitTest.php` | Feature / Rate Limiter Anti-Spam | 4 | 29 | ✅ Lulus 100% |
 | `Phase2ModelsTest.php` | Unit / Data Models | 3 | 19 | ✅ Lulus 100% |
 | `ExampleTest.php` (Feature + Unit) | Smoke Baseline | 2 | 2 | ✅ Lulus 100% |
-| **TOTAL KESELURUHAN** | **Automated Tests** | **198** | **797** | **✅ 100% PASS (~5,7 detik)** |
+| **TOTAL KESELURUHAN** | **Automated Tests** | **204** | **866** | **✅ 100% PASS (~5,6 detik)** |
 
-### B. Bukti Eksekusi (`php artisan test`, 11 Oktober 2026)
+### B. Bukti Eksekusi (`php artisan test`, 31 Oktober 2026)
 ```text
-php artisan test  ->  tests=198  passed=198  assertions=797  duration=5.71s
+php artisan test  ->  tests=204  passed=204  assertions=866  duration=5.65s
 ```
 
 > Daftar per-test (`✓ nama test`) versi sebelumnya dihapus karena mencerminkan suite 168 test yang sudah tidak berlaku (mis. `WmsPhaseATest` tertulis 8 test, aktualnya 11). Untuk bukti rinci, jalankan `php artisan test --log-junit=storage/app/junit.xml`.
@@ -184,7 +197,7 @@ Berdasarkan pengujian simulasi fisik stokastik (`sim_harness.py`) dan pengujian 
 
 ## 5. Kesimpulan Hasil Pengujian Mutu Sistem
 
-1. **Keandalan Fungsional & Logika (100% Valid):** Seluruh 30 Use Cases dan 198 skenario pengujian otomatis lolos verifikasi tanpa satu pun kegagalan. Seluruh celah kritis (F-01 s/d F-16) telah ditutup dengan arsitektur bersih.
+1. **Keandalan Fungsional & Logika (100% Valid):** Seluruh 34 Use Cases dan 204 skenario pengujian otomatis lolos verifikasi tanpa satu pun kegagalan. Seluruh celah kritis (F-01 s/d F-16) dan kebutuhan SCM (AUD-01 s/d AUD-17) telah ditutup dengan arsitektur bersih.
 2. **Kestabilan Termodinamika & Umur Hardware:** Implementasi histeresis adaptif dan deadband proporsional berhasil meredam osilasi relay hingga 92% dan menghapus 97% kegagalan timeout misting, memperpanjang estimasi umur pakai aktuator mekanik kumbung.
 3. **Integritas Finansial, Spasial, & Keamanan Cloud:** Sistem menjamin presisi moneter dengan `DECIMAL(10,2)` dan `bcmul()`, mencegah tabrakan batch di grid WMS 3D, serta mengamankan hak akses administrasi dan persistensi state kendali pada infrastruktur serverless.
 

@@ -58,7 +58,7 @@ Kedua belah pihak secara sadar dan tanpa paksaan dari pihak mana pun menyatakan 
 | 1 | **Aplikasi Web Dashboard** | Frontend SPA (React 19 + TypeScript + Vite + Responsive Mobile UI) | Cloud / Local Server | Terverifikasi |
 | 2 | **Backend API & Database** | REST API Engine (Laravel 11, SQLite/MySQL, Sanctum Auth, Prepared Statement Downsampling) | Server Deployment | Terverifikasi |
 | 3 | **Firmware ESP32 Controller** | Source Code C++ (PlatformIO / Arduino IDE) v3.6, Closed-Loop Autonomy & Offline Fail-Safe | Terpasang di Chip ESP32 | Terverifikasi |
-| 4 | **Kredensial Akun Admin** | Akses Penuh: WMS Denah Rak 3D, HPP Dinamis, Penjualan, Biaya Operasional, Audit Void, dan Threshold | Amplop Rahasia Akun | Diterima Pihak Kedua |
+| 4 | **Kredensial Akun Admin** | Akses Penuh: SCM Hulu-Hilir (Evaluasi Supplier & Rekomendasi Restock PO), WMS Denah Rak 3D, HPP Dinamis, Penjualan, Biaya Operasional, Audit Void, dan Threshold | Amplop Rahasia Akun | Diterima Pihak Kedua |
 | 5 | **Kredensial Akun Worker** | Akses Khusus Petani: Monitoring Iklim Ergonomis, Mode Jeda Panen (2 Jam), Input Panen, Quick Cull | Amplop Rahasia Akun | Diterima Pihak Kedua |
 
 ---
@@ -68,7 +68,7 @@ Kedua belah pihak secara sadar dan tanpa paksaan dari pihak mana pun menyatakan 
 | :-: | :--- | :--- | :---: |
 | 1 | **Buku Panduan Pengguna (*Manual Book*)** | SOP Operasional Akun Admin, Panduan Input Panen Worker, Prosedur Pemeliharaan Nozzle | Hardcopy & PDF |
 | 2 | **Diagram Pengkabelan (*Wiring Schematic*)** | Skematik kelistrikan box panel kontrol, proteksi relay, dan tata letak sensor di dalam rak | Berkas PDF / Cetak |
-| 3 | **Lembar Hasil Uji Penerimaan (UAT)** | Matriks evaluasi 17 skenario fungsional yang telah ditandatangani bersama | Berkas Fisik Asli |
+| 3 | **Lembar Hasil Uji Penerimaan (UAT)** | Matriks evaluasi 19 skenario fungsional yang telah ditandatangani bersama | Berkas Fisik Asli |
 
 ---
 

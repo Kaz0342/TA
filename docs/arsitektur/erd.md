@@ -5,7 +5,7 @@
 **Konteks:** Tugas Akhir Program Studi Sistem Informasi  
 **Penyusun:** Benedictus Vio  
 **Database Engine:** SQLite (Development / Testing) & PostgreSQL / Supabase (Production)  
-**Terakhir Diperbarui:** Oktober 2026 (Sinkronisasi WMS Fase A–D, Voiding Ledger Audit Trail, HPP Dinamis, & IoT Rule Engine)  
+**Terakhir Diperbarui:** 30 Oktober 2026 (Sinkronisasi WMS Spasial 3D, SCM Hulu-Tengah-Hilir, Master Suppliers & Customers, Voiding Ledger Audit Trail, HPP Dinamis & IoT Rule Engine)  
 
 ---
 
@@ -26,6 +26,10 @@ Perancangan basis data **Smart Shroom SCM** menerapkan prinsip **Database First*
    - Menerapkan *Single-Column Index* dan *Composite Index* pada foreign key (`user_id`, `baglog_batch_id`), kolom penanggalan (`entry_date`, `harvest_date`, `sale_date`, `cull_date`, `expense_date`), koordinat slot (`slot_code`), status pembatalan (`voided_at`), serta timestamp sensor (`recorded_at`, `[device_id, recorded_at]`) untuk menjamin latensi query dashboard tetap sub-100ms.
 5. **Normalisasi Penuh (3NF) & High-Performance Spatial Read:**
    - Struktur database telah memenuhi kaidah Bentuk Normal Ketiga (3NF). Kolom `active_capacity` pada `batch_slot_assignments` disinkronkan secara atomik berbasis database transaction (`DB::transaction`) dengan `lockForUpdate()` saat mutasi afkir/penyelesaian siklus guna mempercepat rendering denah spasial 300 slot secara instan.
+6. **Integrasi Rantai Pasok Terpadu (Hulu - Tengah - Hilir):**
+   - **Hulu (Upstream SCM):** Master pemasok (`suppliers`) dengan pelacakan *lead time*, audit cacat kedatangan (`rejected_at_arrival`), dan penghitungan otomatis *Supplier Scorecard* (defect rate, early mortality, yield kg/baglog).
+   - **Tengah (Midstream SCM):** Perencanaan kapasitas bergulir (*Rolling Capacity Forecast*) dan penasihat pemesanan ulang (*Smart Restock / PO Advisor*) dengan batasan fisik mutlak 3.000 baglog.
+   - **Hilir (Downstream SCM):** Master pelanggan (`customers`) dengan segmentasi pasar (`TENGKULAK`, `RESTO`, `PASAR_INDUK`, `ECERAN`) dan ketertelusuran mutlak (*End-to-End Traceability*) dari batch bibit hingga ke konsumen akhir.
 
 ---
 
@@ -50,6 +54,31 @@ erDiagram
     SLOTS ||--o{ HARVESTS : "asal pemetikan (1:N)"
 
     BAGLOG_BATCHES ||--o{ SALES : "sumber stok penjualan (1:N)"
+    SUPPLIERS ||--o{ BAGLOG_BATCHES : "memasok bibit (1:N)"
+    CUSTOMERS ||--o{ SALES : "membeli komoditas (1:N)"
+
+    SUPPLIERS {
+        bigint id PK
+        varchar_100 name UK "Nama badan usaha/pemasok bibit"
+        varchar_100 contact_person "nullable"
+        varchar_30 phone "nullable (Kontak/WA)"
+        text address "nullable (Alamat workshop vendor)"
+        smallint_unsigned lead_time_days "Default 7 hari (Hari tunggu kedatangan bibit)"
+        boolean is_active "Default true"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    CUSTOMERS {
+        bigint id PK
+        varchar_100 name UK "Nama pelanggan/pembeli jamur"
+        enum_category category "TENGKULAK | RESTO | PASAR_INDUK | ECERAN"
+        varchar_30 phone "nullable"
+        text address "nullable"
+        boolean is_active "Default true"
+        timestamp created_at
+        timestamp updated_at
+    }
 
     USERS {
         bigint id PK
@@ -78,11 +107,14 @@ erDiagram
     BAGLOG_BATCHES {
         bigint id PK
         bigint user_id FK "users.id (Cascade)"
+        bigint supplier_id FK "suppliers.id (Set Null, nullable, Indexed)"
         varchar_30 batch_code UK "Format: BL-YYYYMMDD-XXX"
+        varchar_50 po_number "nullable (Nomor Purchase Order, Indexed)"
         date entry_date "Indexed"
         int_unsigned quantity
+        int_unsigned rejected_at_arrival "Default 0 (Audit cacat saat tiba)"
         decimal_10_2 price_per_baglog "Modal pengadaan per baglog (IDR)"
-        varchar_100 supplier
+        varchar_100 supplier "Legacy fallback string"
         enum_status status "active | completed | contaminated | disposed"
         text notes "nullable"
         timestamp created_at
@@ -138,12 +170,13 @@ erDiagram
     SALES {
         bigint id PK
         bigint user_id FK "users.id (Cascade)"
+        bigint customer_id FK "customers.id (Set Null, nullable, Indexed)"
         bigint baglog_batch_id FK "baglog_batches.id (Set Null, nullable)"
         date sale_date "Indexed"
         decimal_8_2 quantity_kg "Kilogram"
         decimal_10_2 price_per_kg "IDR"
         decimal_12_2 total_revenue "IDR (bcmul calculated)"
-        varchar_100 buyer_name
+        varchar_100 buyer_name "Legacy fallback string"
         text notes "nullable"
         timestamp voided_at "nullable (Indexed, soft-void audit trail)"
         varchar_255 void_reason "nullable"
@@ -243,18 +276,38 @@ Menyimpan denah ruang fisik kumbung 3D berbasis koordinat Kartesius: **Row-Bay-T
 
 ---
 
-### 3.3 Tabel `baglog_batches`
+### 3.3 Tabel `suppliers` (Master Pemasok Bibit Baglog — SCM Hulu)
+Menyimpan data rekanan penyedia media tanam/bibit baglog untuk analisis performa (Supplier Scorecard) dan perencanaan Purchase Order.
+
+| Nama Kolom | Tipe Data | Nullable | Default | Constraints / Index | Keterangan |
+|---|---|:---:|:---:|:---:|---|
+| `id` | `BIGINT UNSIGNED` | ❌ | Auto Increment | **Primary Key** | Identifier unik pemasok. |
+| `name` | `VARCHAR(100)` | ❌ | — | **Unique** | Nama badan usaha / kelompok tani pembuat baglog. |
+| `contact_person` | `VARCHAR(100)` | ✅ | `NULL` | — | Nama penanggung jawab / kontak sales. |
+| `phone` | `VARCHAR(30)` | ✅ | `NULL` | — | Nomor telepon / WhatsApp vendor. |
+| `address` | `TEXT` | ✅ | `NULL` | — | Alamat workshop pembuatan baglog. |
+| `lead_time_days` | `SMALLINT UNSIGNED`| ❌ | `7` | — | Estimasi hari tunggu pengiriman dari PO diterbitkan. |
+| `is_active` | `BOOLEAN` | ❌ | `true` | — | Status kemitraan aktif. |
+| `created_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu supplier didaftarkan. |
+| `updated_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu pembaruan data vendor. |
+
+---
+
+### 3.4 Tabel `baglog_batches`
 Mencatat kelompok pengadaan media tanam (*baglog*) beserta modal awal per biji dan siklus hidupnya.
 
 | Nama Kolom | Tipe Data | Nullable | Default | Constraints / Index | Keterangan |
 |---|---|:---:|:---:|:---:|---|
 | `id` | `BIGINT UNSIGNED` | ❌ | Auto Increment | **Primary Key** | Identifier unik batch baglog. |
 | `user_id` | `BIGINT UNSIGNED` | ❌ | — | **Foreign Key** → `users(id)` (Cascade), **Index** | Admin yang mencatat batch. |
+| `supplier_id` | `BIGINT UNSIGNED` | ✅ | `NULL` | **Foreign Key** → `suppliers(id)` (Set Null), **Index** | Relasi ke master pemasok terverifikasi. |
 | `batch_code` | `VARCHAR(30)` | ❌ | — | **Unique** | Kode batch unik (`BL-YYYYMMDD-XXX`). |
+| `po_number` | `VARCHAR(50)` | ✅ | `NULL` | **Index** | Nomor Purchase Order restock terkait. |
 | `entry_date` | `DATE` | ❌ | — | **Index** | Tanggal baglog masuk kumbung (basis hitung umur). |
 | `quantity` | `INT UNSIGNED` | ❌ | — | — | Jumlah kantong baglog dalam batch. |
+| `rejected_at_arrival`| `INT UNSIGNED` | ❌ | `0` | — | Jumlah baglog cacat/kontaminasi saat pertama tiba. |
 | `price_per_baglog` | `DECIMAL(10,2)` | ❌ | `0.00` | — | Modal awal per biji baglog (basis kalkulasi HPP). |
-| `supplier` | `VARCHAR(100)` | ❌ | — | — | Nama pemasok media tanam. |
+| `supplier` | `VARCHAR(100)` | ❌ | — | — | Nama pemasok media tanam (legacy string fallback). |
 | `status` | `ENUM(...)` | ❌ | `'active'` | **Index** | Status: `active`, `completed`, `contaminated`, `disposed`. |
 | `notes` | `TEXT` | ✅ | `NULL` | — | Catatan kondisi fisik media tanam. |
 | `created_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu pencatatan batch. |
@@ -262,7 +315,7 @@ Mencatat kelompok pengadaan media tanam (*baglog*) beserta modal awal per biji d
 
 ---
 
-### 3.4 Tabel `batch_slot_assignments` (Pivot Alokasi WMS)
+### 3.5 Tabel `batch_slot_assignments` (Pivot Alokasi WMS)
 Menghubungkan batch baglog ke koordinat slot kamar fisik kumbung.
 
 | Nama Kolom | Tipe Data | Nullable | Default | Constraints / Index | Keterangan |
@@ -286,7 +339,7 @@ Menghubungkan batch baglog ke koordinat slot kamar fisik kumbung.
 
 ---
 
-### 3.5 Tabel `baglog_culls` (Ledger Pengurangan / Kematian Baglog)
+### 3.6 Tabel `baglog_culls` (Ledger Pengurangan / Kematian Baglog)
 Jurnal audit pengurangan kapasitas baglog akibat kontaminasi atau kematian fisik media tanam.
 
 | Nama Kolom | Tipe Data | Nullable | Default | Constraints / Index | Keterangan |
@@ -306,7 +359,7 @@ Jurnal audit pengurangan kapasitas baglog akibat kontaminasi atau kematian fisik
 
 ---
 
-### 3.6 Tabel `harvests`
+### 3.7 Tabel `harvests`
 Mencatat hasil panen harian, dilengkapi nomor flush siklus panen dan koordinat slot asal pemetikan (Heatmap Produktivitas).
 
 | Nama Kolom | Tipe Data | Nullable | Default | Constraints / Index | Keterangan |
@@ -327,13 +380,30 @@ Mencatat hasil panen harian, dilengkapi nomor flush siklus panen dan koordinat s
 
 ---
 
-### 3.7 Tabel `sales`
+### 3.8 Tabel `customers` (Master Pelanggan Jamur — SCM Hilir)
+Mengelompokkan pembeli berdasarkan segmen pasar guna analisis penyerapan volume panen dan ketertelusuran komoditas.
+
+| Nama Kolom | Tipe Data | Nullable | Default | Constraints / Index | Keterangan |
+|---|---|:---:|:---:|:---:|---|
+| `id` | `BIGINT UNSIGNED` | ❌ | Auto Increment | **Primary Key** | Identifier unik pelanggan. |
+| `name` | `VARCHAR(100)` | ❌ | — | **Unique** | Nama pelanggan / badan usaha pembeli. |
+| `category` | `ENUM(...)` | ❌ | `'TENGKULAK'` | **Index** | Segmen: `TENGKULAK`, `RESTO`, `PASAR_INDUK`, `ECERAN`. |
+| `phone` | `VARCHAR(30)` | ✅ | `NULL` | — | Nomor telepon / WhatsApp pembeli. |
+| `address` | `TEXT` | ✅ | `NULL` | — | Alamat pengiriman komoditas. |
+| `is_active` | `BOOLEAN` | ❌ | `true` | — | Status kemitraan aktif. |
+| `created_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu pelanggan didaftarkan. |
+| `updated_at` | `TIMESTAMP` | ✅ | `NULL` | — | Waktu pembaruan data pelanggan. |
+
+---
+
+### 3.9 Tabel `sales`
 Mencatat data transaksi penjualan jamur kuping basah kepada pembeli pasar/tengkulak, terhubung ke batch asal untuk pelacakan omzet per batch.
 
 | Nama Kolom | Tipe Data | Nullable | Default | Constraints / Index | Keterangan |
 |---|---|:---:|:---:|:---:|---|
 | `id` | `BIGINT UNSIGNED` | ❌ | Auto Increment | **Primary Key** | Identifier unik transaksi. |
 | `user_id` | `BIGINT UNSIGNED` | ❌ | — | **Foreign Key** → `users(id)` (Cascade), **Index** | Admin pencatat transaksi. |
+| `customer_id` | `BIGINT UNSIGNED` | ✅ | `NULL` | **Foreign Key** → `customers(id)` (Set Null), **Index** | Relasi ke master pelanggan terdaftar. |
 | `baglog_batch_id` | `BIGINT UNSIGNED` | ✅ | `NULL` | **Foreign Key** → `baglog_batches(id)` (Set Null) | Batch sumber panen yang dijual (opsional). |
 | `sale_date` | `DATE` | ❌ | — | **Index** | Tanggal transaksi penjualan. |
 | `quantity_kg` | `DECIMAL(8,2)` | ❌ | — | — | Kuantitas jamur terjual dalam Kilogram. |
@@ -349,7 +419,7 @@ Mencatat data transaksi penjualan jamur kuping basah kepada pembeli pasar/tengku
 
 ---
 
-### 3.8 Tabel `operational_expenses` (Biaya Operasional Kumbung)
+### 3.10 Tabel `operational_expenses` (Biaya Operasional Kumbung)
 Mencatat beban operasional harian/bulanan kumbung guna komputasi Harga Pokok Produksi (HPP) dan Margin Kontribusi. Mengadopsi **Voiding Ledger Pattern** (`voided_at`, `void_reason`, `voided_by`) demi menjaga integritas audit finansial tanpa hard-delete fisik.
 
 | Nama Kolom | Tipe Data | Nullable | Default | Constraints / Index | Keterangan |
@@ -371,7 +441,7 @@ Mencatat beban operasional harian/bulanan kumbung guna komputasi Harga Pokok Pro
 
 ---
 
-### 3.9 Tabel `threshold_settings`
+### 3.11 Tabel `threshold_settings`
 Menyimpan konfigurasi batas ambang keamanan iklim mikro kumbung jamur kuping.
 
 | Nama Kolom | Tipe Data | Nullable | Default | Constraints / Index | Keterangan |
@@ -389,7 +459,7 @@ Menyimpan konfigurasi batas ambang keamanan iklim mikro kumbung jamur kuping.
 
 ---
 
-### 3.10 Tabel `sensor_data`
+### 3.12 Tabel `sensor_data`
 Menyimpan payload data telemetri iklim mikro deret waktu (*time-series*) yang dikirimkan oleh ESP32.
 
 | Nama Kolom | Tipe Data | Nullable | Default | Constraints / Index | Keterangan |
@@ -408,7 +478,7 @@ Menyimpan payload data telemetri iklim mikro deret waktu (*time-series*) yang di
 
 ---
 
-### 3.11 Tabel `sprinkler_logs`
+### 3.13 Tabel `sprinkler_logs`
 Mencatat histori durasi dan pemicu aktivasi aktuator (Pompa Misting, Exhaust Fan, atau Event Sistem Jeda Panen).
 
 | Nama Kolom | Tipe Data | Nullable | Default | Constraints / Index | Keterangan |
@@ -445,4 +515,6 @@ Mencatat histori durasi dan pemicu aktivasi aktuator (Pompa Misting, Exhaust Fan
 | *"Kenapa `laba_bersih_real` dianalisis sebagai Margin Kontribusi pada modul HPP?"* | Secara teori akuntansi biaya manajerial, pengeluaran operasional yang dimasukkan adalah biaya variabel (listrik, misting, tenaga kerja harian). Karena belum mencakup depresiasi aset tetap (struktur bangunan kumbung & hardware mikrokontroler), penyebutan **Margin Kontribusi** jauh lebih jujur dan akurat secara ilmiah dibandingkan laba bersih absolut. |
 | *"Kenapa koreksi salah catat panen/penjualan/afkir/biaya operasional menggunakan kolom void (`voided_at`, `void_reason`, `voided_by`) dan bukan `DELETE` biasa?"* | Mengadopsi prinsip **Voiding Ledger Pattern & Non-Destructive Accounting**. Menghapus baris transaksi (`DELETE`) menghilangkan jejak audit (*audit trail break*), mengaburkan investigasi selisih kas/stok, dan melanggar standar akuntansi. Melalui soft-void, riwayat kesalahan manusia tetap terekam bersama penanggung jawab dan alasannya, sedangkan agregasi metrik otomatis mengecualikan record void melalui scope `whereNull('voided_at')`. |
 | *"Bagaimana sistem mengosongkan rak saat siklus kamar selesai jika masih ada sisa baglog tua?"* | Melalui mekanisme **WMS Cycle Completion with Auto-Culls (`HABIS_PRODUKSI`)**. Dalam transaksi atomik ber-lock (`DB::transaction`), sistem menandai alokasi slot sebagai `COMPLETED`, mencatat `completed_at`, dan secara otomatis mencatatkan sisa `active_capacity` ke jurnal `baglog_culls` dengan alasan `HABIS_PRODUKSI`. Langkah ini menjamin kapasitas rak kembali 0 dan total baglog kumbung tetap presisi tanpa ada baglog gaib. |
+| *"Apa nilai tambah Supply Chain Management (SCM) di sistem Anda dibandingkan sistem inventaris biasa?"* | Sistem menerapkan pendekatan **SCM & Decision Support System (DSS)** terpadu: (1) Di hulu, ada **Supplier Scorecard** yang menghitung defect rate kedatangan dan mortalitas 30 hari pertama secara matematis untuk mengevaluasi mutu vendor bibit. (2) Di tengah, ada **Rolling Capacity Forecast & Smart Restock Advisor** yang memproyeksikan pelepasan rak berdasarkan siklus flush jamur kuping dan menghitung tanggal order optimal tanpa melanggar batas fisik 3.000 baglog. (3) Di hilir, ada **End-to-End Traceability** yang melacak riwayat komoditas dari bibit vendor, posisi rak A/B/C, riwayat iklim IoT, hingga ke konsumen akhir. |
+| *"Kenapa kolom `supplier` dan `buyer_name` string lama tetap dipertahankan meski sudah ada tabel `suppliers` dan `customers`?"* | Prinsip **Backward Compatibility & Non-Breaking API Extension**. Penambahan relasi master dilakukan secara aditif (nullable foreign keys) agar form input dan modul eksisting di frontend tidak rusak, sekaligus menjaga sejarah data lama tanpa risiko kehilangan catatan transaksi historis. |
 | *"Bagaimana data sensor tetap akurat jika salah satu sensor SHT30/DHT22 rusak?"* | Firmware v3.6 dan API menerapkan **Weighted Sensor Fusion dengan Dynamic Normalization**. Bobot standar 35% Atas, 40% Tengah, 25% Bawah otomatis dinormalisasi ulang hanya pada sensor yang mengembalikan nilai valid (`!isnan`), sehingga sistem tidak freeze (*fail-soft*). |

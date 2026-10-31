@@ -98,18 +98,20 @@ Arsitektur sistem **Smart Shroom SCM** berevolusi secara organik melalui proses 
 
 ## 6. Desain Database (ERD)
 
-Sistem terdiri dari 11 entitas inti:
+Sistem terdiri dari 13 entitas inti:
 1. `users`: Akun dan otorisasi RBAC (Admin, Worker).
 2. `slots`: Master koordinat fisik rak kumbung 3D (`Row-Bay-Tier`, 300 slot kapasitas 3.000 baglog).
-3. `baglog_batches`: Kelompok pengadaan media tanam dengan atribut `price_per_baglog`.
-4. `batch_slot_assignments`: Pivot alokasi penempatan batch baglog ke koordinat slot kamar.
-5. `baglog_culls`: Jurnal mutasi pengurangan baglog mati/terkontaminasi dengan alasan audit.
-6. `harvests`: Rekaman panen harian dilengkapi `slot_code` dan `flush_number`.
-7. `sales`: Rekaman penjualan jamur basah terhubung ke batch sumber panen.
-8. `operational_expenses`: Pembukuan biaya operasional (listrik, air misting, tenaga kerja, dll.).
-9. `threshold_settings`: Ambang batas iklim aktif dan preset fase pertumbuhan.
-10. `sensor_data`: Deret waktu (*time-series*) telemetri iklim mikro (append-only).
-11. `sprinkler_logs`: Histori pemicu dan durasi aktivasi misting, kipas, atau interupsi sistem.
+3. `suppliers`: Master pemasok bibit baglog resmi untuk evaluasi *Supplier Scorecard* dan *lead time* pemesanan.
+4. `baglog_batches`: Kelompok pengadaan media tanam dengan atribut `supplier_id`, `initial_quantity`, dan `price_per_baglog`.
+5. `batch_slot_assignments`: Pivot alokasi penempatan batch baglog ke koordinat slot kamar.
+6. `baglog_culls`: Jurnal mutasi pengurangan baglog afkir/cacat dengan alasan audit (`CACAT_KEDATANGAN`, `HABIS_PRODUKSI`, dll.).
+7. `harvests`: Rekaman panen harian dilengkapi `slot_code` dan `flush_number`.
+8. `customers`: Master pelanggan jamur diklasifikasikan berdasarkan segmen pasar (`TENGKULAK`, `RESTO`, `PASAR_INDUK`, `ECERAN`).
+9. `sales`: Rekaman penjualan jamur basah terhubung ke `customer_id` dan batch sumber panen.
+10. `operational_expenses`: Pembukuan biaya operasional (listrik, air misting, tenaga kerja, dll.) dengan alokasi HPP non-retroaktif.
+11. `threshold_settings`: Ambang batas iklim aktif dan preset fase pertumbuhan.
+12. `sensor_data`: Deret waktu (*time-series*) telemetri iklim mikro (append-only).
+13. `sprinkler_logs`: Histori pemicu dan durasi aktivasi misting, kipas, atau interupsi sistem.
 
 ---
 
@@ -220,13 +222,14 @@ Sistem terdiri dari 11 entitas inti:
 
 ## 12. Strategi Pengujian & QA
 
-### 12.1 Automated Testing (PHPUnit) — 198 Tests Passing (797 Assertions)
+### 12.1 Automated Testing (PHPUnit) — 204 Tests Passing (866 Assertions)
 Seluruh pengujian otomatis backend mencapai **100% kelulusan** tanpa kegagalan:
 *   `Phase2ModelsTest.php`: Integritas skema database, foreign key constraints, perhitungan umur dinamis, formula kapasitas aktif slot, dan relasi master slots.
 *   `Phase3ApiTest.php`: Validasi endpoint alokasi slot WMS, pelarangan tumpang tindih slot, pencatatan ledger afkir, kalkulasi HPP dinamis, dan agregasi heatmap panen.
 *   `Phase4DeviceControlTest.php`: Pengujian aktivasi mode jeda panen (`/device/pause`), validasi timer non-blocking, persistensi log sistem aktuator, dan resume kembali ke mode AUTO.
 *   `Phase5IotRuleEngineTest.php`: Ingesti data telemetri berpresisi desimal, penerimaan log aktuator misting/fan, penegakan rate limiting (20 req/menit), sinkronisasi threshold dinamis, dan verifikasi endpoint latest.
 *   `WmsPhaseATest.php` s.d. `WmsPhaseDTest.php`: Pengujian komprehensif lifecycle WMS baglog, pengurangan kapasitas aktif per slot, otomatisasi afkir `HABIS_PRODUKSI` saat siklus selesai, pembatalan data (*void*) dengan audit trail, eliminasi query N+1, dan proteksi race condition nomor batch `BL-YYYYMMDD-XXX`.
+*   `ScmSupplyChainTest.php` (6 test, 69 assertions): Pengujian komprehensif SCM hulu-tengah-hilir, kalkulasi Supplier Scorecard multi-kriteria, Rolling Restock Advisor (dibatasi 3.000 baglog), Dual-Direction Traceability, proteksi RBAC Admin, dan efisiensi query budget O(1).
 *   `WmsAuditRemediationTest.php` (21 test) dan `RackManagementTest.php` (9 test): Remediasi temuan audit WMS/SCM (AUD-01 s.d. AUD-17) dan manajemen rak. Rincian temuan ada di `docs/logika-bisnis/AUDIT_WMS_SCM.md`.
 *   `EccComprehensiveTestSuiteTest.php`, `SecurityAuthTest.php`, `SecurityInjectionTest.php`, `SecurityRateLimitTest.php`: Uji keamanan injeksi SQL, token expiry, pembatasan kuota admin, dan sanitasi payload.
 

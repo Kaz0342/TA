@@ -12,7 +12,7 @@ Dokumentasi proyek ini dikelola secara modular, terstruktur, dan bebas dari redu
 docs/
 ├── 📁 arsitektur/         # Pemodelan sistem, kebutuhan sistem, alur data & basis data
 ├── 📁 teknis-iot/         # Hardware as-built, wiring, belanja, fisika & termodinamika
-├── 📁 logika-bisnis/      # Master katalog 50 logika sistem, WMS, SCM & otomasi aktuator
+├── 📁 logika-bisnis/      # Master katalog 55 logika sistem, WMS, SCM & otomasi aktuator
 ├── 📁 ui-ux/              # Panduan desain antarmuka, design tokens & dokumentasi modul
 ├── 📁 riwayat-pengujian/  # Matriks pengujian, rekam jejak logic hardening & telemetri empiris
 └── 📁 manual/             # Buku manual panduan pengguna siap cetak (HTML & Markdown)
@@ -25,7 +25,7 @@ Berkas perancangan rekayasa perangkat lunak dan arsitektur data:
 * **[PRD.md](arsitektur/PRD.md)** — *Product Requirements Document*: Spesifikasi kebutuhan produk, problem statement, metrik keberhasilan, dan batasan sistem.
 * **[erd.md](arsitektur/erd.md)** — *Entity Relationship Diagram*: Desain basis data normalisasi 3NF, kamus data lengkap, indexing strategy, dan ledger imutabel.
 * **[dfd.md](arsitektur/dfd.md)** — *Data Flow Diagram*: Diagram konteks (Level 0), Level 1, Level 2, dan kamus aliran data REST API.
-* **[use_case.md](arsitektur/use_case.md)** — *Use Case Specification*: Spesifikasi 30 Use Case fungsional beserta matriks kontrol akses (RBAC Admin vs Worker).
+* **[use_case.md](arsitektur/use_case.md)** — *Use Case Specification*: Spesifikasi 34 Use Case fungsional beserta matriks kontrol akses (RBAC Admin vs Worker).
 * **[sequence_diagram.md](arsitektur/sequence_diagram.md)** — *Sequence Diagram UML*: Alur interaksi aktor, frontend, backend API, dan database untuk skenario inti.
 * **[iot-architecture.md](arsitektur/iot-architecture.md)** — *IoT Architecture & Data Flow*: Spesifikasi komunikasi edge ESP32, kontrak JSON telemetry, dan sinkronisasi jeda panen.
 
@@ -43,7 +43,7 @@ Spesifikasi teknis instalasi fisik, elektronika, dan termodinamika kumbung:
 
 ### 3. 🧠 [Logika Bisnis & Kendali Aktuator](logika-bisnis/)
 Katalog aturan sistem, otomasi mikroklimat, dan manajemen pergudangan (WMS/SCM):
-* **[KATALOG_LENGKAP_LOGIKA_SISTEM.md](logika-bisnis/KATALOG_LENGKAP_LOGIKA_SISTEM.md)** — **Master Logic Catalog (SSOT)**: 50 aturan logika sistem lengkap (34 aturan otomasi IoT & mikroklimat + 16 aturan SCM, WMS, dan finansial HPP).
+* **[KATALOG_LENGKAP_LOGIKA_SISTEM.md](logika-bisnis/KATALOG_LENGKAP_LOGIKA_SISTEM.md)** — **Master Logic Catalog (SSOT)**: 55 aturan logika sistem lengkap (34 aturan otomasi IoT & mikroklimat + 21 aturan SCM, WMS, dan finansial HPP).
 * **[logika_aktuator.md](logika-bisnis/logika_aktuator.md)** — *Logika Kendali Aktuator*: Algoritma histeresis misting/fan, cooldown guard, night lockout, dan arsitektur pertahanan iklim P1–P3.
 * **[AUDIT_WMS_SCM.md](logika-bisnis/AUDIT_WMS_SCM.md)** — *Laporan Audit Komprehensif WMS & SCM*: Hasil audit menyeluruh kepatuhan alokasi slot 3D, siklus hidup batch baglog, dan rekonsiliasi data panen/penjualan.
 * **[IMPLEMENTATION_PLAN_WMS_SCM.md](logika-bisnis/IMPLEMENTATION_PLAN_WMS_SCM.md)** — *Rencana Aksi & Remediasi WMS*: Matriks perbaikan teknis penguatan integritas data WMS/SCM.

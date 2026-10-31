@@ -31,6 +31,7 @@ Sistem ini dibangun sebagai produk utama **Tugas Akhir (TA)** bidang Sistem Info
 4. **Mencatat dan menganalisis data panen multi-flush** — termasuk visualisasi heatmap produktivitas per slot kamar.
 5. **Menghitung Harga Pokok Produksi (HPP) & Margin Kontribusi** — membukukan beban operasional riil (listrik, misting, tenaga kerja) ke dalam analisis keuntungan.
 6. **Menerapkan otomasi cerdas aktuator & failsafe interupsi** — histeresis dinamis, cooldown guard, night lockout, dan penahanan exhaust fan saat pintu dibuka panen.
+7. **Mengoptimalkan rantai pasok (SCM) & ketertelusuran** — evaluasi performa pemasok (*Supplier Scorecard*), proyeksi kapasitas rak dan rekomendasi pemesanan ulang (*Smart Restock Advisor*), serta pelacakan silsilah jamur dua arah (*Dual-Direction Traceability*).
 
 ---
 
@@ -50,7 +51,7 @@ Sistem ini dibangun sebagai produk utama **Tugas Akhir (TA)** bidang Sistem Info
 ---
 
 ## 3. Metodologi Pengembangan (SDLC)
-Sistem dikembangkan menggunakan pendekatan **Extreme Programming (XP)** dengan iterasi cepat, Continuous Integration, dan pengujian otomatis komprehensif (**198 PHPUnit automated tests passing 100% dengan 797 assertions**).
+Sistem dikembangkan menggunakan pendekatan **Extreme Programming (XP)** dengan iterasi cepat, Continuous Integration, dan pengujian otomatis komprehensif (**204 PHPUnit automated tests passing 100% dengan 866 assertions**).
 
 ---
 

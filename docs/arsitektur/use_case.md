@@ -4,7 +4,7 @@
 **Dokumen:** Spesifikasi Kebutuhan Perangkat Lunak (SRS) — Use Case Analysis  
 **Konteks:** Tugas Akhir Program Studi Sistem Informasi  
 **Penyusun:** Benedictus Vio  
-**Terakhir Diperbarui:** Oktober 2026 (Sinkronisasi WMS Fase A–D, Voiding Ledger Audit Trail, HPP Dinamis, & IoT Rule Engine)  
+**Terakhir Diperbarui:** 30 Oktober 2026 (Sinkronisasi WMS Spasial 3D, SCM Hulu-Tengah-Hilir, Master Suppliers & Customers, Voiding Ledger Audit Trail, HPP Dinamis & IoT Rule Engine)  
 **Dokumen Terkait:** [sequence_diagram.md](sequence_diagram.md) (Sequence Diagram UML) \| [dfd.md](dfd.md) (Data Flow Diagram)  
 
 ---
@@ -29,7 +29,7 @@ Sistem membagi pengguna dan entitas interaktif menjadi 3 aktor utama:
 
 ## 3. Katalog Use Case
 
-Use case sistem dikelompokkan ke dalam 8 modul utama (total 30 Use Cases):
+Use case sistem dikelompokkan ke dalam 9 modul utama (total 34 Use Cases):
 
 ### Modul A: Autentikasi & Otorisasi Pengguna
 - **UC-01: Melakukan Login** (Admin, Worker)
@@ -76,6 +76,12 @@ Use case sistem dikelompokkan ke dalam 8 modul utama (total 30 Use Cases):
 - **UC-16: Mengirim Data Telemetri Sensor (Fusi 3x SHT30 IP68)** (Perangkat IoT ESP32)
 - **UC-17: Mengambil Konfigurasi Threshold Aktif & Command Device** (Perangkat IoT ESP32)
 - **UC-18: Mengirim Log Aktivitas Aktuator (Misting & Fan)** (Perangkat IoT ESP32)
+
+### Modul I: Supply Chain Management (SCM) & Sistem Pendukung Keputusan (DSS)
+- **UC-31: Mengelola Master Pemasok & Evaluasi Kinerja (Supplier Scorecard)** (Admin)
+- **UC-32: Memantau Proyeksi Kapasitas Kumbung & Rekomendasi Restock Cerdas (Smart PO Restock Advisor)** (Admin)
+- **UC-33: Mengelola Master Pelanggan & Analisis Segmentasi Pasar (Customer Segmentation Analytics)** (Admin)
+- **UC-34: Menelusuri Ketertelusuran Komoditas Hulu-ke-Hilir (End-to-End Batch Traceability & Origin Tracing)** (Admin)
 
 ---
 
@@ -135,6 +141,12 @@ flowchart LR
         UC16([UC-16: Mengirim Telemetri Sensor])
         UC17([UC-17: Mengambil Threshold & Command])
         UC18([UC-18: Mengirim Log Sprinkler])
+
+        %% Modul I: SCM & DSS
+        UC31([UC-31: Master Pemasok & Supplier Scorecard])
+        UC32([UC-32: Proyeksi Kapasitas & Restock Advisor])
+        UC33([UC-33: Master Pelanggan & Segmentasi Pasar])
+        UC34([UC-34: Ketertelusuran Komoditas Hulu-Hilir])
     end
 
     %% Relasi Admin
@@ -165,6 +177,10 @@ flowchart LR
     Admin --> UC28
     Admin --> UC29
     Admin --> UC30
+    Admin --> UC31
+    Admin --> UC32
+    Admin --> UC33
+    Admin --> UC34
 
     %% Relasi Worker
     Worker --> UC01
@@ -223,6 +239,10 @@ flowchart LR
 | **UC-28** | Membatalkan Catatan Afkir (Void) | ✅ | ❌ | ❌ | `POST /api/baglog-culls/{id}/void` (Admin only, Restore capacity) |
 | **UC-29** | Menyelesaikan Siklus Kamar Rak WMS | ✅ | ❌ | ❌ | `POST /api/batch-slot-assignments/{id}/complete` (Admin only, Auto-culls) |
 | **UC-30** | Membatalkan Biaya Operasional (Void) | ✅ | ❌ | ❌ | `POST /api/operational-expenses/{id}/void` (Admin only, Audit trail) |
+| **UC-31** | Master Pemasok & Supplier Scorecard | ✅ | ❌ | ❌ | `GET & POST /api/suppliers`, `/api/suppliers/{id}/scorecard`, `/comparison` |
+| **UC-32** | Proyeksi Kapasitas & Restock Advisor | ✅ | ❌ | ❌ | `GET /api/scm/capacity-snapshot`, `/capacity-forecast`, `/restock-recommendations` |
+| **UC-33** | Master Pelanggan & Segmentasi Pasar | ✅ | ❌ | ❌ | `GET & POST /api/customers`, `/api/customers/analytics` |
+| **UC-34** | Ketertelusuran Komoditas Hulu-Hilir | ✅ | ❌ | ❌ | `GET /api/scm/traceability/batch/{code}`, `/traceability/sale/{id}` |
 
 ---
 
@@ -396,3 +416,65 @@ flowchart LR
   6. Backend memverifikasi hak akses Admin, menandai soft-void, dan mengembalikan HTTP 200 OK.
   7. Kartu ringkasan HPP langsung menghitung ulang margin kontribusi tanpa melibatkan biaya yang dibatalkan.
 
+
+---
+
+### UC-31: Mengelola Master Pemasok & Evaluasi Kinerja (Supplier Scorecard)
+* **Aktor:** Admin
+* **Deskripsi:** Admin mendaftarkan profil pemasok bibit baglog resmi (nama, kontak, alamat, lead time pengiriman) dan memantau rapor evaluasi kinerja vendor secara objektif berbasis data panen dan afkir nyata.
+* **Precondition:** Admin telah melakukan autentikasi login (`role:admin`).
+* **Postcondition:** Data master pemasok tersimpan di tabel `suppliers`. Skor performa dihitung otomatis: *Arrival Defect Rate (%)*, *Early Mortality Rate (%)*, *Average Yield (kg/baglog)*, dan *Grade Kinerja (A/B/C)*.
+* **Alur Normal:**
+  1. Admin membuka menu Master Pemasok SCM.
+  2. Sistem menampilkan daftar pemasok beserta ringkasan jumlah batch dan grade kinerja.
+  3. Admin dapat menambahkan vendor baru via `POST /api/suppliers` dengan mengisi nama, kontak person, nomor telepon, dan estimasi *lead time days*.
+  4. Untuk melihat rapor detail vendor, Admin memilih salah satu supplier.
+  5. Frontend memanggil `GET /api/suppliers/{id}/scorecard`.
+  6. Backend menghitung persentase reject saat bongkar muat, kematian dini di bawah 30 hari, dan rata-rata kilogram panen per baglog, lalu mengembalikan data terstruktur beserta rekomendasi kemitraan.
+
+---
+
+### UC-32: Memantau Proyeksi Kapasitas Kumbung & Rekomendasi Restock Cerdas (Smart Restock Advisor)
+* **Aktor:** Admin
+* **Deskripsi:** Sistem menganalisis kohort baglog aktif di rak (umur dan nomor flush) guna memproyeksikan pelepasan slot kamar 7–30 hari ke depan, serta menerbitkan rekomendasi Purchase Order (PO) cerdas agar rak tidak pernah over-capacity (>3.000 baglog) atau menganggur terlalu lama.
+* **Precondition:** Kumbung memiliki slot aktif dan data panen/afkir tercatat.
+* **Postcondition:** Sistem menyajikan visualisasi kapasitas bebas saat ini, proyeksi pelepasan rak 7/14/21/30 hari, kuantitas order optimal, tanggal pemesanan yang disarankan, dan vendor bibit terbaik.
+* **Alur Normal:**
+  1. Admin mengakses menu Perencanaan Kapasitas & Restock SCM.
+  2. Frontend memanggil `GET /api/scm/capacity-snapshot` dan `GET /api/scm/capacity-forecast`.
+  3. Backend menganalisis slot yang mendekati akhir siklus (flush $\ge 5$ atau umur $> 110$ hari), menghitung kuota slot yang akan dibersihkan, dan memproyeksikan sisa kapasitas bebas.
+  4. Frontend memanggil `GET /api/scm/restock-recommendations`.
+  5. Backend menghitung *Recommended Order Date* dengan mengurangkan target kedatangan bibit terhadap *lead time* supplier terbaik dari modul Scorecard.
+  6. Sistem menampilkan kartu rekomendasi PO: kuantitas pesanan (dibulatkan per 50 baglog dan dibatasi maksimal 3.000 baglog) serta nama vendor prioritas.
+
+---
+
+### UC-33: Mengelola Master Pelanggan & Analisis Segmentasi Pasar
+* **Aktor:** Admin
+* **Deskripsi:** Admin mengelola database pembeli hasil panen (Tengkulak, Restoran, Pasar Induk, Eceran) dan menganalisis daya serap kuantitas serta rata-rata harga jual per segmen pasar.
+* **Precondition:** Admin terautentikasi (`role:admin`).
+* **Postcondition:** Data pelanggan tersimpan di tabel `customers` dan transaksi penjualan dapat dikaitkan dengan `customer_id`. Sistem menghasilkan analitik komparasi pendapatan per kategori pelanggan.
+* **Alur Normal:**
+  1. Admin membuka menu Master Pelanggan SCM.
+  2. Sistem menampilkan daftar mitra pembeli beserta riwayat volume transaksi.
+  3. Admin dapat menambahkan pelanggan baru via `POST /api/customers` dengan memilih kategori (`TENGKULAK`, `RESTO`, `PASAR_INDUK`, `ECERAN`).
+  4. Admin membuka tab Analisis Segmentasi Pasar (`GET /api/customers/analytics`).
+  5. Backend mengagregasi seluruh penjualan non-void per segmen, menghitung total volume terserap (kg), total omzet (IDR), dan rata-rata harga per kilogram per segmen.
+
+---
+
+### UC-34: Menelusuri Ketertelusuran Komoditas Hulu-ke-Hilir (End-to-End Traceability)
+* **Aktor:** Admin
+* **Deskripsi:** Admin menelusuri riwayat komprehensif satu komoditas jamur: dari asal bibit vendor, posisi koordinat rak spasial 3D, riwayat iklim IoT saat masa panen, hingga ke pembeli akhir; atau sebaliknya dari invoice penjualan ke asal bibit.
+* **Precondition:** Data batch baglog, alokasi slot, panen, dan penjualan telah tercatat dalam sistem.
+* **Postcondition:** Sistem menyajikan pohon ketertelusuran hulu-ke-hilir (*Traceability Chain*) secara visual dan transparan.
+* **Alur Normal:**
+  1. Admin membuka menu Ketertelusuran SCM (*Traceability*).
+  2. Admin memasukkan kode batch (misal: `BL-20261030-001`) atau memilih salah satu transaksi penjualan.
+  3. Frontend mengirim `GET /api/scm/traceability/batch/{batch_code}` atau `GET /api/scm/traceability/sale/{id}`.
+  4. Backend merekonstruksi mata rantai data:
+     - **Hulu:** Profil vendor, tanggal tiba, nomor PO, dan reject kedatangan.
+     - **Tengah:** Denah rak spasial yang ditempati (Lorong A/B/C, Bay, Tier) dan riwayat afkir.
+     - **Produksi:** Total panen Grade A, B, Reject, dan rata-rata yield per baglog.
+     - **Hilir:** Rekam transaksi penjualan, nama pembeli, segmen pelanggan, dan harga serap.
+  5. Sistem menampilkan status kelengkapan rantai pasok (*Traceability Chain Status: Complete / Partial*) yang siap dijadikan bukti jaminan mutu agrikultur saat evaluasi atau audit.

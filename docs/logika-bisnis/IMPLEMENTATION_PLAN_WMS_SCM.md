@@ -2,7 +2,7 @@
 
 > **Basis Dokumen:** [`docs/logika-bisnis/AUDIT_WMS_SCM.md`](file:///d:/DevTools/Antigravity/Projects/TA_vio/docs/logika-bisnis/AUDIT_WMS_SCM.md)  
 > **Target Branch:** `develop`  
-> **Status:** SELESAI (Sprint 1–4 100% Terverifikasi & Lulus Uji)  
+> **Status:** SELESAI (Sprint 1–5 100% Terverifikasi & Lulus Uji)  
 > **Prinsip:** Logika & Integritas Basis Data Dulu, Dokumen Kemudian. Zero Skripsi Bab 1-5 Fluff.
 
 ---
@@ -171,6 +171,33 @@ graph TD
   - `WmsAuditRemediationTest`: 21 tests, 152 assertions **PASS** (100%).
   - Probe Audit WMS (`AuditProbeWmsTest.php`): 26 tests, 26 assertions **PASS** (100%).
   - Full suite `php artisan test`: 198 tests, 797 assertions **PASS** (100%).
+
+---
+
+### Sprint 5: Penguatan SCM Hulu-Tengah-Hilir & Decision Support System (Priority High) — `[SELESAI - 100% TERVERIFIKASI]`
+**Target:** Menutup kesenjangan SCM (Bagian 6 `AUDIT_WMS_SCM.md`), mengubah sistem dari sekadar pencatatan pasif menjadi Sistem Pendukung Keputusan (DSS) rantai pasok dengan Supplier Scorecard, Rolling Capacity Forecast, Restock Advisor, dan End-to-End Traceability.
+- **Status:** **SELESAI (100% Lulus Verifikasi)**
+- **Kesenjangan SCM yang Dibereskan:** Hulu (Pengadaan & Vendor), Tengah (Perencanaan Kapasitas Bergulir), Hilir (Pelanggan & Ketertelusuran Mutlak).
+- **Daftar Pekerjaan Teknis yang Terealisasi:**
+  1. **Hulu — Master Supplier & Scorecard (`SupplierService.php` & `SupplierController.php`):**
+     - Selesai: Migrasi `create_suppliers_table` dan `add_supplier_id_to_baglog_batches_table`.
+     - Selesai: Relasi `Supplier` ke `BaglogBatch` dengan audit `rejected_at_arrival` dan nomor PO.
+     - Selesai: Algoritma Supplier Scorecard menghitung *Arrival Defect Rate (%)*, *Early Mortality Rate (%)*, *Average Yield (kg/baglog)*, dan *Performance Grade (A/B/C)*.
+  2. **Tengah — Proyeksi Kapasitas & Restock Advisor (`ScmAdvisorService.php` & `ScmAdvisorController.php`):**
+     - Selesai: Snapshot kapasitas fisik real-time berbasis limit mutlak 3.000 baglog kumbung.
+     - Selesai: *Rolling Capacity Forecast* 7, 14, 21, dan 30 hari ke depan menganalisis kohort slot aktif yang mendekati akhir siklus (flush $\ge 5$ atau umur $> 110$ hari).
+     - Selesai: *Smart Restock Advisor* menghitung kuantitas optimal (dibulatkan per 50 baglog) dan tanggal order (*Order Date*) mundur sesuai lead time supplier terbaik.
+  3. **Hilir — Master Customer & End-to-End Traceability (`TraceabilityService.php` & `CustomerController.php`):**
+     - Selesai: Migrasi `create_customers_table` dan `add_customer_id_to_sales_table` (kategori: `TENGKULAK`, `RESTO`, `PASAR_INDUK`, `ECERAN`).
+     - Selesai: Analitik segmentasi pasar menghitung volume serap dan rata-rata harga jual per segmen.
+     - Selesai: Penelusuran dua arah tanpa putus (*Batch-to-Customer Traceability* & *Sale-to-Batch Origin Tracing*).
+  4. **Proteksi RBAC & Seed Data:**
+     - Selesai: Seluruh endpoint SCM dilindungi middleware `role:admin`.
+     - Selesai: Database seeder dimutakhirkan dengan 4 master pemasok dan 4 master pelanggan terhubung riil.
+- **Hasil Pengujian Otomatis:**
+  - `ScmSupplyChainTest`: 6 tests, 69 assertions **PASS** (100%).
+  - Full suite `php artisan test`: **204 tests, 866 assertions PASS** (100%).
+  - `npm run build`: 0 error (TypeScript & Vite build sukses).
 
 ---
 

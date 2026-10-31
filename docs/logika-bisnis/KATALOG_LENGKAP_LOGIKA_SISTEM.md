@@ -3,7 +3,7 @@
 
 - **Dokumen:** Single Source of Truth (SSOT) Seluruh Logika Sistem
 - **Disusun:** 8 Oktober 2026
-- **Cakupan:** **50 Logika Lengkap** tanpa terkecuali, mencakup **Pilar 1 (IoT, Fisika, Sensor & Aktuator)** dan **Pilar 2 (WMS, SCM, Panen, Penjualan & Finansial HPP)**.
+- **Cakupan:** **55 Logika Lengkap** tanpa terkecuali, mencakup **Pilar 1 (IoT, Fisika, Sensor & Aktuator)** dan **Pilar 2 (WMS, SCM, Panen, Penjualan & Finansial HPP)**.
 
 ---
 
@@ -14,11 +14,12 @@
    - [Kelompok B: Kendali Misting & Solenoid (L-05 – L-13)](#kelompok-b-kendali-misting--solenoid-l-05--l-13)
    - [Kelompok C: Kendali Exhaust Fan (L-14 – L-26)](#kelompok-c-kendali-exhaust-fan-l-14--l-26)
    - [Kelompok D: Failsafe & Ketahanan Operasional (L-27 – L-34)](#kelompok-d-failsafe--ketahanan-operasional-l-27--l-34)
-3. [PILAR 2: Logika Manajemen Rantai Pasok (SCM) & WMS (16 Logika)](#pilar-2-logika-manajemen-rantai-pasok-scm--wms-16-logika)
+3. [PILAR 2: Logika Manajemen Rantai Pasok (SCM) & WMS (21 Logika)](#pilar-2-logika-manajemen-rantai-pasok-scm--wms-21-logika)
    - [Kelompok E: WMS & Penataan Kumbung Rak Dinamis (L-35 – L-40)](#kelompok-e-wms--penataan-kumbung-rak-dinamis-l-35--l-40)
    - [Kelompok F: Pencatatan Panen & Siklus Flush (L-41 – L-44)](#kelompok-f-pencatatan-panen--siklus-flush-l-41--l-44)
    - [Kelompok G: Inventori Penjualan & Finansial HPP (L-45 – L-47)](#kelompok-g-inventori-penjualan--finansial-hpp-l-45--l-47)
    - [Kelompok H: KPI Agrikultur & Heatmap Dashboard (L-48 – L-50)](#kelompok-h-kpi-agrikultur--heatmap-dashboard-l-48--l-50)
+   - [Kelompok I: SCM Decision Support & Ketertelusuran Hulu-Hilir (L-51 – L-55)](#kelompok-i-scm-decision-support--ketertelusuran-hulu-hilir-l-51--l-55)
 4. [Tabel Matriks Referensi Cepat (Cheat Sheet Sistem & Defense)](#tabel-matriks-referensi-cepat-cheat-sheet-sistem--defense)
 
 ---
@@ -236,7 +237,7 @@
 
 ---
 
-## PILAR 2: Logika Manajemen Rantai Pasok (SCM) & WMS (16 Logika)
+## PILAR 2: Logika Manajemen Rantai Pasok (SCM) & WMS (21 Logika)
 
 ### Kelompok E: WMS & Penataan Kumbung Rak Dinamis (L-35 – L-40)
 
@@ -339,6 +340,46 @@
 
 ---
 
+### Kelompok I: SCM Decision Support & Ketertelusuran Hulu-Hilir (L-51 – L-55)
+
+* **L-51: Supplier Performance Scorecard & Defect Arrival Tracking**
+  * **Lokasi:** `SupplierService.php`, `SupplierController.php`, `Supplier.php`
+  * **Aturan:** Menilai kinerja pemasok bibit secara matematis dan objektif berdasarkan 4 pilar:
+    1. *Arrival Defect Rate (%)*:
+       $$\text{Arrival Defect} = \frac{\sum \text{rejected\_at\_arrival}}{\sum (\text{quantity} + \text{rejected\_at\_arrival})} \times 100\%$$
+    2. *Early Mortality Rate (%)*: Persentase kematian baglog dalam 30 hari pertama pasca kedatangan (indikasi bibit terkontaminasi dari pembuat baglog vs penanganan kumbung).
+    3. *Average Yield per Baglog (kg/baglog)*: Rata-rata hasil panen bersih (Grade A + B) yang dihasilkan per baglog per pemasok.
+    4. *Performance Grade*: Penentuan Grade Kinerja A, B, atau C beserta rekomendasi apakah supplier prioritas utama atau perlu evaluasi.
+  * **Tujuan:** Menghilangkan subjektivitas pemilihan vendor bibit jamur dan mendukung audit garansi bibit saat tiba.
+
+* **L-52: Rolling Capacity Forecast (Pelepasan Slot Bergulir 7–30 Hari)**
+  * **Lokasi:** `ScmAdvisorService.php`, `ScmAdvisorController.php`
+  * **Aturan:** Menganalisis seluruh alokasi slot aktif di rak kumbung berdasarkan nomor flush terkini (flush 1–7) dan umur ekonomis baglog (hari sejak kedatangan). Mengestimasi kapan slot-slot tersebut akan mencapai akhir siklus panen dan memproyeksikan kapasitas bebas dalam 4 jendela waktu: **7 hari, 14 hari, 21 hari, dan 30 hari ke depan**.
+  * **Tujuan:** Memberikan visibilitas awal kapasitas kumbung agar pergantian media tanam dapat direncanakan tanpa *downtime* rak yang lama.
+
+* **L-53: Smart Restock & PO Recommendation Advisor (Batas 3.000 Baglog)**
+  * **Lokasi:** `ScmAdvisorService.php`, `ScmAdvisorController.php`
+  * **Aturan:** Menghitung rekomendasi kuantitas restock dan tanggal penerbitan Purchase Order (PO):
+    $$\text{Kuantitas PO Optimal} = \min(\text{Proyeksi Kapasitas Bebas}, 3000 - \text{Total Baglog Aktif})$$
+    $$\text{Recommended Order Date} = \text{Target Tanggal Butuh} - \text{Lead Time Supplier Terpilih}$$
+    Kuantitas pesanan dibulatkan ke kelipatan 50 baglog dan dilarang melampaui batas fisik 3.000 baglog. Vendor diprioritaskan otomatis berdasarkan ranking terbaik dari Supplier Scorecard.
+  * **Tujuan:** Menghidupkan sinyal `needs_po_alert` menjadi sistem pendukung keputusan (DSS) otomatis yang mencegah kelebihan muatan rak (*overcapacity*) maupun kekosongan media tanam.
+
+* **L-54: Customer Segmentation & Market Demand Analytics**
+  * **Lokasi:** `TraceabilityService.php`, `CustomerController.php`, `Customer.php`
+  * **Aturan:** Mengklasifikasikan pembeli hasil panen ke dalam 4 segmen pasar: `TENGKULAK`, `RESTO`, `PASAR_INDUK`, dan `ECERAN`. Sistem mengakumulasi volume penjualan (kg), total pendapatan (IDR), dan rata-rata harga serap per kilogram untuk masing-masing segmen:
+    $$\text{Harga Rata-Rata per Kg} = \frac{\sum \text{Total Pendapatan Segmen}}{\sum \text{Volume Terjual Segmen}}$$
+  * **Tujuan:** Memberikan wawasan bisnis mengenai segmen pembeli mana yang memberikan margin tertinggi dan daya serap komoditas paling stabil.
+
+* **L-55: End-to-End Commodity Traceability & Origin Tracing**
+  * **Lokasi:** `TraceabilityService.php`, `ScmAdvisorController.php`
+  * **Aturan:** Menyediakan penelusuran dua arah tanpa putus:
+    1. *Batch-to-Customer Traceability*: Dari kode batch $\to$ data vendor bibit $\to$ koordinat rak spasial 3D (Row-Bay-Tier) $\to$ riwayat panen (Grade A/B/Reject) $\to$ daftar pembeli yang menerima jamur.
+    2. *Sale-to-Batch Origin Tracing*: Dari nomor nota penjualan $\to$ menelusuri kembali ke batch asal bibit dan tanggal kedatangannya.
+  * **Tujuan:** Menjamin transparansi rantai pasok penuh (*Food Safety & Agricultural Traceability*) sebagai standar keunggulan komoditas agrikultur modern.
+
+---
+
 ## Tabel Matriks Referensi Cepat (Cheat Sheet Sistem & Defense)
 
 | No | ID | Nama Logika | Ranah | Komponen Utama | Parameter Kunci |
@@ -393,5 +434,10 @@
 | 48 | L-48 | Spatial 3D Heatmap | Analitik | API / UI | Rasio intensitas warna panen & prorata batch |
 | 49 | L-49 | Biological Efficiency (BE) | Analitik | Future Enhancement | Rasio biologi substrat (catatan riset lanjutan) |
 | 50 | L-50 | Mortality Rate (Pure Biosecurity) | Analitik | Dashboard & HPP | Mengisolasi penyakit murni (tanpa HABIS_PRODUKSI) |
+| 51 | L-51 | Supplier Performance Scorecard | SCM Hulu | Service & Controller | Defect arrival %, early mortality %, yield per baglog |
+| 52 | L-52 | Rolling Capacity Forecast | SCM Tengah | Service & Controller | Proyeksi slot bebas 7, 14, 21, dan 30 hari ke depan |
+| 53 | L-53 | Smart Restock & PO Advisor | SCM Tengah | Service & Controller | Kuantitas & tanggal PO optimal (Hard cap 3.000 baglog) |
+| 54 | L-54 | Customer Demand Segmentation | SCM Hilir | Service & Controller | Analitik serapan volume & harga per segmen pasar |
+| 55 | L-55 | End-to-End Traceability | SCM Hilir | Service & Controller | Penelusuran hulu-ke-hilir: bibit -> rak -> panen -> pembeli |
 
 ---
