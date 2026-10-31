@@ -3,7 +3,7 @@
 **Judul Tugas Akhir:** *Sistem Informasi Supply Chain Management dan Spasial WMS pada Kumbung Jamur Terintegrasi dengan Otomasi dan Monitoring Mikroklimat IoT*  
 **Dokumen:** Analisis Aliran Data Sistem (Data Flow Diagram / DFD Level 0, Level 1, Level 2 & Data Dictionary)  
 **Referensi Terkait:** [use_case.md](use_case.md) | [sequence_diagram.md](sequence_diagram.md) | [erd.md](erd.md)  
-**Penyusun:** Benedictus Vio  
+**Penyusun:** Benedict Saviola Pradana  
 **Standar Rekayasa:** Ponytail Lean Spec (Zero-Bloat, Anti-Bab 1-5 Skripsi, 100% Pure Information Flow & Data Stores)
 
 ---

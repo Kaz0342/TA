@@ -2,7 +2,7 @@
 **Judul Proyek Akhir:** *Sistem Informasi Supply Chain Management dan Spasial WMS pada Kumbung Jamur Terintegrasi dengan Otomasi dan Monitoring Mikroklimat IoT*  
 **Produk Sistem:** Smart Shroom SCM  
 **Program Studi:** Sistem Informasi  
-**Penyusun:** Benedictus Vio  
+**Penyusun:** Benedict Saviola Pradana  
 **Topik:** Pengujian Fungsional (*Black-Box Testing*), Pengujian Otomatis (*Automated Feature/Unit Testing*), dan Pengujian Logika IoT  
 **Target:** Dokumen Verifikasi Mutu & Pegangan Uji Sistem Proyek Akhir  
 **Terakhir Diperbarui:** 31 Oktober 2026 (Sinkronisasi Modul SCM Hulu-Hilir, Scorecard, Restock DSS, & Traceability)  

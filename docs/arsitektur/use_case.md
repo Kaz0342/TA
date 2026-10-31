@@ -3,7 +3,7 @@
 **Judul Tugas Akhir:** *Sistem Informasi Supply Chain Management dan Spasial WMS pada Kumbung Jamur Terintegrasi dengan Otomasi dan Monitoring Mikroklimat IoT*  
 **Dokumen:** Spesifikasi Kebutuhan Perangkat Lunak (SRS) — Use Case Analysis  
 **Konteks:** Tugas Akhir Program Studi Sistem Informasi  
-**Penyusun:** Benedictus Vio  
+**Penyusun:** Benedict Saviola Pradana  
 **Terakhir Diperbarui:** 30 Oktober 2026 (Sinkronisasi WMS Spasial 3D, SCM Hulu-Tengah-Hilir, Master Suppliers & Customers, Voiding Ledger Audit Trail, HPP Dinamis & IoT Rule Engine)  
 **Dokumen Terkait:** [sequence_diagram.md](sequence_diagram.md) (Sequence Diagram UML) \| [dfd.md](dfd.md) (Data Flow Diagram)  
 

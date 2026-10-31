@@ -6,7 +6,7 @@
 
 **Sistem Informasi Supply Chain Management dan Spasial WMS pada Kumbung Jamur Terintegrasi dengan Otomasi dan Monitoring Mikroklimat IoT**
 
-Penulis: Benedictus Vio
+Penulis: Benedict Saviola Pradana
 Program Studi Sistem Informasi
 
 Versi Manual: 1.0 · Oktober 2026

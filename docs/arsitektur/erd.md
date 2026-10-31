@@ -3,7 +3,7 @@
 **Judul Tugas Akhir:** *Sistem Informasi Supply Chain Management dan Spasial WMS pada Kumbung Jamur Terintegrasi dengan Otomasi dan Monitoring Mikroklimat IoT*  
 **Dokumen:** Desain Basis Data & Kamus Data (*Database Design & Data Dictionary*)  
 **Konteks:** Tugas Akhir Program Studi Sistem Informasi  
-**Penyusun:** Benedictus Vio  
+**Penyusun:** Benedict Saviola Pradana  
 **Database Engine:** SQLite (Development / Testing) & PostgreSQL / Supabase (Production)  
 **Terakhir Diperbarui:** 30 Oktober 2026 (Sinkronisasi WMS Spasial 3D, SCM Hulu-Tengah-Hilir, Master Suppliers & Customers, Voiding Ledger Audit Trail, HPP Dinamis & IoT Rule Engine)  
 
