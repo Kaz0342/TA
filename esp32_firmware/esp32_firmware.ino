@@ -1113,7 +1113,6 @@ void fetchThresholds() {
 
   WiFiClientSecure client;
   client.setInsecure(); // Bypass SSL verification untuk testing
-  client.setBufferSizes(1024, 512); // Optimasi heap: hemat ~30KB RAM SSL cegah fragmentasi heap
 
   HTTPClient http;
   http.begin(client, apiBaseUrl + "/thresholds/active");
@@ -1184,7 +1183,6 @@ void fetchCommand() {
 
   WiFiClientSecure client;
   client.setInsecure();
-  client.setBufferSizes(512, 512);
 
   HTTPClient http;
   http.begin(client, apiBaseUrl + "/device/command");
@@ -1214,7 +1212,6 @@ void sendSensorData(float temp, float hum) {
 
   WiFiClientSecure client;
   client.setInsecure();
-  client.setBufferSizes(512, 512);
 
   HTTPClient http;
   http.begin(client, apiBaseUrl + "/sensor-data");
@@ -1250,7 +1247,6 @@ int postSprinklerLog(const PendingLog& e) {
 
   WiFiClientSecure client;
   client.setInsecure();
-  client.setBufferSizes(512, 512);
 
   HTTPClient http;
   http.begin(client, apiBaseUrl + "/sprinkler-logs");
