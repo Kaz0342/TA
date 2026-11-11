@@ -7,6 +7,8 @@
 
 Dokumen ini disusun sebagai **rujukan teknis resmi dan pegangan ilmiah** saat penguji teknis atau reviewer menanyakan dasar keputusan rekayasa, fisika termodinamika, biologi jamur, pemilihan sensor, maupun efisiensi air.
 
+> **Catatan Pedoman:** Dokumen ini merupakan pedoman ekspektasi rancangan awal dan basis argumen ilmiah. Besaran empiris di lapangan dapat disesuaikan secara adaptif berdasarkan hasil pengukuran, kalibrasi, dan uji *commissioning* di kumbung mitra.
+
 ---
 
 ## 1. STRATEGI FISIK AMPLOP KUMBUNG (PASSIVE COOLING)
@@ -62,7 +64,7 @@ Laju kehilangan uap air tergantung tingkat kebocoran udara ruangan (*Air Changes
 ### B. Konsumsi Air Riil Controller & Rekomendasi Hardware
 * Simulator menggunakan nozzle kabut mikro dengan debit $\approx 0.2\text{ Liter/menit}$ per nozzle.
 * Pada instalasi nyata dengan **14 titik nozzle kabut (0.3mm)**:
-  * Debit total nozzle: $\sim 1.0 – 1.4\text{ Liter/menit}$.
+  * Debit total 14 nozzle (0.3mm @ 6–8 Bar): $\sim 1.1 – 1.5\text{ Liter/menit}$ (estimasi empiris).
   * Pompa beroperasi rata-rata 30–60 menit total per hari (terbagi dalam puluhan siklus pendek 30–60 detik).
   * **Konsumsi air harian di lapangan: 30 – 70 Liter/hari.**
 * **Rekomendasi Toren:** Siapkan tandon air berkapasitas **minimal 200 – 500 Liter** (idealnya 500 L). Kapasitas ini cukup untuk menopang kebutuhan misting selama 5–7 hari operasional tanpa risiko pompa kering (*dry-running*).

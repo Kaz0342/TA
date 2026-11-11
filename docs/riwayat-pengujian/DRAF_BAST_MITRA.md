@@ -43,12 +43,14 @@ Kedua belah pihak secara sadar dan tanpa paksaan dari pihak mana pun menyatakan 
 | :-: | :--- | :--- | :-: | :---: | :---: |
 | 1 | **Central Box Controller IP65** | Box Panel Outdoor Waterproof, Rel Din-Rail, Cable Gland, Indikator Pilot Lamp | 1 Unit | Baik | Beroperasi |
 | 2 | **Mainboard Mikrokontroler** | ESP32-WROOM-32 (30-Pin, Wi-Fi 2.4 GHz, Dual-Core 240 MHz, Autonomi Closed-Loop) | 1 Unit | Baik | Beroperasi |
-| 3 | **Power Supply Unit (PSU)** | SMPS Industrial 12V 5A + Step-Down Buck Converter LM2596 5V 3A | 1 Set | Baik | Beroperasi |
-| 4 | **Probe Sensor Mikroklimat** | Sensor Digital SHT31 Industrial Grade, I2C Interface, Kabel Shielded Anti-Noise (3m, 5m, 7m) | 3 Probe | Baik | Beroperasi |
+| 3 | **Power Supply Unit (PSU)** | SMPS Industrial 12V 10A + Step-Down Buck Converter LM2596 5V 3A | 1 Set | Baik | Beroperasi |
+| 4 | **Probe Sensor Mikroklimat** | Sensor Digital SHT30/SHT31 IP68, I2C Interface, Kabel FTP Cat5e Shielded (6m s/d 9,6m) | 3 Probe | Baik | Beroperasi |
 | 5 | **Modul Display Lokal** | LCD 16×2 Character dengan I2C Backpack (Tampilan Suhu, RH, Status Aktuator, Countdown Mode Panen) | 1 Unit | Baik | Beroperasi |
 | 6 | **Modul Aktuator Relay** | Modul 4-Channel 5V Relay dengan Optocoupler Isolation (Pengendali Pompa Misting & Exhaust Fan) | 1 Modul | Baik | Beroperasi |
-| 7 | **Instalasi Misting & Pengabutan** | Pompa Tekanan Tinggi 100 PSI 12V DC, Selang PU High Pressure 6mm, Nozzle Misting Anti-Drip 0.3mm | 1 Jalur Lengkap | Baik | Beroperasi |
-| 8 | **Sistem Sirkulasi Udara** | Exhaust Fan 8 Inch Exhaust/Ventilasi Sirkulasi Kumbung | 1 Unit | Baik | Beroperasi |
+| 7 | **Instalasi Misting & Pengabutan** | Pompa Tekanan Tinggi 130–160 PSI 12V DC, Selang PU High Pressure 6mm, 14 Nozzle Misting 0.3mm | 1 Jalur Lengkap | Baik | Beroperasi |
+| 8 | **Sistem Sirkulasi Udara** | Exhaust Fan 10 Inch (AC 220V) Ventilasi Sirkulasi Kumbung | 1 Unit | Baik | Beroperasi |
+| 9 | **Katup Solenoid Anti-Drip** | Solenoid Valve Air 12V DC Drat 1/2" Kuningan Tipe NC (Rating ≥ 10 Bar) | 1 Unit | Baik | Beroperasi |
+| 10 | **Filtrasi Air Masuk** | Housing Filter Sedimen Spun Cartridge 5 µm Drat 1/2" | 1 Set | Baik | Beroperasi |
 
 ---
 
@@ -57,7 +59,7 @@ Kedua belah pihak secara sadar dan tanpa paksaan dari pihak mana pun menyatakan 
 | :-: | :--- | :--- | :--- | :---: |
 | 1 | **Aplikasi Web Dashboard** | Frontend SPA (React 19 + TypeScript + Vite + Responsive Mobile UI) | Cloud / Local Server | Terverifikasi |
 | 2 | **Backend API & Database** | REST API Engine (Laravel 11, SQLite/MySQL, Sanctum Auth, Prepared Statement Downsampling) | Server Deployment | Terverifikasi |
-| 3 | **Firmware ESP32 Controller** | Source Code C++ (PlatformIO / Arduino IDE) v3.6, Closed-Loop Autonomy & Offline Fail-Safe | Terpasang di Chip ESP32 | Terverifikasi |
+| 3 | **Firmware ESP32 Controller** | Source Code C++ (Arduino IDE) v3.6.1-HARDENED, Closed-Loop Autonomy & Offline Fail-Safe | Terpasang di Chip ESP32 | Terverifikasi |
 | 4 | **Kredensial Akun Admin** | Akses Penuh: SCM Hulu-Hilir (Evaluasi Supplier & Rekomendasi Restock PO), WMS Denah Rak 3D, HPP Dinamis, Penjualan, Biaya Operasional, Audit Void, dan Threshold | Amplop Rahasia Akun | Diterima Pihak Kedua |
 | 5 | **Kredensial Akun Worker** | Akses Khusus Petani: Monitoring Iklim Ergonomis, Mode Jeda Panen (2 Jam), Input Panen, Quick Cull | Amplop Rahasia Akun | Diterima Pihak Kedua |
 

@@ -783,8 +783,8 @@ Pola: **monolit terpisah frontend/backend**, REST JSON, logika bisnis (perhitung
 | Kipas | Exhaust fan 10" AC 220V |
 | Nozzle misting | 14x Brass 0.3mm + Tee slip-lock 6mm |
 | Catu daya | SMPS 12V 10A (120W) + Buck Converter LM2596 (set ke 5.0V) |
-| Box panel | Box Panel Outdoor Waterproof IP65 + MCB 2A |
-| Kabel sensor | Cat5e FTP/UTP twisted-pair (jalur dinding ±7–8 m) |
+| Box panel | Box Panel Outdoor Waterproof IP65 + RCBO 4–6A (MCB opsional) |
+| Kabel sensor | Cat5e FTP/UTP twisted-pair (jalur dinding ±6–9,6 m) |
 | Tampilan | LCD I2C 16x2 (opsional, alamat 0x27) |
 
 Ruang kumbung: **7 x 5 x 3 m (volume udara nominal ±122,5 m3 tanpa plafon)**.

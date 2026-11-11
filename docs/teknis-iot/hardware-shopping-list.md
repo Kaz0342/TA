@@ -43,7 +43,7 @@
 | 13 | Step Down | **Modul Buck Converter LM2596 DC-DC** | Input 12V, Output Adjustable (Set ke 5.0V Presisi) | 2 Unit *(1 utama + 1 cadangan)* | Rp 30.000 | Menurunkan 12V jadi 5.0V bersih untuk ESP32 VIN dan koil relay. Setel 5.0V dengan multimeter sebelum disambung! |
 | 14 | Enclosure | **Box Panel Waterproof IP65 Outdoor** | Plastik ABS Tebal (Min. 300 × 200 × 130 mm) | 1 Unit | Rp 95.000 | Rumah seluruh kontroler, tahan lembap RH 90%. Plastik ABS agar sinyal Wi-Fi ESP32 tembus leluasa. |
 | T4 | Dudukan | **Rel DIN 35 mm (Panjang ±20 cm) + Sekrup** | Plat Rel DIN Standar MCB/RCBO | 1 Batang | Rp 15.000 | Dudukan kokoh untuk RCBO dan terminal busbar di dalam box IP65. |
-| T5 | Proteksi Utama | **RCBO 1P+N 30 mA (Arus Pengenal 4–6 A)** | Proteksi Arus Lebih + Kebocoran Arus Bumi (ELCB) | 1 Unit | Rp 180.000 | **Sangat Disarankan (Pengganti MCB 2A).** Melindungi pekerja dari sengatan listrik fatal di kumbung lembap RH 90% dan mencegah jeglek akibat arus inrush SMPS. |
+| T5 | Proteksi Utama | **RCBO 1P+N 30 mA (Arus Pengenal 4–6 A)** | Proteksi Arus Lebih + Kebocoran Arus Bumi (ELCB) | 1 Unit | Rp 180.000 | **Wajib Utama (MCB Tambahan Opsional).** Melindungi pekerja dari sengatan listrik fatal di kumbung lembap RH 90% dan mencegah jeglek akibat arus inrush SMPS. MCB 2–4A dapat ditambahkan sebagai opsi proteksi sekunder. |
 | 15 | Jaringan | **Wi-Fi Range Extender 300 Mbps** | Colokan PLN, Frekuensi 2.4 GHz | 1 Unit | Rp 140.000 | **Opsional (Tunda Beli).** Ukur RSSI Wi-Fi di titik box panel terlebih dahulu; beli hanya jika sinyal di bawah -75 dBm. |
 | **E** | **PERINTILAN KABEL & KONEKTOR ELEKTRONIK** | | | | | |
 | 16 | Kabel Sinyal | **Kabel FTP Cat5e Twisted-Pair (Shielded)** | 4-Pair AWG24 Tembaga Murni (Foil + Drain Wire) | 25 Meter | Rp 100.000 | Jalur data I2C 3 sensor SHT30. Kebutuhan 21,83 m (beli 25 m sisa 3,17 m, atau 30 m sisa 8,17 m lebih aman). Wajib FTP berpelindung aluminium foil untuk meredam noise I2C jarak sampai 9,6 meter. |
@@ -60,7 +60,7 @@
 | 24 | Adaptor Solenoid | **Fitting Adaptor Drat Luar 1/2" Male ke Quick 6mm** | Kuningan / Pneumatic Drat 1/2" to 6mm Tube | 2 Pcs | Rp 30.000 | Menyambungkan selang PU 6mm ke inlet dan outlet solenoid valve 1/2". |
 | 25 | Adaptor Pompa | **Fitting Nepel Pompa Diafragma ke Quick 6mm** | Ulir drat outlet pompa (18mm / 1/2") to 6mm Tube | 2 Pcs | Rp 30.000 | Menyambungkan outlet pompa diafragma ke selang PU 6mm. |
 | 26 | Selang Isap | **Selang Spiral Kawat Anyaman Transparan 1/2"** | Diameter dalam 1/2", kawat baja anti-kempot | 1.5 Meter + 4 Klem | Rp 35.000 | Jalur hisap air dari Tandon → Housing Filter Sedimen → Inlet Pompa. |
-| 27 | Splitter Misting | **Fitting Tee 6mm Polos + End Plug 6mm** | Quick Fitting Slip-Lock 6mm | 3 Pcs Tee + 4 Pcs Plug + 1 Pcs Siku | Rp 35.000 | Fitting Tee polos untuk trunk & cabang 2 baris tengah (x 3,1 m); Plug untuk 4 ujung baris; Siku untuk belokan trunk. |
+| 27 | Splitter Misting | **Fitting Tee 6mm Polos + End Plug 6mm** | Quick Fitting Slip-Lock 6mm | 3 Pcs Tee + 4 Pcs Plug + 1 Pcs Siku | Rp 35.000 | Fitting Tee polos untuk trunk & cabang 2 baris tengah (x 3,1 m); Plug untuk 4 ujung baris; Siku untuk belokan trunk (sediakan 4 Pcs Tee bila manometer T2 dipasang permanen di jalur tekan). |
 | 28 | Sealtape | **Seal Tape Kran Putih (Teflon Tape)** | Tebal rapat, panjang 10 meter | 2 Gulung | Rp 5.000 | Melapisi drat pompa, filter, dan solenoid agar 100% anti-rembes di tekanan 130 PSI. |
 | 29 | Klip Gantung | **Klip Klem Selang 6mm / Cable Clamp R-Type** | Klem paku/sekrup selang PU ke bambu/kayu | 40 Pcs | Rp 20.000 | Menjaga selang PU tetap lurus dan tidak melendut di ketinggian 3 meter. |
 | **G** | **KOMPONEN PROTEKSI ELEKTRONIK & COMMISSIONING** | | | | | |
@@ -144,8 +144,8 @@ flowchart TD
 Untuk mengeliminasi risiko kerugian pengadaan, pembelian wajib dilakukan dalam 3 gelombang bertahap dengan gerbang uji (*acceptance gate*) di setiap akhir gelombang:
 
 ### 🔹 Gelombang 1: Sensor & Uji Bangku I2C (Budget: ± Rp 576.000)
-* **Item:** ESP32, Screw Terminal Shield, TCA9548A, 3× SHT30 IP68, Kabel FTP Cat5e (25 m), Resistor Pull-up 2.2 kΩ, LCD 16×2 I2C, Heat Shrink 12 mm.
-* **Gerbang Uji 1:** Rangkai ketiga sensor di meja kerja menggunakan kabel FTP sepanjang ukuran final (±8 meter per sensor). Jalankan I2C pada clock 50 kHz. Pastikan data suhu dan kelembapan ketiga sensor terbaca stabil selama 2 jam tanpa satupun pembacaan `NaN`.
+* **Item:** ESP32, Screw Terminal Shield, TCA9548A, 3× SHT30 IP68, Kabel FTP Cat5e (30 m disarankan / 25 m), Resistor Pull-up 2.2 kΩ, LCD 16×2 I2C, Heat Shrink 12 mm.
+* **Gerbang Uji 1:** Rangkai ketiga sensor di meja kerja menggunakan kabel FTP sepanjang ukuran final (±9,6 meter pada sensor A, ±6,6–7,2 m pada sensor B & C). Jalankan I2C pada clock 50 kHz. Pastikan data suhu dan kelembapan ketiga sensor terbaca stabil selama 2 jam tanpa satupun pembacaan `NaN`.
 
 ### 🔹 Gelombang 2: Kendali & Daya (Budget: ± Rp 871.000)
 * **Item:** Modul Relay 4-Ch, SMPS 12V 10A, LM2596 (2 pcs), Box IP65, Kabel Daya DC/AC, RCBO 30 mA, Bohlam Pijar Uji (T6), Dioda Flyback (1N5408 & 1N4007), Snubber RC, Fuse 10A, Elco Filter.
@@ -157,6 +157,6 @@ Untuk mengeliminasi risiko kerugian pengadaan, pembelian wajib dilakukan dalam 3
 ### 🔹 Gelombang 3: Hidrolik & Misting (Budget: ± Rp 1.277.000)
 * **Item:** Pompa Diafragma 12V 130–160 PSI, Solenoid Valve Kuningan 12V, Exhaust Fan 10", 16 Set Nozzle Brass 0.3mm + Tee Slip-Lock, Selang PU 6mm, Housing Filter Spun 5 µm, Manometer 0–200 PSI, Nepel Selang 1/2".
 * **Gerbang Uji 3:**
-  1. Rangkai jalur hidrolik: Tandon → Selang spiral 1/2" → Filter 5 µm → Solenoid → Pompa → Manometer → Selang PU 6mm → 14 Nozzle.
+  1. Rangkai jalur hidrolik: Tandon → Selang spiral 1/2" → Filter 5 µm → Pompa → Manometer (Tee) → [Opsional: Strainer Mesh 100–200] → Solenoid Valve NC → Selang PU 6mm → Trunk → 14 Nozzle. (Solenoid di sisi tekan setelah pompa sebagai *anti-drip* seketika).
   2. Nyalakan pompa, amati jarum manometer: setel baut pressure switch agar tekanan kerja stabil di rentang **6–8 Bar (85–115 PSI)**.
   3. Uji kabut selama 90 detik: pastikan seluruh 14 nozzle mengabutkan air secara seragam tanpa tetesan kasar dan tanpa kebocoran di sambungan slip-lock.

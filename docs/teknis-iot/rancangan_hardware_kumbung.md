@@ -1,13 +1,13 @@
 # Rancangan Hardware Kumbung — ESP32 → Misting & Exhaust Fan
-**Smart Shroom SCM — Spesifikasi Fisik & As-Built Hardware**
+**Smart Shroom SCM — Konsep Desain & Visualisasi Pemodelan Referensi**
 
-Dokumen ini adalah **rancangan fisik (as-built plan)** untuk kumbung **7 m × 5 m (tinggi dinding 3 m, atap pelana; volume nominal udara ±122,5 m³ tanpa plafon, 105 m³ bila berplafon)**
-dengan BoM terbaru (3× SHT30 I2C + TCA9548A). Daftar belanja ada di `docs/teknis-iot/hardware-shopping-list.md`.
-Logika kendali tetap mengacu `docs/logika-bisnis/logika_aktuator.md` (firmware v3.6).
+Dokumen ini adalah **konsep rancangan visual dan model referensi** untuk kumbung **7 m × 5 m (tinggi dinding 3 m, atap pelana; volume nominal udara ±122,5 m³ tanpa plafon, 105 m³ bila berplafon)**
+dengan BoM terbaru (3× SHT30 I2C + TCA9548A). Daftar belanja acuan pengadaan ada di `docs/teknis-iot/hardware-shopping-list.md`.
+Logika kendali tetap mengacu `docs/logika-bisnis/logika_aktuator.md` (firmware v3.6.1-HARDENED).
 
-> **Status asumsi & acuan gambar.** Tata letak mengikuti sketsa 25-10-2026; acuan koordinat adalah gambar kerja G-01 … G-05.
+> **Status Dokumen: Visualisasi & Model Referensi.** Dimensi, denah, dan gambar kerja (G-01 s/d G-05) berfungsi sebagai **rekayasa pemodelan visual dan referensi digital twin** (perhitungan volume udara & estimasi jalur pipa/kabel). Tata letak dan struktur rak fisik di lapangan bersifat adaptif mengikuti kondisi bangunan eksisting kumbung mitra.
 > Kalau kondisi lapangan beda, hitung ulang tabel di bagian 3 & 4 dengan rumus yang sama.
-> Harga & angka debit adalah **perkiraan**; verifikasi di lapangan (lihat bagian 8).
+> Harga & angka debit adalah **perkiraan empiris**; verifikasi di lapangan (lihat bagian 8).
 
 ---
 
@@ -121,7 +121,7 @@ Kabel 220 V dan kabel sensor **wajib beda konduit** (gangguan & keselamatan).
 Pasang klip selang tiap ±0,4–0,6 m → **±30–40 klip** (selang PU melendut kalau tidak dijepit).
 
 ### 3.4 Konsumsi air (perkiraan)
-Nozzle 0,3 mm @ 5–7 bar ≈ 0,07–0,10 L/menit → 14 nozzle ≈ **1,0–1,4 L/menit**.
+Nozzle 0,3 mm @ 6–8 bar ≈ 0,08–0,11 L/menit → 14 nozzle ≈ **1,1–1,5 L/menit** (estimasi empiris).
 Satu siklus maks 90 s ≈ 1,5–2,1 L. Pemakaian realistis 50–100 L/hari; skenario terburuk
 (siklus 90 s + cooldown 150 s sepanjang 11 jam siang) ≈ 330 L/hari. **Tandon ≥ 200 L** (idealnya 500 L) + pelampung.
 
@@ -140,8 +140,8 @@ Beban DC (SMPS 12 V 10 A = 120 W):
 | **Total puncak** | **±6,7 A (80 W)** | **67 % kapasitas → aman** |
 
 Sisi AC: SMPS saat pompa jalan ≈ 80 W/0,85 ≈ 0,45 A. Fan 10" ≈ 80–120 W ≈ 0,5 A.
-Karena firmware **melarang misting saat fan ON** (interlock), puncak AC realistis ≈ **0,6 A** → MCB 2 A cukup.
-Kalau sering *trip* saat fan start (inrush), naikkan ke 4 A.
+Karena firmware **melarang misting saat fan ON** (interlock), puncak AC realistis ≈ **0,6 A** (beban total normal ±1,3 A).
+Proteksi utama wajib menggunakan **RCBO 1P+N 30 mA (4–6 A)** untuk keselamatan pekerja dari bahaya sengatan listrik di lingkungan basah (RH 90%+) dan mengantisipasi *inrush current* SMPS/fan. MCB 2–4 A dapat dipasang sebagai opsi proteksi sekunder tambahan.
 
 ---
 
@@ -151,9 +151,10 @@ Kalau sering *trip* saat fan start (inrush), naikkan ke 4 A.
 
 ```mermaid
 flowchart LR
-    AC["220V AC"] --> ELCB["RCBO 30mA (opsional-disarankan)"] --> MCB["MCB 2A"]
-    MCB --> SMPS["SMPS 12V 10A"]
-    MCB -- "Fase (L)" --> R3["Relay CH3 (NO/COM)"]
+    AC["220V AC"] --> RCBO["RCBO 1P+N 30mA 4–6A (Utama/Wajib)"]
+    RCBO -.-> MCB["MCB Tambahan (Opsional)"]
+    RCBO --> SMPS["SMPS 12V 10A"]
+    RCBO -- "Fase (L)" --> R3["Relay CH3 (NO/COM)"]
     SMPS -- "+12V" --> FUSE["Fuse 10A"] --> BUS["Bus +12V / GND"]
     BUS --> BUCK["LM2596 (set 5.0V!)"]
     BUCK -- "5V" --> ESP["ESP32 VIN (via terminal shield)"]
@@ -226,7 +227,7 @@ Uji dengan multimeter (bagian 7, langkah 3).
 |:---|:---|:---|
 | **Pompa 12 V** | +12 V(setelah fuse) → COM1; NO1 → pompa(+); pompa(−) → GND | Dioda **1N5408** melintang motor (katoda ke +), kapasitor 100 nF keramik di terminal motor |
 | **Solenoid 12 V** | +12 V → COM2; NO2 → solenoid(+); solenoid(−) → GND | Dioda **1N4007** melintang koil (katoda ke +) |
-| **Fan 220 V** | Fase (setelah MCB) → COM3; NO3 → fan L; Netral langsung ke fan N; **PE ke bodi fan** | **RC snubber** (0,1 µF X2 + 100 Ω 2 W) melintang COM3–NO3 |
+| **Fan 220 V** | Fase (setelah RCBO/MCB) → COM3; NO3 → fan L; Netral langsung ke fan N; **PE ke bodi fan** | **RC snubber** (0,1 µF X2 + 100 Ω 2 W) melintang COM3–NO3 |
 
 Aturan umum: hanya **fase** yang disaklar; netral & PE tidak lewat relay. Bodi SMPS metal & bodi fan wajib terhubung **PE**.
 
@@ -238,15 +239,16 @@ Letakkan ESP32 dengan antena menjauh dari bodi metal SMPS.
 ### 5.6 Hidrolik
 
 ```
-Tandon ─ selang 1/2" ─ [Filter sedimen 1µm] ─ selang 1/2" ─ [POMPA] ─ PU6 ─ [SOLENOID NC] ─ tembus dinding ─ trunk ─ Tee ─ 2 baris nozzle
-                        (sisi isap, bukan sisi tekan)          │
-                                                        (opsional) manometer 0–200 PSI
+Tandon ─ selang 1/2" ─ [Filter sedimen 5µm] ─ selang 1/2" ─ [POMPA] ─ PU6 ─ [Manometer (Tee)] ─ [Opsional: Strainer] ─ [SOLENOID NC] ─ tembus dinding ─ trunk ─ Tee ─ 2 baris nozzle
+                        (sisi isap, bukan sisi tekan)                                               │
+                                                                                        (sisi tekan anti-drip)
 ```
-- **Filter di sisi isap** (housing plastik tidak tahan 130 PSI). Wajib kedap udara (seal tape), ganti cartridge tiap 1–2 bulan — cartridge buntu = pompa kavitasi.
+- **Filter 5 µm di sisi isap** (housing plastik tidak tahan tekanan tinggi; cartridge spun 5 µm melindungi pompa tanpa memicu kavitasi). Wajib kedap udara (seal tape), ganti cartridge tiap 1–2 bulan.
+- **Solenoid di sisi tekan (setelah pompa):** Bertindak sebagai *anti-drip* instan memutus aliran seketika saat pompa mati agar nozzle tidak menetes. Rating tekanan solenoid kuningan wajib $\ge 10\text{ bar}$.
+- Opsional: Pasang strainer mesh 100–200 di sisi tekan sebelum solenoid untuk proteksi ekstra lubang nozzle dari kerak mikro.
 - Selang isap memakai **selang 1/2" berkawat/anyaman**, bukan PU 6 mm.
 - Urutan firmware sudah benar: **solenoid buka → 200 ms → pompa ON**; stop: **pompa OFF → 200 ms → solenoid tutup**.
-- Solenoid berada di sisi tekan → **rating tekanan harus ≥ tekanan cut-off pompa** (lihat daftar belanja).
-- Target tekanan kerja nozzle **5–7 bar (70–100 PSI)**. Cek rating selang/fitting; bila cut-off pompa > rating, turunkan setelan pressure switch.
+- Target tekanan kerja nozzle disetel **6–8 bar (85–115 PSI)** melalui penyetelan baut pressure switch pompa dengan acuan pembacaan manometer.
 - Setelah solenoid menutup, sisa tekanan di jalur membuat nozzle menetes beberapa detik. Kalau mengganggu, ganti nozzle dengan tipe **anti-tetes** (ada check valve).
 
 ---

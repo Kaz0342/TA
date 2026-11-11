@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * Smart Shroom Controller (SSC) — ULTIMATE VERSION v3.5
+ * Smart Shroom Controller (SSC) — ULTIMATE VERSION v3.6.1-HARDENED
  * ============================================================
  * 
  * Firmware ESP32 untuk monitoring & kontrol otomatis 
@@ -328,7 +328,7 @@ void setup() {
   // Inisialisasi Sensor Mikroklimat
 #if USE_SHT30
   Wire.begin(21, 22);
-  Wire.setClock(50000);   // 50 kHz I2C clock untuk kabel panjang Cat5e (>7m)
+  Wire.setClock(50000);   // 50 kHz I2C clock untuk kabel panjang Cat5e (sampai ±9,6 m)
   Wire.setTimeOut(100);   // Non-blocking I2C timeout (100ms) cegah bus freeze jika kabel sensor copot
   Serial.println("[I2C] Inisialisasi Bus I2C @ 50kHz & TCA9548A Multiplexer...");
   for (uint8_t i = 0; i < 3; i++) {
